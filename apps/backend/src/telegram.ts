@@ -2,6 +2,7 @@ import { timingSafeEqual } from "node:crypto";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { saveIncomingNote } from "./repositories/intake.ts";
+import { telegramCommand } from "./telegram-commands.ts";
 
 export function telegramRoutes(organizationId: string, secret: string) {
   const app = new Hono();
@@ -32,6 +33,21 @@ export function telegramRoutes(organizationId: string, secret: string) {
       return c.json({ error: "Invalid message" }, 400);
     }
     try {
+      const commandReply = await telegramCommand({
+        organizationId,
+        userId: String(sender?.id),
+        updateId: String(update.update_id),
+        text: message.text,
+        name: typeof sender?.first_name === "string" ? sender.first_name : "Scout",
+        botToken: process.env.TELEGRAM_BOT_TOKEN,
+      });
+      if (commandReply !== null)
+        return c.json({
+          method: "sendMessage",
+          chat_id: chat?.id,
+          text: commandReply,
+          link_preview_options: { is_disabled: true },
+        });
       const result = await saveIncomingNote({
         organizationId,
         channel: "telegram",

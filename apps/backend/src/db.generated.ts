@@ -31,6 +31,18 @@ export interface ChannelIdentity {
   organization_id: string;
 }
 
+export interface Invitation {
+  created_at: Generated<Timestamp>;
+  created_by: string;
+  id: Generated<string>;
+  label: string;
+  organization_id: string;
+  revoked_at: Timestamp | null;
+  source_update_id: string;
+  token_hash: string;
+  uses: Generated<number>;
+}
+
 export interface Member {
   created_at: Generated<Timestamp>;
   id: Generated<string>;
@@ -65,6 +77,7 @@ export interface RawEntry {
 
 export interface DB {
   channel_identity: ChannelIdentity;
+  invitation: Invitation;
   member: Member;
   organization: Organization;
   raw_entry: RawEntry;
