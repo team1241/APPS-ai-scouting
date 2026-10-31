@@ -9,7 +9,8 @@ try {
   const migrator = new Migrator({
     db,
     provider: new FileMigrationProvider({
-      fs, path,
+      fs,
+      path,
       migrationFolder: fileURLToPath(new URL("./migrations/", import.meta.url)),
     }),
   });

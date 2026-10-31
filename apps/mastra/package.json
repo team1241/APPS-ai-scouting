@@ -11,7 +11,8 @@
   "dependencies": {
     "@mastra/core": "^1.80.0",
     "@mastra/pg": "^1.33.0",
-    "zod": "^4.6.7"
+    "zod": "^4.6.7",
+    "@ai-scouting/scouting": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",

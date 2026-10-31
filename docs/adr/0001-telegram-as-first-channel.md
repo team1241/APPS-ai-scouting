@@ -21,13 +21,13 @@ Use a Telegram bot as the only channel at first.
 
 ## Options rejected
 
-| Option | Reason |
-|---|---|
+| Option                 | Reason                                                                                                                                             |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
 | SMS (Twilio or Telnyx) | Students at Worlds may not have a usable number. US delivery needs A2P 10DLC or toll-free verification. Phones stop retrying after a few failures. |
-| Discord bot | As far as we know, messages sent offline fail and need a manual resend. Reading free text needs an always-on gateway connection. |
-| WhatsApp | Needs Meta business verification. Replies cost money after 1,000 per month. |
-| PWA | iOS can clear its storage. More to build. |
-| Native app (Expo) | Most reliable, but needs an Apple Developer account and more build time. Telegram covers most of the same needs. |
+| Discord bot            | As far as we know, messages sent offline fail and need a manual resend. Reading free text needs an always-on gateway connection.                   |
+| WhatsApp               | Needs Meta business verification. Replies cost money after 1,000 per month.                                                                        |
+| PWA                    | iOS can clear its storage. More to build.                                                                                                          |
+| Native app (Expo)      | Most reliable, but needs an Apple Developer account and more build time. Telegram covers most of the same needs.                                   |
 
 ## Consequences
 

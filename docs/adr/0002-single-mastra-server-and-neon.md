@@ -25,12 +25,12 @@ Run one persistent Mastra server on Railway, with one Neon Postgres database.
 
 ## Options rejected
 
-| Option | Reason |
-|---|---|
-| Two servers with data sync | More failure points, more to deploy |
-| Supabase | Its Realtime and database webhooks are not needed with Telegram. Neon is preferred. |
-| Serverless functions | Long AI calls, the sweeper and event mode suit a persistent process |
-| Render free plan | Slow wake from sleep |
+| Option                     | Reason                                                                              |
+| -------------------------- | ----------------------------------------------------------------------------------- |
+| Two servers with data sync | More failure points, more to deploy                                                 |
+| Supabase                   | Its Realtime and database webhooks are not needed with Telegram. Neon is preferred. |
+| Serverless functions       | Long AI calls, the sweeper and event mode suit a persistent process                 |
+| Render free plan           | Slow wake from sleep                                                                |
 
 ## When to revisit
 

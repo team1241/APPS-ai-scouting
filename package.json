@@ -12,6 +12,14 @@
     "db:generate": "pnpm --filter @ai-scouting/backend db:generate",
     "db:types:check": "pnpm --filter @ai-scouting/backend db:types:check",
     "db:migrate": "pnpm --filter @ai-scouting/backend db:migrate",
-    "db:sync": "pnpm --filter @ai-scouting/backend db:sync"
+    "db:sync": "pnpm --filter @ai-scouting/backend db:sync",
+    "lint": "biome lint .",
+    "format": "biome format --write .",
+    "check": "biome check .",
+    "check:fix": "biome check --write .",
+    "test:build-compat": "node --test scripts/mastra-lockfile.test.mjs"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.6.4"
   }
 }

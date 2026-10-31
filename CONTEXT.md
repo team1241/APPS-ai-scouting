@@ -2,19 +2,19 @@
 
 ## Terms
 
-| Term | Meaning |
-|---|---|
-| **Organization** | A tenant. One FRC team that uses the system and owns its scouting data. |
-| **Member** | A person in an organization. Role is `scout`, `strategist` or `admin`. |
-| **Channel identity** | A link from a Telegram user ID (later, other channels) to a member. |
-| **Raw entry** | One message exactly as received. Never edited. |
-| **Observation** | Structured data extracted from a raw entry about one FRC team. Kinds: `match`, `pit`, `general`. |
-| **FRC team** | A team being scouted. Do not confuse with an organization. |
-| **Event** | An FRC competition, for example a district event or Worlds. Only one event is active at a time. |
-| **Match** | One match at an event, with three red and three blue teams. |
-| **Follow-up question** | A message from the bot asking a scout for missing information about one or more raw entries. |
-| **Event mode** | Server state that keeps the server and database awake during an event. |
-| **Season schema** | A versioned Zod schema for the game-specific metrics of one season. |
+| Term                   | Meaning                                                                                          |
+| ---------------------- | ------------------------------------------------------------------------------------------------ |
+| **Organization**       | A tenant. One FRC team that uses the system and owns its scouting data.                          |
+| **Member**             | A person in an organization. Role is `scout`, `strategist` or `admin`.                           |
+| **Channel identity**   | A link from a Telegram user ID (later, other channels) to a member.                              |
+| **Raw entry**          | One message exactly as received. Never edited.                                                   |
+| **Observation**        | Structured data extracted from a raw entry about one FRC team. Kinds: `match`, `pit`, `general`. |
+| **FRC team**           | A team being scouted. Do not confuse with an organization.                                       |
+| **Event**              | An FRC competition, for example a district event or Worlds. Only one event is active at a time.  |
+| **Match**              | One match at an event, with three red and three blue teams.                                      |
+| **Follow-up question** | A message from the bot asking a scout for missing information about one or more raw entries.     |
+| **Event mode**         | Server state that keeps the server and database awake during an event.                           |
+| **Season schema**      | A versioned Zod schema for the game-specific metrics of one season.                              |
 
 ## Draft data model
 

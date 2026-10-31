@@ -20,7 +20,7 @@ Add a timestamp-prefixed TypeScript file to `apps/backend/src/migrations`, for e
 
 Run `pnpm db:sync`, then `pnpm typecheck`, and commit the migration and generated types together. Review migrations before applying them to production. The migration runner only moves forward and exits with an error on failure; it always closes its connection pool.
 
-Types come from the actual database schema, not from parsing migration source. No migration snapshot files are produced. The checked-in DB interface is initially an empty bootstrap because no scouting tables have been created; replace it with codegen output once a database is connected. Never manually maintain generated table interfaces.
+Types come from the actual database schema, not from parsing migration source. No migration snapshot files are produced. The checked-in DB interface is generated from the intake tables. Generation explicitly includes `public.*` and excludes Kysely bookkeeping tables, keeping Mastra storage out of backend types. Never manually maintain generated table interfaces.
 
 ## Automated verification
 
@@ -37,3 +37,17 @@ The Mastra deployment uses `MASTRA_DATABASE_URL`, separate from the backend conn
 Public access to the `mastra` and `public` schemas is revoked. Backend roles that do not own the scouting schema must receive explicit schema and table grants. Future schemas must also revoke PUBLIC access to preserve isolation. Credentials are stored in the Mastra production environment, never in Git.
 
 The Postgres storage adapter initializes its tables automatically. Local development uses a separate `ai_scouting_mastra_dev` login on the Neon development branch, restricted to its own `mastra` schema. Its connection is stored in the ignored `apps/mastra/.env` as `MASTRA_DATABASE_URL`. Production credentials must not be used for local development.
+
+## Intake schema and tenant context
+
+The initial migration creates `organization`, `member`, `channel_identity`, and `raw_entry`. Composite foreign keys prevent an identity or raw entry from naming a member in another organization. Delivery IDs are unique per organization and channel; they are text to preserve external identifiers without JavaScript integer conversion. This assumes one bot per channel; multiple bots require a transport-account key before onboarding them.
+
+All four tables enforce row-level security using `app.organization_id`. Run tenant operations inside a transaction and set the context with `SELECT set_config('app.organization_id', tenant_id, true)` on that same transaction connection. Missing context returns no rows and prevents inserts. Use an application role without superuser or BYPASSRLS privileges; the Neon owner connection is administrative and does not demonstrate runtime isolation. Initial organization creation must use an explicit UUID matching the transaction context.
+
+Channel identities are scoped to an organization, so webhook routing must resolve the organization through a trusted bot configuration or enrollment flow before querying identities. Raw message text and receipt metadata are immutable application data; processing may update status and follow-up linkage.
+
+## Backend repositories
+
+Application queries live in `apps/backend/src/repositories/`. Routes and setup commands call operations such as `saveIncomingNote` and `enrollMember`; they do not build SQL queries. Repositories own transaction boundaries, tenant context, and persistence rules. `withTenant` sets transaction-local RLS context on the same connection as the queries. Enrollment serializes on the organization row so concurrent retries reuse one member. Database lifecycle and health checks are exposed by `repositories/database.ts`.
+
+The connection factory, migrations, generated types, and integration-test fixtures remain database infrastructure. Mastra uses its own storage adapter and schema.

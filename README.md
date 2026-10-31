@@ -24,3 +24,7 @@ Kysely handles scouting queries and migrations. See [the database workflow](docs
 Project skills for Codex live in `.agents/skills/`; Claude Code uses relative symlinks in `.claude/skills/` to the same files. They cover Neon Postgres, Neon branching, and Mastra development across both apps.
 
 Upstream repositories and pinned commit revisions are recorded in `.agents/skills-sources.json`. To update, download the selected skill directories from a reviewed upstream commit, replace their matching directories in `.agents/skills/`, and update the recorded revision together. Keep the Claude symlinks pointing to the shared copies.
+
+## Code quality
+
+Run `pnpm check` for Biome lint, formatting, and import checks across the workspace. Use `pnpm check:fix` for safe fixes, `pnpm format` to format, or `pnpm lint` for lint only. Run `pnpm typecheck` separately for TypeScript checks. The shared root configuration uses two-space indentation and excludes generated database types and vendored agent skills.

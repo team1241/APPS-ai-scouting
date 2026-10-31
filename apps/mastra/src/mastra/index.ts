@@ -1,7 +1,12 @@
 import { Mastra } from "@mastra/core/mastra";
 import { PostgresStore } from "@mastra/pg";
 
+import { extractor } from "./agents/extractor.ts";
+import { extractionWorkflow } from "./workflows/extraction.ts";
+
 export const mastra = new Mastra({
+  agents: { extractor },
+  workflows: { "scouting-extraction": extractionWorkflow },
   storage: process.env.MASTRA_DATABASE_URL
     ? new PostgresStore({
         id: "ai-scouting-storage",

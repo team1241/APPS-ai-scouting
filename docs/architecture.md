@@ -30,15 +30,15 @@ Telegram Bot API ──webhook──→ Mastra server (Railway)
                  TBA sync job ───┘  (events, teams, match schedule)
 ```
 
-| Component | Choice | Purpose |
-|---|---|---|
-| Channel | Telegram bot | Input from scouts and questions from strategists |
-| Server | Mastra on Railway | Webhook, AI workflows, TBA sync, sweeper, event mode |
-| Database | Neon Postgres | Raw entries, observations, reference data |
-| Event data | The Blue Alliance API v3 | Events, teams and match schedules |
-| Extraction model | Claude Haiku 5.5 (`claude-haiku-5-5`), effort `low` | Free text to structured observation |
-| Analysis model | Claude Sonnet 5.5 (`claude-sonnet-5-5`) | Strategist questions |
-| Optional output | Discord webhook | Match prep summaries to a strategy channel |
+| Component        | Choice                                              | Purpose                                              |
+| ---------------- | --------------------------------------------------- | ---------------------------------------------------- |
+| Channel          | Telegram bot                                        | Input from scouts and questions from strategists     |
+| Server           | Mastra on Railway                                   | Webhook, AI workflows, TBA sync, sweeper, event mode |
+| Database         | Neon Postgres                                       | Raw entries, observations, reference data            |
+| Event data       | The Blue Alliance API v3                            | Events, teams and match schedules                    |
+| Extraction model | Claude Haiku 5.5 (`claude-haiku-5-5`), effort `low` | Free text to structured observation                  |
+| Analysis model   | Claude Sonnet 5.5 (`claude-sonnet-5-5`)             | Strategist questions                                 |
+| Optional output  | Discord webhook                                     | Match prep summaries to a strategy channel           |
 
 ## Data flow
 
@@ -71,11 +71,11 @@ Telegram Bot API ──webhook──→ Mastra server (Railway)
 
 Event mode keeps Railway and Neon awake during events and lets them sleep at other times, so the free plans are enough.
 
-| | Event mode on | Event mode off |
-|---|---|---|
-| Sweeper | Every minute | Off |
+|         | Event mode on                                                    | Event mode off                                         |
+| ------- | ---------------------------------------------------------------- | ------------------------------------------------------ |
+| Sweeper | Every minute                                                     | Off                                                    |
 | Railway | Sweeper queries are outbound traffic, so the service stays awake | Sleeps after about 10 minutes with no outbound traffic |
-| Neon | Stays awake | Suspends after about 5 minutes idle |
+| Neon    | Stays awake                                                      | Suspends after about 5 minutes idle                    |
 
 How event mode turns on:
 
@@ -91,13 +91,13 @@ The connection pool must close idle connections quickly (short `idleTimeoutMilli
 
 ## Cost estimate (USD)
 
-| Item | Per month |
-|---|---|
-| Railway | $0 on the free plan, or about $5 on Hobby |
-| Neon | $0 on the free plan |
-| Telegram | $0 |
+| Item       | Per month                                                 |
+| ---------- | --------------------------------------------------------- |
+| Railway    | $0 on the free plan, or about $5 on Hobby                 |
+| Neon       | $0 on the free plan                                       |
+| Telegram   | $0                                                        |
 | Claude API | About $0 with no event; about $2 to $10 in an event month |
-| **Total** | **Below $20** |
+| **Total**  | **Below $20**                                             |
 
 Claude estimate for one event: about 2,000 extraction calls on Haiku 5.5 cost about $1. About 100 strategist questions on Sonnet 5.5 cost about $6. Measure real usage at the first event.
 

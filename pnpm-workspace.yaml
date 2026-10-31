@@ -4,3 +4,6 @@ packages:
 
 allowBuilds:
   esbuild: true
+
+patchedDependencies:
+  "@mastra/deployer@1.80.0": patches/@mastra__deployer@1.80.0.patch

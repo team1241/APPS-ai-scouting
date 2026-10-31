@@ -1,0 +1,51 @@
+diff --git a/dist/services-BJQJLQs9.js b/dist/services-BJQJLQs9.js
+index d38e40ed11beb34e3007da4ad34306d008458d78..055381a838f431cd19c30681085c81dab66c7e91 100644
+--- a/dist/services-BJQJLQs9.js
++++ b/dist/services-BJQJLQs9.js
+@@ -3,7 +3,7 @@ import fsPromises from "fs/promises";
+ import path, { dirname } from "path";
+ import { ErrorCategory, ErrorDomain, MastraError } from "@mastra/core/error";
+ import fsExtra, { ensureFile, readJSON, writeJSON } from "fs-extra/esm";
+-import { parse, stringify } from "yaml";
++import { parse, parseAllDocuments, stringify } from "yaml";
+ import { spawn } from "child_process";
+ import { fileURLToPath } from "url";
+ import { MastraBase } from "@mastra/core/base";
+@@ -345,21 +345,26 @@ async function isYarnClassicLockfile(lockfilePath) {
+ * installed and the dependency symlink dangles. Without the entries, pnpm resolves them from the overrides.
+ */
+ async function dropPnpmImporterDependencies(lockfilePath, packageNames) {
+-	const lockfile = parse(await fsPromises.readFile(lockfilePath, "utf-8"));
++	const documents = parseAllDocuments(await fsPromises.readFile(lockfilePath, "utf-8"));
+ 	let changed = false;
+-	for (const importer of Object.values(lockfile?.importers ?? {})) for (const field of [
+-		"dependencies",
+-		"devDependencies",
+-		"optionalDependencies"
+-	]) {
+-		const dependencies = importer?.[field];
+-		for (const name of packageNames) if (dependencies && name in dependencies) {
+-			delete dependencies[name];
+-			changed = true;
++	for (const document of documents) {
++		if (document.errors.length) throw document.errors[0];
++		const lockfile = document.toJS();
++		for (const [importerName, importer] of Object.entries(lockfile?.importers ?? {})) {
++			for (const field of ["dependencies", "devDependencies", "optionalDependencies"]) {
++				const dependencies = importer?.[field];
++				for (const name of packageNames) {
++					if (dependencies && name in dependencies) {
++						document.deleteIn(["importers", importerName, field, name]);
++						changed = true;
++					}
++				}
++			}
+ 		}
+ 	}
+-	if (changed) await fsPromises.writeFile(lockfilePath, stringify(lockfile, { lineWidth: 0 }));
++	if (changed) await fsPromises.writeFile(lockfilePath, documents.map(document => document.toString({ lineWidth: 0 })).join("\n"));
+ }
++
+ var Deps = class extends MastraBase {
+ 	packageManager;
+ 	rootDir;

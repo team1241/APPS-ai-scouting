@@ -8,10 +8,10 @@
 
 Two apps in one pnpm workspace, each a Railway service. One Neon database.
 
-| App | Stack | Owns |
-|---|---|---|
+| App            | Stack           | Owns                                                                                                  |
+| -------------- | --------------- | ----------------------------------------------------------------------------------------------------- |
 | `apps/backend` | Hono on Node 24 | Telegram webhook, raw entries, all writes to scouting tables, TBA sync, sweeper, event mode, data API |
-| `apps/mastra` | Mastra | Agents and workflows (extraction, strategist chat) |
+| `apps/mastra`  | Mastra          | Agents and workflows (extraction, strategist chat)                                                    |
 
 ## Rules
 

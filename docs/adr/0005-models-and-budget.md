@@ -9,18 +9,18 @@ Budget is about $20 USD per month for all services. Extraction runs on every mes
 
 ## Decision
 
-| Task | Model | Settings |
-|---|---|---|
-| Extraction | Claude Haiku 5.5 (`claude-haiku-5-5`) | Effort `low`, structured output with the season schema |
-| Strategist chat | Claude Sonnet 5.5 (`claude-sonnet-5-5`) | Default effort, tools for data queries |
+| Task            | Model                                   | Settings                                               |
+| --------------- | --------------------------------------- | ------------------------------------------------------ |
+| Extraction      | Claude Haiku 5.5 (`claude-haiku-5-5`)   | Effort `low`, structured output with the season schema |
+| Strategist chat | Claude Sonnet 5.5 (`claude-sonnet-5-5`) | Default effort, tools for data queries                 |
 
 Prices at 2026-10-06, per million tokens: Haiku 5.5 is $0.10 input and $0.50 output. Sonnet 5.5 is $2 input and $10 output.
 
 ## Estimate for one event
 
-| Task | Assumptions | Cost |
-|---|---|---|
-| Extraction | 2,000 messages, about 2,000 input and 500 output tokens each | About $1 |
+| Task            | Assumptions                                                    | Cost     |
+| --------------- | -------------------------------------------------------------- | -------- |
+| Extraction      | 2,000 messages, about 2,000 input and 500 output tokens each   | About $1 |
 | Strategist chat | 100 questions, about 20,000 input and 2,000 output tokens each | About $6 |
 
 ## Rules
