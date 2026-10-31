@@ -1,0 +1,40 @@
+name: Production readiness
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-readiness
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    name: Validate and migrate production
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Install dependencies
+        run: npx --yes pnpm@12.3.4 install --frozen-lockfile
+      - name: Check code
+        run: |
+          npx --yes pnpm@12.3.4 check
+          npx --yes pnpm@12.3.4 typecheck
+          npx --yes pnpm@12.3.4 test:build-compat
+          node --test packages/scouting/src/extraction.test.ts apps/backend/src/extraction-config.test.ts apps/backend/src/mastra-client.test.ts apps/backend/src/extraction-reply.test.ts
+      - name: Apply production migrations and verify generated types
+        env:
+          DATABASE_URL: ${{ secrets.PRODUCTION_MIGRATION_DATABASE_URL }}
+        run: |
+          test -n "$DATABASE_URL" || { echo "Missing production migration secret"; exit 1; }
+          touch apps/backend/.env
+          npx --yes pnpm@12.3.4 db:migrate
+          npx --yes pnpm@12.3.4 db:types:check

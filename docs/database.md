@@ -57,3 +57,9 @@ The connection factory, migrations, generated types, and integration-test fixtur
 Production scouting migrations are applied. The `ai_scouting_backend` runtime role has schema usage, read access to organizations/members/channel identities, and select/insert/update access to raw entries. It has no schema creation, role administration, RLS bypass, or Mastra schema access. Use its pooled connection for the deployed backend. Administrative migration and enrollment tasks continue to use a separate owner connection.
 
 The ignored `apps/backend/.env.render` contains the pooled runtime URL and production organization ID for transfer to Render. It contains no bot token or owner credential. Do not use it for local development or commit it.
+
+## Production deployment pipeline
+
+GitHub Actions runs `Production readiness` on every push to `main`. It installs pinned pnpm dependencies, runs code checks, applies pending migrations, and checks generated database types. Set `PRODUCTION_MIGRATION_DATABASE_URL` as a repository Actions secret containing the production owner's unpooled connection. Only the migration step receives it; Render's backend keeps using its restricted pooled login.
+
+Render's deployment trigger is configured to wait for checks to pass (`checksPass`). A failed migration prevents automatic deployment. Keep this trigger enabled and do not bypass it with manual deploys before resolving failed checks. Production jobs are serialized without cancelling running migrations. Schema changes must remain compatible with the previously deployed backend until rollout completes.
