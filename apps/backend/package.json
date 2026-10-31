@@ -5,16 +5,22 @@
   "scripts": {
     "dev": "node --watch --env-file-if-exists=.env src/index.ts",
     "start": "node src/index.ts",
-    "typecheck": "tsc"
+    "typecheck": "tsc",
+    "db:generate": "kysely-codegen --dialect postgres --env-file .env --default-schema public --out-file src/db.generated.ts",
+    "db:types:check": "pnpm db:generate --verify",
+    "db:migrate": "node --env-file-if-exists=.env src/migrate.ts",
+    "db:sync": "pnpm db:migrate && pnpm db:generate"
   },
   "dependencies": {
     "@hono/node-server": "^2.1.5",
     "hono": "^4.13.14",
+    "kysely": "^0.29.7",
     "pg": "^8.23.1"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",
     "@types/pg": "^8.23.1",
+    "kysely-codegen": "^0.20.0",
     "typescript": "^7.0.2"
   }
 }

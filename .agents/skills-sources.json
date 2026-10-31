@@ -1,0 +1,17 @@
+[
+  {
+    "repository": "neondatabase/agent-skills",
+    "revision": "d3da7cb5436edbb2bc8c00747fafd31ddf0644f4",
+    "skills": [
+      "neon-postgres",
+      "neon-postgres-branches"
+    ]
+  },
+  {
+    "repository": "mastra-ai/skills",
+    "revision": "34180fa43c67fe38197f30d8d975fb73454156aa",
+    "skills": [
+      "mastra"
+    ]
+  }
+]

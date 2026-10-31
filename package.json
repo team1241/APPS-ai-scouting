@@ -8,6 +8,10 @@
   "scripts": {
     "dev": "pnpm -r --parallel dev",
     "build": "pnpm -r build",
-    "typecheck": "pnpm -r typecheck"
+    "typecheck": "pnpm -r typecheck",
+    "db:generate": "pnpm --filter @ai-scouting/backend db:generate",
+    "db:types:check": "pnpm --filter @ai-scouting/backend db:types:check",
+    "db:migrate": "pnpm --filter @ai-scouting/backend db:migrate",
+    "db:sync": "pnpm --filter @ai-scouting/backend db:sync"
   }
 }

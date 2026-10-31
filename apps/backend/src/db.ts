@@ -6,3 +6,8 @@ export const pool = new pg.Pool({
   max: 5,
   idleTimeoutMillis: 10_000,
 });
+
+import { Kysely, PostgresDialect } from "kysely";
+import type { DB } from "./db.generated.ts";
+
+export const db = new Kysely<DB>({ dialect: new PostgresDialect({ pool }) });

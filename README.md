@@ -14,3 +14,13 @@ Scouts send free-text notes (typed or dictated) to a Telegram bot. The server st
 ## Status
 
 Scaffold stage. `apps/backend` and `apps/mastra` run but have no features yet. Run `pnpm install`, then `pnpm dev`.
+
+## Database development
+
+Kysely handles scouting queries and migrations. See [the database workflow](docs/database.md) for setup, migration authoring, type generation, and automated drift checks.
+
+## Agent skills
+
+Project skills for Codex live in `.agents/skills/`; Claude Code uses relative symlinks in `.claude/skills/` to the same files. They cover Neon Postgres, Neon branching, and Mastra development across both apps.
+
+Upstream repositories and pinned commit revisions are recorded in `.agents/skills-sources.json`. To update, download the selected skill directories from a reviewed upstream commit, replace their matching directories in `.agents/skills/`, and update the recorded revision together. Keep the Claude symlinks pointing to the shared copies.
