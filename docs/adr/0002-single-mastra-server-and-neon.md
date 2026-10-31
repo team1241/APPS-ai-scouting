@@ -1,6 +1,6 @@
 # 0002: One Mastra server and one Neon database
 
-- Status: Accepted
+- Status: Superseded by [0006](0006-backend-and-mastra-apps.md)
 - Date: 2026-10-31
 
 ## Context

@@ -13,4 +13,4 @@ Scouts send free-text notes (typed or dictated) to a Telegram bot. The server st
 
 ## Status
 
-Design stage. No code yet.
+Scaffold stage. `apps/backend` and `apps/mastra` run but have no features yet. Run `pnpm install`, then `pnpm dev`.
