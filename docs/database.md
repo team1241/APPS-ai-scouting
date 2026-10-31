@@ -29,3 +29,11 @@ In CI, provision a disposable Postgres database or Neon branch, provide DATABASE
 Kysely checks queries at compile time. Validate incoming webhook and AI data separately at runtime. JSONB structure requires application-level validation and deliberate type overrides when its domain model is defined.
 
 References: [Kysely migrations](https://kysely-org.github.io/kysely-apidoc/classes/migration.Migrator.html), [kysely-codegen](https://github.com/RobinBlomberg/kysely-codegen).
+
+## Mastra production storage
+
+The Mastra deployment uses `MASTRA_DATABASE_URL`, separate from the backend connection. Its dedicated `ai_scouting_mastra` login has `USAGE` and `CREATE` on the `mastra` schema, and no elevated role attributes or memberships. The database administrator owns the schema; Mastra owns the tables it creates there. Administrators retain access.
+
+Public access to the `mastra` and `public` schemas is revoked. Backend roles that do not own the scouting schema must receive explicit schema and table grants. Future schemas must also revoke PUBLIC access to preserve isolation. Credentials are stored in the Mastra production environment, never in Git.
+
+The Postgres storage adapter initializes its tables automatically. Local development uses a separate `ai_scouting_mastra_dev` login on the Neon development branch, restricted to its own `mastra` schema. Its connection is stored in the ignored `apps/mastra/.env` as `MASTRA_DATABASE_URL`. Production credentials must not be used for local development.
