@@ -51,3 +51,9 @@ Channel identities are scoped to an organization, so webhook routing must resolv
 Application queries live in `apps/backend/src/repositories/`. Routes and setup commands call operations such as `saveIncomingNote` and `enrollMember`; they do not build SQL queries. Repositories own transaction boundaries, tenant context, and persistence rules. `withTenant` sets transaction-local RLS context on the same connection as the queries. Enrollment serializes on the organization row so concurrent retries reuse one member. Database lifecycle and health checks are exposed by `repositories/database.ts`.
 
 The connection factory, migrations, generated types, and integration-test fixtures remain database infrastructure. Mastra uses its own storage adapter and schema.
+
+## Production backend access
+
+Production scouting migrations are applied. The `ai_scouting_backend` runtime role has schema usage, read access to organizations/members/channel identities, and select/insert/update access to raw entries. It has no schema creation, role administration, RLS bypass, or Mastra schema access. Use its pooled connection for the deployed backend. Administrative migration and enrollment tasks continue to use a separate owner connection.
+
+The ignored `apps/backend/.env.render` contains the pooled runtime URL and production organization ID for transfer to Render. It contains no bot token or owner credential. Do not use it for local development or commit it.

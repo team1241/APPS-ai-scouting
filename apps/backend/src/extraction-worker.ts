@@ -1,8 +1,13 @@
-import { extractionResultSchema, finalizeExtraction } from "@ai-scouting/scouting";
 import { extractionReply } from "./extraction-reply.ts";
+import { extractNote } from "./mastra-client.ts";
 import { claimExtraction, failExtraction, finishExtraction } from "./repositories/extraction.ts";
 
-export function startExtractionWorker(organizationId: string, baseUrl: string, botToken: string) {
+export function startExtractionWorker(
+  organizationId: string,
+  baseUrl: string,
+  botToken: string,
+  serviceToken?: string,
+) {
   let running = false;
   const tick = async () => {
     if (running) return;
@@ -11,21 +16,7 @@ export function startExtractionWorker(organizationId: string, baseUrl: string, b
     try {
       entry = await claimExtraction(organizationId);
       if (!entry) return;
-      const response = await fetch(
-        new URL("/api/workflows/scouting-extraction/start-async", baseUrl),
-        {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ inputData: { text: entry.text } }),
-          signal: AbortSignal.timeout(90000),
-        },
-      );
-      if (!response.ok) throw Error("Mastra request failed");
-      const execution = (await response.json()) as { status?: string; result?: unknown };
-      if (execution.status !== "success") throw Error("Extraction workflow did not succeed");
-      const parsed = extractionResultSchema.parse(execution.result);
-      // Recompute completeness at the backend boundary rather than trusting model status.
-      const result = finalizeExtraction(parsed.values);
+      const result = await extractNote(baseUrl, entry.text, serviceToken);
       if (!result.question) {
         const saved = await finishExtraction(organizationId, entry.id, entry.lease, result, null);
         if (saved.numUpdatedRows !== 1n) throw Error("Extraction lease expired before save");

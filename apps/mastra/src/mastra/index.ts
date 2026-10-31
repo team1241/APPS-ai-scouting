@@ -1,4 +1,5 @@
 import { Mastra } from "@mastra/core/mastra";
+import { SimpleAuth } from "@mastra/core/server";
 import { PostgresStore } from "@mastra/pg";
 
 import { extractor } from "./agents/extractor.ts";
@@ -17,6 +18,18 @@ export const mastra = new Mastra({
       })
     : undefined,
   server: {
+    auth: process.env.MASTRA_SERVICE_TOKEN
+      ? new SimpleAuth({
+          tokens: { [process.env.MASTRA_SERVICE_TOKEN]: { id: "scouting-backend" } },
+          authorizeUser: (_user, request) => {
+            const req = request instanceof Request ? request : request.raw;
+            return (
+              req?.method === "POST" &&
+              new URL(req.url).pathname === "/api/workflows/scouting-extraction/start-async"
+            );
+          },
+        })
+      : undefined,
     port: Number(process.env.PORT ?? 4111),
   },
 });
