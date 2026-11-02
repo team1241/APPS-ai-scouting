@@ -1,30 +1,18 @@
 # FRC Scouting Assistant
 
-An AI assistant that collects scouting data from students at FRC events and helps the team prepare for matches.
+Team 1241's scouting assistant collects typed or keyboard-dictated Telegram notes, stores the original messages, extracts structured data, and asks for missing information. Strategy tools and automatic match notifications are planned.
 
-Scouts send free-text notes (typed or dictated) to a Telegram bot. The server stores each message, extracts structured observations with an LLM, and asks the scout a question when information is missing. Strategists ask the same bot questions about teams and matches.
+## Documentation
 
-## Documents
+- [System specification](docs/system-specification.md): requirements, architecture choices, implementation snapshot, event configuration, future features, costs, and open decisions.
+- [Development guide](docs/development.md): local setup, database migrations, tests, build compatibility, and shared agent skills.
+- [Operations guide](docs/operations.md): production configuration, release workflow, and invitation management.
+- [Contribution instructions](AGENTS.md): repository-specific issue, branch, and pull-request conventions.
 
-- [Architecture](docs/architecture.md): components, data flow and event mode
-- [Domain context](CONTEXT.md): terms and draft data model
-- [Decision records](docs/adr/): main architecture decisions and the reasons for them
-- [Open questions](docs/open-questions.md): items to check before or during the build
+## Work tracking
 
-## Status
+Use the [AI Scouting project](https://github.com/orgs/team1241/projects/1) and [GitHub issues](https://github.com/team1241/APPS-ai-scouting/issues) for priorities, acceptance criteria, dependencies, and progress. Durable requirements live in the specification.
 
-Scaffold stage. `apps/backend` and `apps/mastra` run but have no features yet. Run `pnpm install`, then `pnpm dev`.
+## Getting started
 
-## Database development
-
-Kysely handles scouting queries and migrations. See [the database workflow](docs/database.md) for setup, migration authoring, type generation, and automated drift checks.
-
-## Agent skills
-
-Project skills for Codex live in `.agents/skills/`; Claude Code uses relative symlinks in `.claude/skills/` to the same files. They cover Neon Postgres, Neon branching, and Mastra development across both apps.
-
-Upstream repositories and pinned commit revisions are recorded in `.agents/skills-sources.json`. To update, download the selected skill directories from a reviewed upstream commit, replace their matching directories in `.agents/skills/`, and update the recorded revision together. Keep the Claude symlinks pointing to the shared copies.
-
-## Code quality
-
-Run `pnpm check` for Biome lint, formatting, and import checks across the workspace. Use `pnpm check:fix` for safe fixes, `pnpm format` to format, or `pnpm lint` for lint only. Run `pnpm typecheck` separately for TypeScript checks. The shared root configuration uses two-space indentation and excludes generated database types and vendored agent skills.
+Use Node 24+ and the pinned pnpm version, run `pnpm install`, configure development environment files, then run `pnpm dev`. Follow the development guide to enroll a dev Telegram account and register a tunnel webhook.
