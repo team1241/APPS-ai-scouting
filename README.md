@@ -9,6 +9,8 @@ Team 1241's scouting assistant collects typed or keyboard-dictated Telegram note
 - [Operations guide](docs/operations.md): production configuration, release workflow, and invitation management.
 - [Contribution instructions](AGENTS.md): repository-specific issue, branch, and pull-request conventions.
 
+- [Privacy notice](docs/privacy-notice.md) and [privacy boundaries](docs/privacy.md): audience, data handling, vendor review, and release requirements.
+
 ## Work tracking
 
 Use the [AI Scouting project](https://github.com/orgs/team1241/projects/1) and [GitHub issues](https://github.com/team1241/APPS-ai-scouting/issues) for priorities, acceptance criteria, dependencies, and progress. Durable requirements live in the specification.

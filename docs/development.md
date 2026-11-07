@@ -42,7 +42,7 @@ Use the dev bot and development Neon branch with the local backend, Mastra, and 
 5. Send a new note. Expect another no-active-event rejection.
 6. Restore scouting with `/event set 2026 ONOSH`, or restore the event that was active before the test.
 
-In local Mastra Studio (`http://localhost:4111/studio`), inspect Workflows → scouting-session → Runs and Traces. Rejected submissions never reach Mastra. The accepted note and its follow-up share a run ID; extraction/model spans appear in the trace.
+In local Mastra Studio (`http://localhost:4111/studio`), inspect Workflows → scouting-session → Runs using synthetic data. Rejected submissions never reach Mastra. The accepted note and its follow-up share a run ID; workflow snapshots hold recovery state; content-free traces are available.
 
 The backend owns membership/admin checks, active-event admission, FIRST lookups, delivery deduplication, persistence and Telegram replies. Mastra owns extraction, specification completeness and workflow suspension/resumption. Neon enforces tenant isolation and relational constraints. Reference acquisition and participation validation are implemented in #2 and #3; this checklist verifies event context. Use the validation tests below for schedule correctness.
 
@@ -101,11 +101,11 @@ After dependency upgrades, run `pnpm test:build-compat` and `pnpm --filter @ai-s
 Neon and Mastra skills live in `.agents/skills`; Claude Code uses relative symlinks from `.claude/skills`. Upstream sources and pinned revisions are in `.agents/skills-sources.json`. Update selected skill directories from a reviewed upstream commit, update the recorded revision together, and preserve the symlinks. These are shared repository tooling, not application packages.
 
 
-## Mastra traces
+## Mastra privacy and recovery
 
-Run the local Mastra dev server and open Studio’s Traces view. `@mastra/observability` records workflow/step spans and extractor/model child spans. Traces persist in the configured Mastra storage schema; when platform credentials are available, the platform exporter also forwards them to Mastra Platform. Sensitive-data filtering is enabled. The service token stays restricted to the session endpoint and does not grant trace access.
+Studio traces retain hierarchy, span type, start/end time, allowlisted outcome, token totals and a generic failure marker. Opaque run UUIDs allow per-run lookup. The same strict output allowlist protects local trace storage and Mastra Platform; no note text, model input/output, arbitrary metadata, request context, dynamic span names or raw errors are exported. Separate log/metric/score/feedback events are not forwarded. Generic secret filtering remains defense in depth, not the privacy boundary.
 
-Only new executions produce traces; previously completed runs are not backfilled. A resumed session may produce another trace branch/execution segment tied to the same workflow run ID. Retried cached turns do not invoke the model again. Inspect input/output and timing in Studio, and track trace storage/observability usage alongside the model budget.
+Use synthetic notes and inspect private workflow recovery state when full payloads are needed for debugging. Durable snapshots still contain input/output and need the retention controls in [Privacy boundaries](privacy.md). Run IDs and timing permit correlation, so traces remain restricted operational telemetry rather than anonymous data, with a 30-day retention limit. The service token is restricted to the session endpoint and does not grant Studio access. New exporters must be wrapped with `privateTraceExporter`; do not register an unfiltered exporter or bridge.
 
 
 ## Event development
