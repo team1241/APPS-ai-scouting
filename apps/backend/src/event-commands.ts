@@ -29,7 +29,13 @@ function describe(
     | "tba_event_key"
   >,
 ) {
-  return `${e.name} (${e.season}${e.frc_event_code ? ` ${e.frc_event_code}` : ""})\n${date(e.start_date)}–${date(e.end_date)} · ${e.timezone}\nSpecification: ${e.specification_version}\nTBA: ${e.tba_event_key ?? "not linked (no unique automatic match yet)"}\nSchedule validation: ${e.validation_mode} (schedule checks not implemented yet)`;
+  return `${e.name} (${e.season}${e.frc_event_code ? ` ${e.frc_event_code}` : ""})\n${date(e.start_date)}–${date(e.end_date)} · ${e.timezone}\nSpecification: ${e.specification_version}\nTBA: ${e.tba_event_key ?? "not linked (no unique automatic match yet)"}\nSchedule validation: ${e.validation_mode}`;
+}
+function validationSummary(value: unknown): string {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return "validation pending";
+  const v = value as Record<string, unknown>;
+  const status = typeof v.status === "string" ? v.status.replaceAll("_", " ") : "pending";
+  return `${v.mode ?? "warn"}: ${status}${v.conflictSessionId ? `; separate-note decision needed (${v.conflictSessionId})` : ""}${v.unverifiedConsent ? "; unverified save acknowledged" : ""}`;
 }
 export async function eventCommand(
   input: {
@@ -48,10 +54,14 @@ export async function eventCommand(
   if (command === "events" || (command === "event" && !arg)) {
     const context = await readEvents(organizationId, userId);
     if (!context) return "Your account is not enrolled.";
-    if (command === "event")
+    if (command === "event") {
+      const open = context.sessions.length
+        ? `\nYour open sessions (latest 5):\n${context.sessions.map((s) => `${s.id} · ${s.name} (event ${s.event_id}) · ${s.match_label ?? "match unknown"} · team ${s.team_number ?? "unknown"} · ${validationSummary(s.validation_result)}`).join("\n")}`
+        : "";
       return context.active
-        ? `Active scouting event:\n${describe(context.active)}\n${context.active.id}\nNew notes use this event; existing sessions keep their event.`
-        : "No active scouting event. New notes cannot be submitted. Ask an admin to use /event set <season> <FRC event code>.";
+        ? `Active scouting event:\n${describe(context.active)}\n${context.active.id}\nSchedule: ${context.schedule?.state}; saved ${context.schedule?.receivedAt?.toISOString() ?? "never"}. Automatic polling stops after acquisition; later changes require explicit admin sync.\nNew notes use this event; existing sessions keep their event.${open}`
+        : `No active scouting event. New notes cannot be submitted. Ask an admin to use /event set <season> <FRC event code>.${open}`;
+    }
     return context.events.length
       ? "Most recent events (up to 15):\n" +
           context.events
@@ -97,7 +107,7 @@ export async function eventCommand(
         const notifications = data.scheduleNotifications.length
           ? `\nAdmin notifications: ${data.scheduleNotifications.map((n) => n.status).join(", ")}.`
           : "";
-        return `${data.teams.length} cached teams; ${data.matches.length} cached matches.\n${schedule}${notifications}\n${data.sync.map((s) => `${s.source}: ${s.status}, ${s.freshness}; last success ${s.succeeded_at?.toISOString() ?? "never"}`).join("\n") || "No full reference imports."}`;
+        return `${data.teams.length} cached teams; ${data.matches.length} cached matches. Snapshot: ${data.scheduleState}.\n${schedule}${notifications}\n${data.sync.map((s) => `${s.source}: ${s.status}, ${s.freshness}; last success ${s.succeeded_at?.toISOString() ?? "never"}`).join("\n") || "No full reference imports."}`;
       }
       if (operation?.toLowerCase() === "link-tba") {
         if (!source) return "Use /event link-tba <event-id> <TBA-event-key>.";
@@ -121,6 +131,18 @@ export async function eventCommand(
     } catch {
       return "Reference command unavailable. An admin must select a team-owned event and configure the explicit provider link and credentials.";
     }
+  }
+  const validation = /^validation\s+(\S+)\s+(off|warn|strict)$/i.exec(arg);
+  if (validation?.[1] && validation[2] && uuidPattern.test(validation[1])) {
+    const mode = validation[2].toLowerCase() as "off" | "warn" | "strict";
+    const result = await changeEvent(organizationId, userId, updateId, {
+      kind: "validation",
+      eventId: validation[1],
+      mode,
+    });
+    return result.status === "ok"
+      ? `Schedule validation set to ${mode} for ${result.eventId}. Raw notes are always preserved; existing open sessions use this mode on their next turn.`
+      : "Only admins can change validation for a team-owned event.";
   }
   let action: EventAction;
   {
@@ -163,7 +185,7 @@ export async function eventCommand(
     } else if ((kind === "archive" || kind === "restore") && uuidPattern.test(rest))
       action = { kind, eventId: rest };
     else
-      return "Event metadata comes from FIRST. Use /event add <season> <FRC code>, /event set <season> <FRC code>, or /event refresh <season> <FRC code>. Other commands: /event, /events, /event off, /event archive <id>, /event restore <id>.";
+      return "Event metadata comes from FIRST. Use /event add <season> <FRC code>, /event set <season> <FRC code>, or /event refresh <season> <FRC code>. Other commands: /event, /events, /event off, /event archive <id>, /event restore <id>, /event validation <id> off|warn|strict.";
   }
   const result = await changeEvent(organizationId, userId, updateId, action);
   const tbaStatus =

@@ -188,12 +188,14 @@ export interface ScoutingSession {
   created_at: Generated<Timestamp>;
   event_id: string | null;
   id: string;
+  match_id: string | null;
   match_label: string | null;
   member_id: string;
   organization_id: string;
   specification_version: string;
   status: Generated<string>;
   team_number: number | null;
+  validation_result: Json | null;
 }
 
 export interface DB {

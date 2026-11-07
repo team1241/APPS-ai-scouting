@@ -83,9 +83,11 @@ export function telegramRoutes(organizationId: string, secret: string) {
               ? "Your note was not submitted because no event is active. Ask a team admin to select one with /event set <season> <FRC code>, then resend your note."
               : result === "invalid_event"
                 ? "Your note was not submitted because the selected event is unavailable. Check /events and resend it with a valid event."
-                : result === "legacy_session"
-                  ? "This older session has no event. Your reply was not submitted. Check /event, then resend the complete note as a new message."
-                  : `Received your scouting note. Processing it now…\nEvent: ${result.eventName}`,
+                : result === "completed_session"
+                  ? "That session is complete. Corrections are not supported yet (#4); this reply was not added or submitted as a new note."
+                  : result === "legacy_session"
+                    ? "This older session has no event. Your reply was not submitted. Check /event, then resend the complete note as a new message."
+                    : `Received your scouting note. Processing it now…\nEvent: ${result.eventName}`,
       });
     } catch {
       console.error("Telegram intake database transaction failed");

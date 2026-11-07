@@ -65,6 +65,7 @@ test("authenticated Telegram intake persists and deduplicates notes", async () =
         .values({
           organization_id: id,
           name: "Intake practice",
+          validation_mode: "off",
           season: 2026,
           type: "practice",
           start_date: "2026-11-07",
@@ -141,10 +142,22 @@ test("authenticated Telegram intake persists and deduplicates notes", async () =
     assert.equal(completedSession.status, "complete");
     assert.ok(completedSession.completed_at);
     assert.equal(root.text, update.message.text);
+    assert.equal(
+      await saveIncomingNote({
+        organizationId: id,
+        channel: "telegram",
+        externalUserId: "123",
+        externalUpdateId: "44",
+        text: "correction",
+        replyToMessageId: "999",
+      }),
+      "completed_session",
+    );
   } finally {
     await tenant(async (tx) => {
       for (const table of [
         "raw_entry",
+        "intake_rejection",
         "organization_event_setting",
         "event",
         "channel_identity",

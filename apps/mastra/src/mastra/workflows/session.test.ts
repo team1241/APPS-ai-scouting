@@ -70,3 +70,29 @@ test("transient extractor failures preserve the run for a retry, and concurrent 
   assert.equal(calls, 2);
   assert.ok(results.every((r) => r.status === "complete"));
 });
+
+test("backend validation can request another turn after complete extraction on the same run", async () => {
+  const storage = new InMemoryStore();
+  const create = () => {
+    const workflow = createSessionWorkflow(async (text) =>
+      finalizeExtraction({
+        match: "Q1",
+        team_number: text.includes("corrected") ? 1242 : 1241,
+        climbed: false,
+        notes: null,
+      }),
+    );
+    new Mastra({ storage, workflows: { "scouting-session": workflow } });
+    return workflow;
+  };
+  const id = randomUUID();
+  const turn = { text: "complete note", turnId: "b".repeat(64), deferFinalization: true };
+  const workflow = create();
+  assert.equal((await advanceSession(workflow, id, turn)).status, "complete");
+  assert.equal((await workflow.getWorkflowRunById(id))?.status, "suspended");
+  assert.equal(
+    (await advanceSession(create(), id, { ...turn, text: "corrected", turnId: "c".repeat(64) }))
+      .values.team_number,
+    1242,
+  );
+});

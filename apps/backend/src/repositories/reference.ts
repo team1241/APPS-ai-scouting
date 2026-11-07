@@ -1,4 +1,5 @@
 import { sql } from "kysely";
+import { scheduleState } from "../participation.ts";
 import {
   object,
   type ReferenceMatch,
@@ -179,18 +180,7 @@ export function readReference(organizationId: string, userId: string, eventId: s
     return {
       schedulePoll,
       scheduleNotifications,
-      scheduleState: schedulePoll?.received_at
-        ? "saved"
-        : matches.length === 0
-          ? "absent"
-          : sync.some(
-                (s) =>
-                  s.succeeded_at &&
-                  s.status !== "failed" &&
-                  Date.now() - s.succeeded_at.getTime() <= 300_000,
-              )
-            ? "fresh"
-            : "stale",
+      scheduleState: scheduleState(schedulePoll?.received_at, matches.length, sync),
       teams: teams.map(
         (t) =>
           ({ id: t.id, ...resolveFacts(t.facts, t.manual_override) }) as ReferenceTeam & {
