@@ -9,6 +9,7 @@ interface IncomingNote {
   externalUpdateId: string;
   text: string;
   replyToMessageId?: string;
+  replyDeliveryId?: string;
   eventId?: string;
   correctionRevisionId?: string;
   reextract?: boolean;
@@ -86,7 +87,28 @@ export function saveIncomingNote(
             .select(["id", "status"])
             .where("organization_id", "=", note.organizationId)
             .where("member_id", "=", identity.member_id)
-            .where("follow_up_message_id", "=", note.replyToMessageId)
+            .where((eb) =>
+              eb.or([
+                eb("follow_up_message_id", "=", note.replyToMessageId as string),
+                eb.exists(
+                  eb
+                    .selectFrom("outbound_delivery")
+                    .select("id")
+                    .whereRef("outbound_delivery.session_id", "=", "raw_entry.id")
+                    .where("outbound_delivery.organization_id", "=", note.organizationId)
+                    .where("outbound_delivery.recipient", "=", note.externalUserId)
+                    .where("outbound_delivery.question", "=", true)
+                    .where((eb) =>
+                      eb.or([
+                        eb("outbound_delivery.message_id", "=", note.replyToMessageId as string),
+                        ...(note.replyDeliveryId
+                          ? [eb("outbound_delivery.id", "=", note.replyDeliveryId)]
+                          : []),
+                      ]),
+                    ),
+                ),
+              ]),
+            )
             .where("parent_entry_id", "is", null)
             .forUpdate()
             .limit(2)

@@ -2,6 +2,7 @@ import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { extractionConfig } from "./extraction-config.ts";
 import { startExtractionWorker } from "./extraction-worker.ts";
+import { startOutboundWorker } from "./outbound-worker.ts";
 import { checkDatabase } from "./repositories/database.ts";
 import { telegramRoutes } from "./telegram.ts";
 
@@ -40,3 +41,6 @@ if (extraction) {
     extraction.serviceToken,
   );
 }
+
+if (process.env.TELEGRAM_ORGANIZATION_ID && process.env.TELEGRAM_BOT_TOKEN)
+  startOutboundWorker(process.env.TELEGRAM_ORGANIZATION_ID, process.env.TELEGRAM_BOT_TOKEN);

@@ -9,14 +9,10 @@ import { parseEventConfig } from "./event-config.ts";
 import { cleanupPublished } from "./published-test-cleanup.ts";
 import type { ReferenceProvider } from "./reference-provider.ts";
 import { changeEvent } from "./repositories/events.ts";
-import {
-  claimExtraction,
-  failExtraction,
-  finishExtraction,
-  recordExtractionQuestion,
-} from "./repositories/extraction.ts";
+import { claimExtraction, failExtraction, finishExtraction } from "./repositories/extraction.ts";
 import { saveIncomingNote } from "./repositories/intake.ts";
 import { enrollMember } from "./repositories/members.ts";
+import { claimDelivery, settleDelivery } from "./repositories/outbound.ts";
 import { overrideReference, readReference, syncReference } from "./repositories/reference.ts";
 import { withTenant } from "./repositories/tenant.ts";
 import { runScheduleJob } from "./schedule-job.ts";
@@ -331,7 +327,7 @@ test("question delivery retries retain validation and a concurrent reply invalid
         .where("organization_id", "=", org)
         .where("id", "=", id)
         .executeTakeFirstOrThrow();
-      assert.equal(raw.status, "failed");
+      assert.equal(raw.status, "needs_review");
       assert.ok(raw.extraction_result);
       await tx
         .updateTable("raw_entry")
@@ -340,10 +336,13 @@ test("question delivery retries retain validation and a concurrent reply invalid
         .where("id", "=", id)
         .execute();
     });
-    const retry = await claimExtraction(org);
-    assert.ok(retry);
-    await finishExtraction(org, id, retry.lease, complete, null);
-    await recordExtractionQuestion(org, id, retry.lease, "delivered");
+    assert.equal(await claimExtraction(org), null);
+    const delivery = await claimDelivery(org);
+    assert.ok(delivery && !delivery.cancelled);
+    await settleDelivery(org, delivery.id, delivery.lease_token, {
+      status: "sent",
+      messageId: "delivered",
+    });
     await note(org, "1", "delivered", "More details");
     const older = await claimExtraction(org);
     assert.ok(older);
@@ -817,4 +816,71 @@ test("flag requests preserve observations, deduplicate concurrent retries, and a
     assert.equal(retained?.[0]?.revision_id, before[0].id);
     assert.equal(retained?.[0]?.revision_current, false);
     assert.equal(await claimExtraction(org), null, "flagging never queues extraction work");
+  }));
+
+test("an accepted question with lost delivery persistence routes by its reference after scouting is paused", async () =>
+  fixture(async (org, event) => {
+    await mode(org, event, "off");
+    const id = await note(org);
+    const claim = await claimExtraction(org);
+    assert.ok(claim);
+    await finishExtraction(
+      org,
+      id,
+      claim.lease,
+      finalizeExtraction({ match: "Q1", team_number: 1241, climbed: null, notes: null }),
+      null,
+    );
+    const delivery = await claimDelivery(org);
+    assert.ok(delivery && !delivery.cancelled);
+    // Simulate Telegram accepting, then process loss before recording message_id.
+    await claimDelivery(org, new Date(Date.now() + 120000));
+    await withTenant(org, (tx) =>
+      tx
+        .updateTable("organization_event_setting")
+        .set({ active_event_id: null })
+        .where("organization_id", "=", org)
+        .execute(),
+    );
+    const reply = await saveIncomingNote({
+      organizationId: org,
+      channel: "telegram",
+      externalUserId: "1",
+      externalUpdateId: next(),
+      text: "No climb",
+      replyToMessageId: "unrecorded",
+      replyDeliveryId: delivery.id,
+    });
+    assert.equal(typeof reply, "object");
+    if (typeof reply === "object") assert.equal(reply.sessionId, id);
+    const resumed = await claimExtraction(org);
+    assert.ok(resumed);
+    assert.equal(resumed.id, id);
+    const completed = finalizeExtraction({
+      match: "Q1",
+      team_number: 1241,
+      climbed: false,
+      notes: null,
+    });
+    await finishExtraction(org, id, resumed.lease, completed, null);
+    const confirmation = await claimDelivery(org);
+    assert.ok(confirmation && !confirmation.cancelled);
+    await settleDelivery(org, confirmation.id, confirmation.lease_token, {
+      status: "failed",
+      error: "Telegram rejection 403",
+    });
+    assert.equal(await claimExtraction(org), null);
+    assert.equal(
+      (await finishExtraction(org, id, resumed.lease, completed, null)).numUpdatedRows,
+      0n,
+    );
+    const revisions = await withTenant(org, (tx) =>
+      tx
+        .selectFrom("observation_revision")
+        .select("id")
+        .where("organization_id", "=", org)
+        .where("session_id", "=", id)
+        .execute(),
+    );
+    assert.equal(revisions.length, 1);
   }));

@@ -1,7 +1,9 @@
 import { createHash } from "node:crypto";
 import { type ExtractionResult, finalizeExtraction } from "@ai-scouting/scouting";
 import { sql } from "kysely";
+import { extractionReply } from "../extraction-reply.ts";
 import { sessionSpecification } from "./observations.ts";
+import { enqueueDelivery } from "./outbound.ts";
 import { validateSessionInTransaction } from "./participation.ts";
 import { withTenant } from "./tenant.ts";
 
@@ -296,12 +298,12 @@ export function finishExtraction(
     const updated = await tx
       .updateTable("raw_entry")
       .set({
-        status: result.status === "complete" ? "done" : messageId ? "needs_review" : "processing",
+        status: result.status === "complete" ? "done" : "needs_review",
         extraction_result: JSON.stringify(result),
         follow_up_message_id: result.question
           ? (messageId ?? raw.follow_up_message_id)
           : raw.follow_up_message_id,
-        processing_started_at: result.question && !messageId ? lease : null,
+        processing_started_at: null,
       })
       .where("organization_id", "=", organizationId)
       .where("id", "=", id)
@@ -342,6 +344,28 @@ export function finishExtraction(
       .executeTakeFirst();
     if (revision)
       notice = `${revision.outcome}. Revision ${revision.id}. To request an investigation: /flag ${result.values.team_number} [match-number] [note]. Team requests: /flags.`;
+    const identity = await tx
+      .selectFrom("channel_identity")
+      .select("external_id")
+      .where("organization_id", "=", organizationId)
+      .where("member_id", "=", raw.member_id)
+      .where("channel", "=", "telegram")
+      .executeTakeFirstOrThrow();
+    const turns = await tx
+      .selectFrom("raw_entry")
+      .select("id")
+      .where("organization_id", "=", organizationId)
+      .where("parent_entry_id", "=", id)
+      .orderBy("id")
+      .execute();
+    await enqueueDelivery(tx, {
+      organization_id: organizationId,
+      logical_key: `session:${id}:${createHash("sha256").update(JSON.stringify(turns)).digest("hex")}`,
+      recipient: identity.external_id,
+      session_id: id,
+      question: Boolean(result.question),
+      text: `${result.question ?? extractionReply(result)}${notice ? `\n${notice}` : ""}`,
+    });
     return { ...updated, result, notice };
   });
 }
@@ -358,29 +382,6 @@ export function failExtraction(organizationId: string, id: string, lease: Date) 
       .where("organization_id", "=", organizationId)
       .where("id", "=", id)
       .where("processing_started_at", "=", lease)
-      .execute(),
-  );
-}
-
-// Delivery metadata is recorded independently after the validated draft has committed.
-export function recordExtractionQuestion(
-  organizationId: string,
-  id: string,
-  lease: Date,
-  messageId: string,
-) {
-  return withTenant(organizationId, (tx) =>
-    tx
-      .updateTable("raw_entry")
-      .set({
-        follow_up_message_id: messageId,
-        status: "needs_review",
-        processing_started_at: null,
-      })
-      .where("organization_id", "=", organizationId)
-      .where("id", "=", id)
-      .where("processing_started_at", "=", lease)
-      .where("status", "=", "processing")
       .execute(),
   );
 }

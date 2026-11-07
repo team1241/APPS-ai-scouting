@@ -52,7 +52,7 @@ jobs:
           npx --yes pnpm@12.3.4 db:migrate
           npx --yes pnpm@12.3.4 db:types:check
       - name: Verify reference imports and schedule delivery
-        run: node --test --test-concurrency=1 apps/backend/src/participation.test.ts apps/backend/src/participation.integration.test.ts apps/backend/src/reference.test.ts apps/backend/src/events.test.ts apps/backend/src/schedule-job.test.ts apps/backend/src/reference-provider.test.ts apps/backend/src/tba-event-link.test.ts apps/backend/src/schedule-policy.test.ts apps/backend/src/schedule-provider.test.ts
+        run: node --test --test-concurrency=1 apps/backend/src/outbound.test.ts apps/backend/src/telegram.test.ts apps/backend/src/invitations.test.ts apps/backend/src/participation.test.ts apps/backend/src/participation.integration.test.ts apps/backend/src/reference.test.ts apps/backend/src/events.test.ts apps/backend/src/schedule-job.test.ts apps/backend/src/reference-provider.test.ts apps/backend/src/tba-event-link.test.ts apps/backend/src/schedule-policy.test.ts apps/backend/src/schedule-provider.test.ts
 
   migrate:
     if: github.event_name != 'pull_request'
