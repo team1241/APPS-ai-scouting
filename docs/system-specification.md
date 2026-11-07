@@ -223,7 +223,7 @@ The approximately USD $20/month operating goal remains provisional, excluding ta
 
 The user-selected disposable event measured queue/recovery behavior and local process resources, with no real model requests. Neon CU-hours, actual tokens, hosting allocations and platform overages remain unmeasured. The modeled Railway/model/Launch subtotal is $7.522 under the documented assumptions, excluding unknown overages and additional account-wide traffic. Always-active 0.25-CU Neon compute alone can cost $19.08/month at the cited Launch rate. Do not promise the $20 goal before measuring the actual account's development/production/cron and event workload.
 
-Follow-ups and retries increase extraction attempts; strategy/briefings add workloads beyond the extraction-only model. Use native Mastra token/cost metrics, provider billing and Neon/Railway usage for the same reporting interval. Idle worker controls reduce continuous database polling but recovery/acquisition cron, traces and health/database probes still have costs. Configure spend alerts and review event usage before changing tiers or adding strategy automation.
+Follow-ups and retries increase extraction attempts; strategy/briefings add workloads beyond the extraction-only model. Use privacy-filtered Mastra span token totals where present, provider billing and Neon/Railway usage for the same reporting interval. Separate Mastra metric events are intentionally suppressed by #19; do not assume complete Metrics API totals. Idle worker controls reduce continuous database polling but recovery/acquisition cron, traces and health/database probes still have costs. Configure spend alerts and review event usage before changing tiers or adding strategy automation.
 
 ## 11. Automatic match notifications
 

@@ -88,7 +88,7 @@ Deploy the event migration before the backend. On rollout, historical eventless 
 3. Merge the reviewed change. Verify Production readiness applies all migrations and checks generated types before Railway deploys; keep Wait for CI enabled.
 4. Confirm Railway's `/health` reports the intended commit and `/health/db` succeeds.
 5. In the production bot, use an enrolled admin account to select the intended season/code with `/event set`, then inspect `/event` before asking scouts to submit notes.
-6. Verify one complete submission/follow-up and its Studio trace. Retain historical eventless records without assigning them automatically.
+6. Verify one complete submission/follow-up and its private workflow recovery state. Retain historical eventless records without assigning them automatically.
 
 This event feature changes only the backend and database; the existing deployed session workflow already provides its extraction contract. Future changes to that contract still require coordinated Mastra/backend deployment as described above.
 
@@ -196,3 +196,7 @@ Webhook-response inventory: intake accepted/rejected/enrollment acknowledgments,
 ## Event-day controls and recovery (#10)
 
 Use [event-day reliability](event-day-reliability.md) for EVENT_MODE, the independent bounded recovery cron, authorized queue-health snapshots, restore quarantine and production release gates. Existing installations retain continuous mode unless explicitly configured. No new database migration or Mastra contract is introduced; #6 must already be deployed. Configure HTTP and cron overrides together. Simulation/restore evidence is disposable and does not establish production uptime, billing or RTO/RPO.
+
+## Privacy release gate
+
+Follow [Privacy boundaries](privacy.md) before enabling web enrollment or data exports. Publish the [notice](privacy-notice.md) with the responsible adult lead’s contact, and verify retention and vendor settings. Trace exports use a strict content-free allowlist; retain them for at most 30 days and restrict access. Workflow snapshots remain private content-bearing operational records.
