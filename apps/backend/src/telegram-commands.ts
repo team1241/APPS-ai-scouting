@@ -1,10 +1,11 @@
+import { eventCommand } from "./event-commands.ts";
 import {
   createInvitation,
   joinInvitation,
   listInvitations,
-  memberRole,
   revokeInvitation,
 } from "./repositories/invitations.ts";
+import { memberRole } from "./repositories/membership.ts";
 
 export async function telegramCommand(input: {
   organizationId: string;
@@ -15,6 +16,8 @@ export async function telegramCommand(input: {
   botToken?: string;
 }): Promise<string | null> {
   if (!input.text.startsWith("/")) return null;
+  const eventReply = await eventCommand(input);
+  if (eventReply !== null) return eventReply;
   const [rawCommand, ...rest] = input.text.trim().split(/\s+/);
   const command = rawCommand?.split("@")[0]?.toLowerCase();
   const argument = rest.join(" ");
@@ -68,6 +71,6 @@ export async function telegramCommand(input: {
   }
   const membership = await memberRole(organizationId, userId);
   return membership
-    ? `Send a scouting note with match and team number.${membership.role === "admin" ? "\nAdmin commands: /invite [label], /invites, /revokeinvite <id>" : ""}`
+    ? `Send a scouting note with match and team number. Use /event to check context, /events to list events, or /scout <event-id> <note> for a delayed note. An active event is required for new notes.${membership.role === "admin" ? "\nAdmin commands: /invite [label], /invites, /revokeinvite <id>, /event set <season> <FRC code>, /event off" : ""}`
     : "Open your team's invitation link to enroll, then send a scouting note.";
 }

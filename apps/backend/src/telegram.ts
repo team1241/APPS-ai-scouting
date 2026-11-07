@@ -1,6 +1,7 @@
 import { timingSafeEqual } from "node:crypto";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
+import { uuidPattern } from "./event-config.ts";
 import { saveIncomingNote } from "./repositories/intake.ts";
 import { telegramCommand } from "./telegram-commands.ts";
 
@@ -33,14 +34,24 @@ export function telegramRoutes(organizationId: string, secret: string) {
       return c.json({ error: "Invalid message" }, 400);
     }
     try {
-      const commandReply = await telegramCommand({
-        organizationId,
-        userId: String(sender?.id),
-        updateId: String(update.update_id),
-        text: message.text,
-        name: typeof sender?.first_name === "string" ? sender.first_name : "Scout",
-        botToken: process.env.TELEGRAM_BOT_TOKEN,
-      });
+      const override = /^\/scout(?:@\w+)?(?:\s+([\s\S]*))?$/i.exec(message.text.trim());
+      const explicit = override ? /^(\S+)\s+([\s\S]+)$/.exec(override[1] ?? "") : null;
+      if (override && (!explicit || !uuidPattern.test(explicit[1] ?? "") || !explicit[2]?.trim()))
+        return c.json({
+          method: "sendMessage",
+          chat_id: chat.id,
+          text: "Use /scout <event-id> <note>. Find event IDs with /events.",
+        });
+      const commandReply = override
+        ? null
+        : await telegramCommand({
+            organizationId,
+            userId: String(sender?.id),
+            updateId: String(update.update_id),
+            text: message.text,
+            name: typeof sender?.first_name === "string" ? sender.first_name : "Scout",
+            botToken: process.env.TELEGRAM_BOT_TOKEN,
+          });
       if (commandReply !== null)
         return c.json({
           method: "sendMessage",
@@ -54,9 +65,11 @@ export function telegramRoutes(organizationId: string, secret: string) {
         externalUserId: String(sender?.id),
         externalUpdateId: String(update.update_id),
         text: message.text,
-        replyToMessageId: Number.isSafeInteger(object(message.reply_to_message)?.message_id)
-          ? String(object(message.reply_to_message)?.message_id)
-          : undefined,
+        eventId: explicit?.[1],
+        replyToMessageId:
+          !override && Number.isSafeInteger(object(message.reply_to_message)?.message_id)
+            ? String(object(message.reply_to_message)?.message_id)
+            : undefined,
       });
       // Telegram executes this reply after the transaction commits. Reply failure cannot lose intake.
       if (result === "duplicate") return c.json({ ok: true });
@@ -64,9 +77,15 @@ export function telegramRoutes(organizationId: string, secret: string) {
         method: "sendMessage",
         chat_id: chat?.id,
         text:
-          result === "saved"
-            ? "Received your scouting note. Processing it now…"
-            : "Your account is not enrolled. Contact your team administrator.",
+          result === "unknown"
+            ? "Your account is not enrolled. Contact your team administrator."
+            : result === "no_active_event"
+              ? "Your note was not submitted because no event is active. Ask a team admin to select one with /event set <season> <FRC code>, then resend your note."
+              : result === "invalid_event"
+                ? "Your note was not submitted because the selected event is unavailable. Check /events and resend it with a valid event."
+                : result === "legacy_session"
+                  ? "This older session has no event. Your reply was not submitted. Check /event, then resend the complete note as a new message."
+                  : `Received your scouting note. Processing it now…\nEvent: ${result.eventName}`,
       });
     } catch {
       console.error("Telegram intake database transaction failed");

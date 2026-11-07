@@ -133,6 +133,9 @@ importers:
       pg:
         specifier: ^8.23.1
         version: 8.23.1
+      windows-iana:
+        specifier: 5.1.0
+        version: 5.1.0
     devDependencies:
       '@types/node':
         specifier: ^26.6.6
@@ -2355,6 +2358,10 @@ packages:
     engines: {node: '>= 8'}
     hasBin: true
 
+  windows-iana@5.1.0:
+    resolution: {integrity: sha512-WS7dbeBltaq8JcazH7hVCi17lqZBdQdKppMLk8rUQwz+My6dSRW8dFoQqzSi+UjPrsh7TV5AEnboRKneWy8b/A==}
+    engines: {node: '>=12'}
+
   wrappy@1.0.2:
     resolution: {integrity: sha512-l4Sp/DRseor9wL6EvV2+TuQn63dMkPjZ/sp9XkghTEbV9KlPS1xUsZ3u7/IQO4wxtcFB4bgpQPRcR3QCvezPcQ==}
 
@@ -4573,6 +4580,8 @@ snapshots:
   which@2.0.2:
     dependencies:
       isexe: 2.0.0
+
+  windows-iana@5.1.0: {}
 
   wrappy@1.0.2: {}
 

@@ -6,10 +6,10 @@ import {
   createInvitation,
   joinInvitation,
   listInvitations,
-  memberRole,
   revokeInvitation,
 } from "./repositories/invitations.ts";
 import { enrollMember } from "./repositories/members.ts";
+import { memberRole } from "./repositories/membership.ts";
 import { withTenant } from "./repositories/tenant.ts";
 import { telegramRoutes } from "./telegram.ts";
 

@@ -56,7 +56,8 @@ Admins can create, list, and revoke reusable Telegram invitations. Joining enrol
 | Railway production backend                                           | Deployed                                                               |
 | GitHub production readiness and migration workflow                   | Implemented; user confirmed successful run                             |
 | Automatic Render deployment after readiness                          | Configured, but one successful run did not trigger rollout; unresolved |
-| Event configuration, reference imports, schedule validation          | Planned; not implemented                                               |
+| API-backed event configuration and session context                   | Implemented for issue #1                                               |
+| Reference imports and schedule validation                            | Planned; not implemented                                               |
 | Final observations, corrections, review queue                        | Planned; not implemented                                               |
 | Admin web app and web authentication                                 | Proposed; not implemented                                              |
 | Strategist agent, statistics, summaries                              | Planned; not implemented                                               |
@@ -117,7 +118,7 @@ Backend code stays centralized in its repositories until another consumer create
 
 ### Existing data
 
-`organization`, `member`, `channel_identity`, `raw_entry`, and `invitation` exist. Raw entries retain original text, receipt metadata, processing state, retry/lease information, parent linkage, and extraction JSON. Tenant-scoped delivery identifiers prevent duplicate intake.
+`organization`, `member`, `channel_identity`, `raw_entry`, `invitation`, and `scouting_session` exist. The event implementation adds tenant-owned `event`, `organization_event_setting`, an `event_command` replay ledger, and an `intake_rejection` receipt table. Raw entries retain original text, receipt metadata, processing state, retry/lease information, parent linkage, and extraction JSON. Tenant-scoped delivery identifiers prevent duplicate intake.
 
 Every tenant operation sets transaction-local `app.organization_id` on the same connection used by its queries. Forced row-level security and composite foreign keys protect organization boundaries. Runtime users must not have owner privileges or RLS bypass.
 
@@ -125,7 +126,7 @@ Production backend uses a restricted pooled connection. Migrations use a separat
 
 ### Planned domain data
 
-Add events, external event identifiers, event teams, matches/participants, organization event attendance/settings, published specification versions, and final observations. Final observations should reference their source raw entries, event, match, team, author, and specification version. Corrections should retain history and identify the observation they replace.
+Add provider imports/caches, event teams, matches/participants, published specification versions, and final observations. Final observations should reference their source raw entries, event, match, team, author, and specification version. Corrections should retain history and identify the observation they replace.
 
 Public reference facts can be shared; attendance, active-event selection, specifications, scouting observations, and manual organizational overrides must retain clear tenant ownership. The exact shared-reference schema is still a design decision.
 
@@ -133,11 +134,11 @@ Secrets remain in ignored local environment files or provider/GitHub secret stor
 
 ### Durable scouting sessions
 
-Each initial scouting submission creates a tenant/member-owned `scouting_session`, using its root raw-entry ID as the stable Mastra run ID. Linked Telegram answers resume that run rather than starting another extraction workflow. The run suspends with the current requirements result while waiting and completes when required data is present. The backend stores match/team identity as it becomes available and tracks completion separately from immutable raw messages.
+Each initial scouting submission creates a tenant/member-owned `scouting_session` in the intake transaction, using its root raw-entry ID as the stable Mastra run ID. It snapshots the active event and supported specification. New submissions require a valid active event; otherwise no note/session is created, and the scout must resend after event selection. Only rejected-delivery metadata is retained to prevent retries adopting a later event. Linked Telegram answers resume that run rather than starting another extraction workflow. The run suspends with the current requirements result while waiting and completes when required data is present. The backend stores match/team identity as it becomes available and tracks completion separately from immutable raw messages.
 
 A session's turn ID is a hash of its original note and ordered replies. Replaying a persisted turn returns the cached result; concurrent identical requests in one Mastra process share execution. Provider errors suspend without a result so retry can resume the same run. A crashed execution left in a running/failed state needs operator recovery rather than silently starting another run. Snapshot storage must be configured. Completed sessions reject new turns; corrections start separate submissions pending the finalized observation/history feature.
 
-Sessions pin the current specification version. Processing refuses a version mismatch rather than silently changing an open session's requirements. Full multi-version schema support remains planned. Event context and automatic association of independent notes to the same scout/match/team remain blocked on event configuration; the current session boundary is one initial submission and its explicitly linked replies. Different submissions remain independent, including notes by different scouts about the same match.
+Sessions pin the current specification version. Processing refuses a version mismatch rather than silently changing an open session's requirements. Full multi-version schema support remains planned. Event context is pinned at intake. Automatic association of independent notes to the same scout/match/team remains future work; the current session boundary is one initial submission and its explicitly linked replies. Different submissions remain independent, including notes by different scouts about the same match.
 
 The session endpoint is `POST /scouting/sessions/:runId/turn`, authenticated with the backend service token. The stateless extraction workflow has been removed; the worker uses sessions exclusively. Run the database migration, deploy Mastra with the new endpoint, then deploy the backend. Do not switch the worker before the endpoint is available. Telegram outbound delivery still has the documented non-atomic send/commit limitation.
 
@@ -151,35 +152,37 @@ Future specifications should be published immutable versions associated with sea
 
 ## 7. Event configuration and external data
 
+API-backed event configuration, active-event selection, intake-time session binding and explicit delayed-note event selection are implemented for issue #1. FIRST event-detail lookup and selection by season/code are implemented. Roster/schedule imports, TBA supplementation, and schedule validation remain planned. Command syntax and setup live in the [operations guide](operations.md#events).
+
 ### Source policy
 
-Use the **FRC Events API as the primary source**, with **The Blue Alliance for supplemental coverage**, including offseason uploads, and manual creation/import for practice or uncovered events. TBA imports official FIRST data, so it is not independent redundancy for a FIRST upstream outage. TBA's Trusted API also accepts directly supplied event data.
+Use the **FRC Events API as the primary source**, with **The Blue Alliance for supplemental coverage**, including offseason uploads. Event metadata is created and refreshed only through a provider API; manual JSON creation/editing is not supported. TBA imports official FIRST data, so it is not independent redundancy for a FIRST upstream outage. TBA's Trusted API also accepts directly supplied event data.
 
 Sources: [FIRST API documentation](https://frc-api-docs.firstinspires.org/), [TBA source repository](https://github.com/the-blue-alliance/the-blue-alliance), [TBA developer APIs](https://www.thebluealliance.com/apidocs).
 
-Use internal event/match IDs with optional source identifiers. Do not assume provider event codes match. Explicitly link corresponding records. Track provenance, last successful synchronization, errors, and manual overrides. Merge policy must prefer the configured authoritative source without silently overwriting manual corrections; missing primary fields can be supplemented. Provider adapters should normalize data before repository persistence.
+Use internal event/match IDs with optional source identifiers. Do not assume provider event codes match. Explicitly link corresponding records. Track provenance, last successful synchronization, errors, and organization settings. Provider refreshes update provider facts while preserving organization settings and stable session links; missing primary fields can be supplemented. Provider adapters should normalize data before repository persistence.
 
 ### First event settings
 
-| Setting                   | Requirement                                                    |
-| ------------------------- | -------------------------------------------------------------- |
-| Name and season           | Any supported year, including historical/offseason testing     |
-| Source identifiers        | Optional FRC Events and TBA identifiers, or manual event       |
-| Event type                | Official, offseason, practice                                  |
-| Dates/timezone            | Local event context and schedule rendering                     |
-| Attendance                | Whether 1241 attends; scouting another event remains possible  |
-| Specification version     | Explicit published requirements for extraction                 |
-| Validation mode           | Off, warn, strict; initially warn                              |
-| Archive state             | Preserve history and remove old events from ordinary selection |
-| Organization active event | One active scouting event for 1241 initially                   |
+| Setting                   | Requirement                                                       |
+| ------------------------- | ----------------------------------------------------------------- |
+| Name and season           | Any supported year, including historical/offseason testing        |
+| Source identifiers        | FRC Events identifiers; TBA identifiers when its adapter is added |
+| Event type                | Official, offseason, practice                                     |
+| Dates/timezone            | Local event context and schedule rendering                        |
+| Attendance                | Whether 1241 attends; scouting another event remains possible     |
+| Specification version     | Explicit published requirements for extraction                    |
+| Validation mode           | Off, warn, strict; initially warn                                 |
+| Archive state             | Preserve history and remove old events from ordinary selection    |
+| Organization active event | One active scouting event for 1241 initially                      |
 
-Active event is an organization setting. Attach it when a note is received and preserve it across event switches and follow-ups. Do not infer event/match from webhook arrival time, especially after offline queuing. Handling a delayed note from a previous event needs an explicit scout override or review flow; the initial active-event default alone cannot resolve it.
+Active event is an organization setting. Attach it when a note is received and preserve it across event switches and follow-ups. Do not infer event/match from webhook arrival time, especially after offline queuing. Delayed notes can explicitly select an event using the documented scout command; an active event is still required. Existing sessions retain their original event for follow-ups even if scouting is paused. Eventless historical sessions are preserved without automatic reassignment; their incomplete notes must be resubmitted.
 
-Cache teams and schedules locally, including qualification and full playoff round/set/match identity. Validate that a team participates in a referenced match. Missing schedules must allow intake; warn mode flags inconsistencies for clarification/review. Strict mode must preserve the raw note even when it prevents finalization. Failed syncs retain the last usable schedule. Historical matches and existing observation links must survive schedule updates.
+Cache teams and schedules locally, including qualification and full playoff round/set/match identity. Validate that a team participates in a referenced match. Missing schedules must allow intake when an event is active; warn mode flags inconsistencies for clarification/review. Strict mode must preserve the raw note even when it prevents finalization. Failed syncs retain the last usable schedule. Historical matches and existing observation links must survive schedule updates.
 
 ### First event acceptance checks
 
-Use a 2026 offseason event with a published schedule. Verify provider normalization, valid and invalid match/team pairs, playoff references, missing schedules, repeated imports, source conflicts, manual overrides, and event switching during an unfinished follow-up. Use recorded fixtures for repeatable tests and a separate live import smoke test when credentials are available.
+Use a 2026 offseason event with a published schedule. Verify provider normalization, valid and invalid match/team pairs, playoff references, missing schedules, repeated imports, source conflicts, preservation of organization settings, and event switching during an unfinished follow-up. Use recorded fixtures for repeatable tests and a separate live import smoke test when credentials are available.
 
 ## 8. Reliability and event-day operations
 

@@ -1,26 +1,9 @@
 import { createHash, randomBytes } from "node:crypto";
-import { sql, type Transaction } from "kysely";
-import type { DB } from "../db.generated.ts";
+import { sql } from "kysely";
+import { memberInTransaction } from "./membership.ts";
 import { withTenant } from "./tenant.ts";
 
 const hash = (token: string) => createHash("sha256").update(token).digest("hex");
-async function member(tx: Transaction<DB>, organizationId: string, userId: string) {
-  return tx
-    .selectFrom("channel_identity")
-    .innerJoin("member", (join) =>
-      join
-        .onRef("member.id", "=", "channel_identity.member_id")
-        .onRef("member.organization_id", "=", "channel_identity.organization_id"),
-    )
-    .select(["member.id", "member.role"])
-    .where("channel_identity.organization_id", "=", organizationId)
-    .where("channel", "=", "telegram")
-    .where("external_id", "=", userId)
-    .executeTakeFirst();
-}
-export function memberRole(organizationId: string, userId: string) {
-  return withTenant(organizationId, (tx) => member(tx, organizationId, userId));
-}
 export function createInvitation(
   organizationId: string,
   userId: string,
@@ -28,7 +11,7 @@ export function createInvitation(
   label: string,
 ) {
   return withTenant(organizationId, async (tx) => {
-    const admin = await member(tx, organizationId, userId);
+    const admin = await memberInTransaction(tx, organizationId, userId);
     if (admin?.role !== "admin") return { status: "forbidden" } as const;
     const token = randomBytes(24).toString("base64url");
     const row = await tx
@@ -50,7 +33,7 @@ export function createInvitation(
 }
 export function listInvitations(organizationId: string, userId: string) {
   return withTenant(organizationId, async (tx) => {
-    if ((await member(tx, organizationId, userId))?.role !== "admin") return null;
+    if ((await memberInTransaction(tx, organizationId, userId))?.role !== "admin") return null;
     return tx
       .selectFrom("invitation")
       .select(["id", "label", "uses", "revoked_at"])
@@ -62,7 +45,8 @@ export function listInvitations(organizationId: string, userId: string) {
 }
 export function revokeInvitation(organizationId: string, userId: string, id: string) {
   return withTenant(organizationId, async (tx) => {
-    if ((await member(tx, organizationId, userId))?.role !== "admin") return "forbidden";
+    if ((await memberInTransaction(tx, organizationId, userId))?.role !== "admin")
+      return "forbidden";
     const row = await tx
       .updateTable("invitation")
       .set({ revoked_at: new Date() })
@@ -92,7 +76,7 @@ export function joinInvitation(
       .forUpdate()
       .executeTakeFirst();
     if (!invite || invite.revoked_at) return "invalid";
-    if (await member(tx, organizationId, userId)) return "already_joined";
+    if (await memberInTransaction(tx, organizationId, userId)) return "already_joined";
     const scout = await tx
       .insertInto("member")
       .values({

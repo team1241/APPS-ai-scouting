@@ -31,6 +31,40 @@ export interface ChannelIdentity {
   organization_id: string;
 }
 
+export interface Event {
+  archived: Generated<boolean>;
+  attending: Generated<boolean>;
+  created_at: Generated<Timestamp>;
+  end_date: Timestamp;
+  frc_event_code: string | null;
+  id: Generated<string>;
+  name: string;
+  organization_id: string;
+  season: number;
+  source: Generated<string>;
+  specification_version: string;
+  start_date: Timestamp;
+  tba_event_key: string | null;
+  timezone: string;
+  type: string;
+  validation_mode: Generated<string>;
+}
+
+export interface EventCommand {
+  created_at: Generated<Timestamp>;
+  organization_id: string;
+  result: Json;
+  source_update_id: string;
+}
+
+export interface IntakeRejection {
+  channel: string;
+  created_at: Generated<Timestamp>;
+  external_update_id: string;
+  organization_id: string;
+  reason: string;
+}
+
 export interface Invitation {
   created_at: Generated<Timestamp>;
   created_by: string;
@@ -58,6 +92,12 @@ export interface Organization {
   name: string;
 }
 
+export interface OrganizationEventSetting {
+  active_event_archived: Generated<boolean>;
+  active_event_id: string | null;
+  organization_id: string;
+}
+
 export interface RawEntry {
   channel: string;
   external_update_id: string;
@@ -78,6 +118,7 @@ export interface RawEntry {
 export interface ScoutingSession {
   completed_at: Timestamp | null;
   created_at: Generated<Timestamp>;
+  event_id: string | null;
   id: string;
   match_label: string | null;
   member_id: string;
@@ -89,9 +130,13 @@ export interface ScoutingSession {
 
 export interface DB {
   channel_identity: ChannelIdentity;
+  event: Event;
+  event_command: EventCommand;
+  intake_rejection: IntakeRejection;
   invitation: Invitation;
   member: Member;
   organization: Organization;
+  organization_event_setting: OrganizationEventSetting;
   raw_entry: RawEntry;
   scouting_session: ScoutingSession;
 }

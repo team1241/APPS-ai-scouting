@@ -59,6 +59,26 @@ test("authenticated Telegram intake persists and deduplicates notes", async () =
     };
     const members = await Promise.all([enrollMember(enrollment), enrollMember(enrollment)]);
     assert.equal(members[0], members[1]);
+    await tenant(async (tx) => {
+      const event = await tx
+        .insertInto("event")
+        .values({
+          organization_id: id,
+          name: "Intake practice",
+          season: 2026,
+          type: "practice",
+          start_date: "2026-11-07",
+          end_date: "2026-11-07",
+          timezone: "America/Toronto",
+          specification_version: "starter-match-v1",
+        })
+        .returning("id")
+        .executeTakeFirstOrThrow();
+      await tx
+        .insertInto("organization_event_setting")
+        .values({ organization_id: id, active_event_id: event.id })
+        .execute();
+    });
     const responses = await Promise.all([post("test-secret"), post("test-secret")]);
     assert.ok(responses.every((r) => r.status === 200));
     const rows = await tenant((tx) =>
@@ -123,7 +143,13 @@ test("authenticated Telegram intake persists and deduplicates notes", async () =
     assert.equal(root.text, update.message.text);
   } finally {
     await tenant(async (tx) => {
-      for (const table of ["raw_entry", "channel_identity", "member"] as const)
+      for (const table of [
+        "raw_entry",
+        "organization_event_setting",
+        "event",
+        "channel_identity",
+        "member",
+      ] as const)
         await tx.deleteFrom(table).where("organization_id", "=", id).execute();
       await tx.deleteFrom("organization").where("id", "=", id).execute();
     });

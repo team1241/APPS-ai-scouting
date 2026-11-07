@@ -19,7 +19,7 @@ Run these commands from `apps/backend`:
 3. Start `node --env-file=.env src/index.ts` if not using the workspace dev command.
 4. In another terminal run `ngrok http 3000`.
 5. Register the URL with `node --env-file=.env src/telegram-setup.ts webhook https://your-tunnel-host`. This replaces the bot's existing webhook and retains pending updates. Use only the dev bot.
-6. Send a private text note. For follow-ups, reply to the bot's specific ForceReply question.
+6. Send a private text note. Select an active event before submitting a note (see operations). For follow-ups, reply to the bot's specific ForceReply question.
 
 Re-register the webhook when the tunnel URL changes. Unknown accounts receive an enrollment response; groups and non-text updates are ignored. Acknowledgments are returned through Telegram's webhook-response method after commit. They are best effort; duplicate intake does not resend the acknowledgment.
 
@@ -30,6 +30,21 @@ In `apps/mastra/.env`, configure `ANTHROPIC_API_KEY` and `MASTRA_DATABASE_URL` f
 The extraction contract comes from `packages/scouting/src/requirements.json`. Update the version when meaning or fields change, and rebuild Mastra after edits. This is a starter template, not an official game schema. The shared package validates it and derives the structured-output schema. The backend invokes `POST /scouting/sessions/:runId/turn`, which starts or resumes the durable `scouting-session` workflow. Calling the agent directly bypasses deterministic finalization.
 
 Do not run a Mastra production build while its dev watcher is active: stop the parent CLI and listener first. To run built output locally, use `node --env-file=.env .mastra/output/index.mjs` from `apps/mastra`.
+
+## Local event-flow verification
+
+Use the dev bot and development Neon branch with the local backend, Mastra, and ngrok running. Configure the FIRST credentials described in [operations](operations.md#events), and use an enrolled admin account for event commands.
+
+1. Send `/event off`, then `Q42 team 1241`. Expect a rejection stating that the note was not submitted. No raw note, session, or Mastra run should be created; only rejection-delivery metadata is stored.
+2. Send `/event set 2026 onosh`. Expect the Durham College event to become active. Lowercase codes are accepted.
+3. Resend `Q42 team 1241` as a new message. Expect the processing acknowledgment followed by a question about climbing.
+4. Send `/event off`, then reply directly to the climbing question with `They did not climb`. Expect the same session/run to resume under its original event and confirm completion.
+5. Send a new note. Expect another no-active-event rejection.
+6. Restore scouting with `/event set 2026 ONOSH`, or restore the event that was active before the test.
+
+In local Mastra Studio (`http://localhost:4111/studio`), inspect Workflows → scouting-session → Runs and Traces. Rejected submissions never reach Mastra. The accepted note and its follow-up share a run ID; extraction/model spans appear in the trace.
+
+The backend owns membership/admin checks, active-event admission, FIRST lookups, delivery deduplication, persistence and Telegram replies. Mastra owns extraction, specification completeness and workflow suspension/resumption. Neon enforces tenant isolation and relational constraints. Schedule and match/team participation verification are future tickets #2 and #3; this checklist verifies event context rather than real schedule correctness.
 
 ## Database development
 
@@ -60,13 +75,13 @@ From the root:
 pnpm check
 pnpm typecheck
 pnpm test:build-compat
-node --test apps/mastra/src/mastra/observability.test.ts apps/mastra/src/mastra/workflows/session.test.ts packages/scouting/src/extraction.test.ts apps/backend/src/extraction-config.test.ts apps/backend/src/mastra-client.test.ts apps/backend/src/extraction-reply.test.ts
+node --test apps/backend/src/frc-events.test.ts apps/backend/src/event-config.test.ts apps/mastra/src/mastra/observability.test.ts apps/mastra/src/mastra/workflows/session.test.ts packages/scouting/src/extraction.test.ts apps/backend/src/extraction-config.test.ts apps/backend/src/mastra-client.test.ts apps/backend/src/extraction-reply.test.ts
 ```
 
 From `apps/backend`, run the development Neon integration tests:
 
 ```sh
-node --env-file=.env --test src/telegram.test.ts src/invitations.test.ts
+node --env-file=.env --test src/telegram.test.ts src/invitations.test.ts src/events.test.ts
 ```
 
 Integration tests create isolated tenant fixtures and remove them afterward. They cover intake authentication, duplicate delivery, follow-up linkage, invitation authorization, reusable links, revocation, and concurrent membership. Local owner credentials do not demonstrate production runtime-role isolation; verify restricted roles separately when permission rules change. Live model smoke tests complement deterministic tests for extraction quality.
@@ -91,3 +106,13 @@ Neon and Mastra skills live in `.agents/skills`; Claude Code uses relative symli
 Run the local Mastra dev server and open Studio’s Traces view. `@mastra/observability` records workflow/step spans and extractor/model child spans. Traces persist in the configured Mastra storage schema; when platform credentials are available, the platform exporter also forwards them to Mastra Platform. Sensitive-data filtering is enabled. The service token stays restricted to the session endpoint and does not grant trace access.
 
 Only new executions produce traces; previously completed runs are not backfilled. A resumed session may produce another trace branch/execution segment tied to the same workflow run ID. Retried cached turns do not invoke the model again. Inspect input/output and timing in Studio, and track trace storage/observability usage alongside the model budget.
+
+
+## Event development
+
+API-backed event configuration is available through the backend repository and Telegram commands in the [operations guide](operations.md#events). Importing or refreshing event metadata requires the FIRST API account; cached selection does not make another API request. Generic manual creation and JSON editing are not supported. Development migrations add tenant-owned event settings and a nullable session event reference; historical eventless sessions are retained without reassignment. Intake requires an active event before storing a new note or session and snapshots the event/specification context in the same transaction. Rejections retain only delivery metadata for idempotency. The worker processes only assigned sessions. Its prompt strips the `/scout` transport prefix while retaining the original raw message unchanged.
+
+Event integration tests create isolated organizations, verify activation/reply ordering, command replay, active-event gating, rejection/accepted replay behavior, historical-session handling and cross-tenant foreign keys, and roll back a temporary restricted-role fixture to test RLS. These tests require an administrative development database connection and must not run against production. The lightweight event configuration test runs in production readiness without database fixtures.
+
+
+The FIRST event client uses `FRC_EVENTS_USERNAME` and `FRC_EVENTS_AUTHORIZATION_KEY` from the backend environment. Its unit tests use a single event from FIRST's published Event Listings example (`https://frc-api-docs.firstinspires.org/`, collection `13920602-51a3938d-2026-4a5c-9f17-d87d035584cd`) stored in `src/fixtures/frc-event.json`; no API credentials are needed for CI. `windows-iana` converts FIRST's Windows zone names using Unicode CLDR mappings. The canonical IANA representative is used; cached selection preserves stored values until an explicit FIRST refresh.
