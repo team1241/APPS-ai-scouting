@@ -247,7 +247,7 @@ test("failed schedule persistence cannot stop polling or queue a notification", 
     };
     const fetcher: typeof fetch = async () => {
       sends++;
-      return Response.json({ ok: true });
+      return Response.json({ ok: true, result: { message_id: 1 } });
     };
     await assert.rejects(
       () => runScheduleJob(org, "test-bot", { now: at(0), providers, fetcher }),
@@ -330,7 +330,7 @@ test("notification retries recheck admin membership and new schedule tables enfo
       providers,
       fetcher: async (_url, options) => {
         sent.push(JSON.parse(String(options?.body)).chat_id);
-        return Response.json({ ok: true });
+        return Response.json({ ok: true, result: { message_id: 1 } });
       },
     });
     assert.deepEqual(sent, ["1"]);
@@ -378,7 +378,8 @@ test("automatic acquisition saves the event roster alongside the schedule", asyn
     process.env.FRC_EVENTS_AUTHORIZATION_KEY = "fixture";
     const fetcher: typeof fetch = async (url) => {
       const u = String(url);
-      if (u.includes("api.telegram.org")) return Response.json({ ok: true });
+      if (u.includes("api.telegram.org"))
+        return Response.json({ ok: true, result: { message_id: 1 } });
       if (u.includes("/events?")) return Response.json({ Events: [await fixture("event")] });
       if (u.includes("/teams?")) return Response.json(await fixture("teams"));
       assert.ok(u.includes("/schedule/ONOSH?tournamentLevel=Qualification"));

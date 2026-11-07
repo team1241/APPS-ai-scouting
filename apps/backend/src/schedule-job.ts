@@ -1,3 +1,4 @@
+import { drainOutbound } from "./outbound-worker.ts";
 import {
   frcAcquisitionProvider,
   type ReferenceProvider,
@@ -6,9 +7,7 @@ import {
   tbaAcquisitionProvider,
 } from "./reference-provider.ts";
 import {
-  claimScheduleNotification,
   claimSchedulePoll,
-  finishScheduleNotification,
   finishSchedulePoll,
   scheduleCandidates,
 } from "./repositories/schedules.ts";
@@ -69,51 +68,6 @@ export async function runScheduleJob(
     )
       received++;
   }
-  // Notification retries are independent of polling; a saved schedule is never fetched again.
-  for (let i = 0; i < 100; i++) {
-    const notification = await claimScheduleNotification(organizationId, now);
-    if (!notification) break;
-    let outcome: Parameters<typeof finishScheduleNotification>[4] = { status: "uncertain" };
-    try {
-      const response = await fetcher(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ chat_id: notification.telegram_user_id, text: notification.text }),
-        redirect: "error",
-        signal: AbortSignal.timeout(10000),
-      });
-      const body = (await response.json()) as {
-        ok?: boolean;
-        error_code?: number;
-        parameters?: { retry_after?: number };
-      };
-      if (response.ok && body.ok === true) {
-        outcome = { status: "sent" };
-        notified++;
-      } else if (body.ok === false) {
-        const code = body.error_code ?? response.status;
-        outcome =
-          code === 429
-            ? {
-                status: "pending",
-                retryAfterMs:
-                  Math.max(60, Math.min(body.parameters?.retry_after ?? 600, 86400)) * 1000,
-              }
-            : code >= 500
-              ? { status: "pending" }
-              : { status: "failed" };
-      }
-    } catch {
-      /* Avoid duplicates when Telegram may have accepted the message. */
-    }
-    await finishScheduleNotification(
-      organizationId,
-      notification.event_id,
-      notification.telegram_user_id,
-      notification.attempt_id,
-      outcome,
-      now,
-    );
-  }
+  notified = await drainOutbound(organizationId, botToken, fetcher, options?.now);
   return { attempted, received, notified };
 }

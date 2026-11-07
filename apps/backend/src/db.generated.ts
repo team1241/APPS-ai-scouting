@@ -162,6 +162,44 @@ export interface OrganizationEventSetting {
   organization_id: string;
 }
 
+export interface OutboundDelivery {
+  admin_only: Generated<boolean>;
+  attempted_at: Timestamp | null;
+  attempts: Generated<number>;
+  created_at: Generated<Timestamp>;
+  error: string | null;
+  event_id: string | null;
+  id: Generated<string>;
+  lease_expires_at: Timestamp | null;
+  lease_token: string | null;
+  logical_key: string;
+  max_attempts: Generated<number>;
+  message_id: string | null;
+  next_attempt_at: Generated<Timestamp>;
+  operator_at: Timestamp | null;
+  operator_id: string | null;
+  operator_reason: string | null;
+  organization_id: string;
+  question: Generated<boolean>;
+  recipient: string;
+  sent_at: Timestamp | null;
+  session_id: string | null;
+  status: Generated<string>;
+  text: string;
+  updated_at: Generated<Timestamp>;
+}
+
+export interface OutboundIntervention {
+  accepted_duplicate_risk: boolean;
+  actor_id: string;
+  created_at: Generated<Timestamp>;
+  delivery_id: string;
+  id: Generated<string>;
+  organization_id: string;
+  previous_status: string;
+  reason: string;
+}
+
 export interface PublishedSpecification {
   document: Json;
   kind: string;
@@ -255,6 +293,8 @@ export interface DB {
   observation_revision: ObservationRevision;
   organization: Organization;
   organization_event_setting: OrganizationEventSetting;
+  outbound_delivery: OutboundDelivery;
+  outbound_intervention: OutboundIntervention;
   published_specification: PublishedSpecification;
   raw_entry: RawEntry;
   reference_sync: ReferenceSync;

@@ -66,6 +66,12 @@ export function telegramRoutes(organizationId: string, secret: string) {
         externalUpdateId: String(update.update_id),
         text: message.text,
         eventId: explicit?.[1],
+        replyDeliveryId:
+          typeof object(message.reply_to_message)?.text === "string"
+            ? /Session reference: ([0-9a-f-]{36})$/.exec(
+                String(object(message.reply_to_message)?.text),
+              )?.[1]
+            : undefined,
         replyToMessageId:
           !override && Number.isSafeInteger(object(message.reply_to_message)?.message_id)
             ? String(object(message.reply_to_message)?.message_id)
