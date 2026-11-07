@@ -116,3 +116,18 @@ Event integration tests create isolated organizations, verify activation/reply o
 
 
 The FIRST event client uses `FRC_EVENTS_USERNAME` and `FRC_EVENTS_AUTHORIZATION_KEY` from the backend environment. Its unit tests use a single event from FIRST's published Event Listings example (`https://frc-api-docs.firstinspires.org/`, collection `13920602-51a3938d-2026-4a5c-9f17-d87d035584cd`) stored in `src/fixtures/frc-event.json`; no API credentials are needed for CI. `windows-iana` converts FIRST's Windows zone names using Unicode CLDR mappings. The canonical IANA representative is used; cached selection preserves stored values until an explicit FIRST refresh.
+
+## Reference import verification
+
+Unit tests: `node --test apps/backend/src/reference-provider.test.ts`.
+Integration tests: `node --env-file=.env --test src/reference.test.ts` from backend against an isolated development database. The tests cover repeated/concurrent imports, stable match IDs, rescheduling, overrides, partial retention, failure freshness and admin authorization. Public paired FIRST/TBA fixtures and source coverage are documented in `apps/backend/src/fixtures/README.md`.
+
+For live verification, configure both providers privately and run the admin commands in operations against a development event. Check `/event reference <id>`, repeat the import after the throttle interval, and inspect stable IDs via `readReference`. Paired live FIRST/TBA verification has passed for ONOSH, ONCMP1, ONCMP2, ONCMP, ARCHIMEDES and CMPTX. ONHAM1 remains an additional offseason regression fixture.
+
+Repeat the FIRST live smoke against a disposable database with `REFERENCE_LIVE_SMOKE=true node --env-file=.env src/reference-live-smoke.ts` from backend. It creates and cleans an isolated organization and checks two live imports for stable IDs. The default is ONOSH (28 teams, 72 matches). Set `REFERENCE_SMOKE_EVENT` to another explicit FIRST code and `REFERENCE_SMOKE_TBA_KEY` to its verified TBA key to include supplementation. All six regular-season/championship scopes passed repeated FIRST imports plus TBA supplementation without changing match IDs on 2026-11-07.
+
+Schedule polling tests: `node --test apps/backend/src/schedule-policy.test.ts apps/backend/src/schedule-provider.test.ts`. These cover the 6 p.m. first-day boundary, event-local time/DST, and schedule-only FIRST/TBA requests. Against isolated Postgres, run `node --env-file=.env --test src/schedule-job.test.ts` from backend. These tests cover all-added-event eligibility, ten-minute throttling, empty/partial responses, restart/concurrency stop conditions, TBA fallback, save rollback, admin-only notifications, rate limiting and ambiguous delivery. Telegram is mocked; these tests never contact real admins.
+
+Automatic TBA event matching: `node --test apps/backend/src/tba-event-link.test.ts`. Covers district events, championship parents/divisions, Worlds code differences, ambiguous/no matches, provider failures and manual-link preservation. Event integration tests verify persistence, replay deduplication and refresh retry.
+
+Run one acquisition/delivery pass locally with `pnpm --filter @ai-scouting/backend schedule:sync` using the dev database and bot. This is the same command used by the Railway cron service; it closes the pool and exits. Unlike the read-only provider smoke, this command can deliver schedule-received messages to the configured organization's admins. No schedule polling runs in the HTTP backend.

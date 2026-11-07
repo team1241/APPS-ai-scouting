@@ -1,0 +1,340 @@
+{
+  "Matches": [
+    {
+      "isReplay": false,
+      "matchVideoLink": null,
+      "description": "Match 1 (R1)",
+      "matchNumber": 1,
+      "scoreRedFinal": 868,
+      "scoreRedFoul": 0,
+      "scoreRedAuto": 160,
+      "scoreBlueFinal": 324,
+      "scoreBlueFoul": 5,
+      "scoreBlueAuto": 52,
+      "autoStartTime": "2026-04-19T10:10:21.12",
+      "actualStartTime": "2026-04-19T10:10:21.12",
+      "tournamentLevel": "Playoff",
+      "postResultTime": "2026-04-19T10:13:29.84",
+      "teams": [
+        {
+          "teamNumber": 7712,
+          "station": "Red1",
+          "dq": false
+        },
+        {
+          "teamNumber": 2056,
+          "station": "Red2",
+          "dq": false
+        },
+        {
+          "teamNumber": 1114,
+          "station": "Red3",
+          "dq": false
+        },
+        {
+          "teamNumber": 7200,
+          "station": "Blue1",
+          "dq": false
+        },
+        {
+          "teamNumber": 10015,
+          "station": "Blue2",
+          "dq": false
+        },
+        {
+          "teamNumber": 865,
+          "station": "Blue3",
+          "dq": false
+        }
+      ]
+    },
+    {
+      "isReplay": false,
+      "matchVideoLink": null,
+      "description": "Qualification 1",
+      "matchNumber": 1,
+      "scoreRedFinal": 206,
+      "scoreRedFoul": 20,
+      "scoreRedAuto": 67,
+      "scoreBlueFinal": 197,
+      "scoreBlueFoul": 0,
+      "scoreBlueAuto": 49,
+      "autoStartTime": "2026-04-17T09:13:52.173",
+      "actualStartTime": "2026-04-17T09:13:52.173",
+      "tournamentLevel": "Qualification",
+      "postResultTime": "2026-04-17T09:17:37.74",
+      "teams": [
+        {
+          "teamNumber": 5036,
+          "station": "Red1",
+          "dq": false
+        },
+        {
+          "teamNumber": 9580,
+          "station": "Red2",
+          "dq": false
+        },
+        {
+          "teamNumber": 2056,
+          "station": "Red3",
+          "dq": false
+        },
+        {
+          "teamNumber": 11428,
+          "station": "Blue1",
+          "dq": false
+        },
+        {
+          "teamNumber": 3756,
+          "station": "Blue2",
+          "dq": false
+        },
+        {
+          "teamNumber": 5406,
+          "station": "Blue3",
+          "dq": false
+        }
+      ]
+    },
+    {
+      "isReplay": false,
+      "matchVideoLink": null,
+      "description": "Qualification 2",
+      "matchNumber": 2,
+      "scoreRedFinal": 401,
+      "scoreRedFoul": 5,
+      "scoreRedAuto": 99,
+      "scoreBlueFinal": 389,
+      "scoreBlueFoul": 0,
+      "scoreBlueAuto": 76,
+      "autoStartTime": "2026-04-17T09:29:59.38",
+      "actualStartTime": "2026-04-17T09:29:59.38",
+      "tournamentLevel": "Qualification",
+      "postResultTime": "2026-04-17T09:33:04.5",
+      "teams": [
+        {
+          "teamNumber": 1114,
+          "station": "Red1",
+          "dq": false
+        },
+        {
+          "teamNumber": 10015,
+          "station": "Red2",
+          "dq": false
+        },
+        {
+          "teamNumber": 4920,
+          "station": "Red3",
+          "dq": false
+        },
+        {
+          "teamNumber": 4069,
+          "station": "Blue1",
+          "dq": false
+        },
+        {
+          "teamNumber": 2386,
+          "station": "Blue2",
+          "dq": false
+        },
+        {
+          "teamNumber": 865,
+          "station": "Blue3",
+          "dq": false
+        }
+      ]
+    },
+    {
+      "isReplay": true,
+      "matchVideoLink": null,
+      "description": "Match 2 (R1)",
+      "matchNumber": 2,
+      "scoreRedFinal": 448,
+      "scoreRedFoul": 5,
+      "scoreRedAuto": 64,
+      "scoreBlueFinal": 415,
+      "scoreBlueFoul": 5,
+      "scoreBlueAuto": 81,
+      "autoStartTime": "2026-04-19T10:52:31.97",
+      "actualStartTime": "2026-04-19T10:52:31.97",
+      "tournamentLevel": "Playoff",
+      "postResultTime": "2026-04-19T10:55:44.747",
+      "teams": [
+        {
+          "teamNumber": 5036,
+          "station": "Red1",
+          "dq": false
+        },
+        {
+          "teamNumber": 7520,
+          "station": "Red2",
+          "dq": false
+        },
+        {
+          "teamNumber": 3161,
+          "station": "Red3",
+          "dq": false
+        },
+        {
+          "teamNumber": 7902,
+          "station": "Blue1",
+          "dq": false
+        },
+        {
+          "teamNumber": 2200,
+          "station": "Blue2",
+          "dq": false
+        },
+        {
+          "teamNumber": 4920,
+          "station": "Blue3",
+          "dq": false
+        }
+      ]
+    },
+    {
+      "isReplay": false,
+      "matchVideoLink": null,
+      "description": "Final 1",
+      "matchNumber": 14,
+      "scoreRedFinal": 610,
+      "scoreRedFoul": 0,
+      "scoreRedAuto": 99,
+      "scoreBlueFinal": 343,
+      "scoreBlueFoul": 5,
+      "scoreBlueAuto": 113,
+      "autoStartTime": "2026-04-19T13:50:20.497",
+      "actualStartTime": "2026-04-19T13:50:20.497",
+      "tournamentLevel": "Playoff",
+      "postResultTime": "2026-04-19T13:55:39.01",
+      "teams": [
+        {
+          "teamNumber": 7712,
+          "station": "Red1",
+          "dq": false
+        },
+        {
+          "teamNumber": 2056,
+          "station": "Red2",
+          "dq": false
+        },
+        {
+          "teamNumber": 1114,
+          "station": "Red3",
+          "dq": false
+        },
+        {
+          "teamNumber": 772,
+          "station": "Blue1",
+          "dq": false
+        },
+        {
+          "teamNumber": 4678,
+          "station": "Blue2",
+          "dq": false
+        },
+        {
+          "teamNumber": 1325,
+          "station": "Blue3",
+          "dq": false
+        }
+      ]
+    },
+    {
+      "isReplay": false,
+      "matchVideoLink": null,
+      "description": "Final 2",
+      "matchNumber": 15,
+      "scoreRedFinal": 549,
+      "scoreRedFoul": 0,
+      "scoreRedAuto": 117,
+      "scoreBlueFinal": 406,
+      "scoreBlueFoul": 5,
+      "scoreBlueAuto": 94,
+      "autoStartTime": "2026-04-19T14:16:24.593",
+      "actualStartTime": "2026-04-19T14:16:24.593",
+      "tournamentLevel": "Playoff",
+      "postResultTime": "2026-04-19T14:19:38.753",
+      "teams": [
+        {
+          "teamNumber": 7712,
+          "station": "Red1",
+          "dq": false
+        },
+        {
+          "teamNumber": 2056,
+          "station": "Red2",
+          "dq": false
+        },
+        {
+          "teamNumber": 1114,
+          "station": "Red3",
+          "dq": false
+        },
+        {
+          "teamNumber": 772,
+          "station": "Blue1",
+          "dq": false
+        },
+        {
+          "teamNumber": 4678,
+          "station": "Blue2",
+          "dq": false
+        },
+        {
+          "teamNumber": 1325,
+          "station": "Blue3",
+          "dq": false
+        }
+      ]
+    },
+    {
+      "isReplay": false,
+      "matchVideoLink": null,
+      "description": "Final Tiebreaker",
+      "matchNumber": 16,
+      "scoreRedFinal": null,
+      "scoreRedFoul": null,
+      "scoreRedAuto": null,
+      "scoreBlueFinal": null,
+      "scoreBlueFoul": null,
+      "scoreBlueAuto": null,
+      "autoStartTime": null,
+      "actualStartTime": null,
+      "tournamentLevel": "Playoff",
+      "postResultTime": null,
+      "teams": [
+        {
+          "teamNumber": 7712,
+          "station": "Red1",
+          "dq": false
+        },
+        {
+          "teamNumber": 2056,
+          "station": "Red2",
+          "dq": false
+        },
+        {
+          "teamNumber": 1114,
+          "station": "Red3",
+          "dq": false
+        },
+        {
+          "teamNumber": 772,
+          "station": "Blue1",
+          "dq": false
+        },
+        {
+          "teamNumber": 4678,
+          "station": "Blue2",
+          "dq": false
+        },
+        {
+          "teamNumber": 1325,
+          "station": "Blue3",
+          "dq": false
+        }
+      ]
+    }
+  ]
+}

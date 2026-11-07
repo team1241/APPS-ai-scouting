@@ -1,0 +1,26 @@
+{
+  "allianceCount": "EightAlliance",
+  "weekNumber": 9,
+  "announcements": [],
+  "code": "CMPTX",
+  "divisionCode": null,
+  "name": "FIRST Championship - FIRST Robotics Competition",
+  "type": "Championship",
+  "districtCode": null,
+  "venue": "George R. Brown Convention Center",
+  "city": "Houston",
+  "stateprov": "TX",
+  "country": "USA",
+  "dateStart": "2026-04-29T00:00:00",
+  "dateEnd": "2026-05-02T23:59:59",
+  "address": "1001 Avenida De Las Americas",
+  "website": "https://www.firstchampionship.org",
+  "webcasts": [
+    "https://www.youtube.com/watch?v=11EJNc9VMn8",
+    "https://www.youtube.com/watch?v=dtP3LZMkgqQ",
+    "https://www.youtube.com/watch?v=HkI21hq7dIw",
+    "https://www.youtube.com/watch?v=cqLLqH7lr1E",
+    "https://www.youtube.com/watch?v=MFGaMe0zSA8"
+  ],
+  "timezone": "Central Standard Time"
+}

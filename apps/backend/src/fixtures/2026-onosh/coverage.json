@@ -1,0 +1,14 @@
+{
+  "code": "ONOSH",
+  "type": "DistrictEvent",
+  "captured": "2026-11-07",
+  "originalCounts": {
+    "teams": 28,
+    "qualification": 56,
+    "playoff": 16,
+    "results": 73
+  },
+  "trimmed": true,
+  "rosterPageCount": 1,
+  "providers": ["frc_events", "tba"]
+}

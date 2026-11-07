@@ -1,0 +1,92 @@
+{
+  "teamCountTotal": 6,
+  "teamCountPage": 6,
+  "pageCurrent": 1,
+  "pageTotal": 1,
+  "teams": [
+    {
+      "teamNumber": 8,
+      "nameFull": "Apple/Bayer Fund/Intuitive Foundation/Costco/Microsoft&Palo Alto High School",
+      "nameShort": "Paly Robotics",
+      "city": "Palo Alto",
+      "stateProv": "California",
+      "country": "USA",
+      "rookieYear": 1996,
+      "robotName": "",
+      "districtCode": "CA",
+      "schoolName": "Palo Alto High School",
+      "website": "",
+      "homeCMP": null
+    },
+    {
+      "teamNumber": 11,
+      "nameFull": "National Defense Education Program/Westec Plastics Corporation/STS/Nokia/Tr-Power Designs/ADD Systems/Mt. Olive School District/Pereira Wealth Management, LLC/L3 Harris Foundation&Mt Olive High School",
+      "nameShort": "MORT",
+      "city": "Flanders",
+      "stateProv": "New Jersey",
+      "country": "USA",
+      "rookieYear": 1997,
+      "robotName": "",
+      "districtCode": "FMA",
+      "schoolName": "Mt Olive High School",
+      "website": "",
+      "homeCMP": null
+    },
+    {
+      "teamNumber": 16,
+      "nameFull": "Baxter International/Science and Technology Group/Vantive&Mountain Home HS Career Acad",
+      "nameShort": "Bomb Squad",
+      "city": "Mountain Home",
+      "stateProv": "Arkansas",
+      "country": "USA",
+      "rookieYear": 1996,
+      "robotName": "",
+      "districtCode": null,
+      "schoolName": "Mountain Home HS Career Acad",
+      "website": "",
+      "homeCMP": null
+    },
+    {
+      "teamNumber": 27,
+      "nameFull": "Walsh Education Foundation/David W. Elliott Memorial Foundation/BorgWarner/Team 221 LLC/REV Robotics/Lawrence Plastics/Techmode, LLC/AMT/Chase Plastics/PMMI Foundation/White Pine Helicopters/Rotary Club of Clarkston/BGM Engineering/Omnia Data Services Corp/BOWMAN Chevrolet/Prime Energy CS/1-800-GOT-JUNK?/Amica/Michigan Drone Flights/Oakland University - School of Engineering and Computer Science/Atom Tech/Rehab/YAYMARSHALL/The Edwards Family/Nana & Papa McKay/FLIP/Razal Grandparents/The Law office of Robert Spencer/Linda McClelland/Online Marketing/River of Life Christian Church/BAE Systems/Shovel Bums/WSM Consulting LLC/Hungry Howie's/IGD Solutions/AUCH/Club Pilates - Clarkston/MATRIX Engineered Systems/ESSENTIAL Electric/INTERLINK Networks/adkison, need & allen, PLLC/Don's Electric/Dort Financial Credit Union/Michigan Flight Museum and Air Adventures/BHD Builders/Cyberlink Computing LLC/Clarkston Foundation/Air-Way Global Manufacturing/Kitchen tune up/Gestam... &Clarkston High School",
+      "nameShort": "Team RUSH",
+      "city": "Clarkston",
+      "stateProv": "Michigan",
+      "country": "USA",
+      "rookieYear": 1997,
+      "robotName": "",
+      "districtCode": "FIM",
+      "schoolName": "Clarkston High School",
+      "website": "",
+      "homeCMP": null
+    },
+    {
+      "teamNumber": 33,
+      "nameFull": "Stellantis/Aptiv/Dropsa/Mayco International/West Coast Products/Boeing/RTX Corporation/BAE Systems/TE Connectivity/Molex/PTC&Family/Community",
+      "nameShort": "Killer Bees",
+      "city": "Bloomfield Hills",
+      "stateProv": "Michigan",
+      "country": "USA",
+      "rookieYear": 1996,
+      "robotName": "",
+      "districtCode": "FIM",
+      "schoolName": "Family/Community",
+      "website": "",
+      "homeCMP": null
+    },
+    {
+      "teamNumber": 48,
+      "nameFull": "Warren City Schools/Howmet Aerospace/Aptiv&Warren G Harding High School",
+      "nameShort": "Team E.L.I.T.E.",
+      "city": "Warren",
+      "stateProv": "Ohio",
+      "country": "USA",
+      "rookieYear": 1998,
+      "robotName": "",
+      "districtCode": null,
+      "schoolName": "Warren G Harding High School",
+      "website": "",
+      "homeCMP": null
+    }
+  ]
+}

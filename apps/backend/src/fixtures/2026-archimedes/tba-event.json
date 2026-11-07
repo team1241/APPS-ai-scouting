@@ -1,0 +1,54 @@
+{
+  "key": "2026arc",
+  "name": "Archimedes Division",
+  "short_name": "Archimedes",
+  "event_code": "arc",
+  "event_type": 3,
+  "event_type_string": "Championship Division",
+  "parent_event_key": "2026cmptx",
+  "playoff_type": 10,
+  "playoff_type_string": "Double Elimination Bracket (8 Alliances)",
+  "district": null,
+  "division_keys": [],
+  "first_event_id": null,
+  "first_event_code": "archimedes",
+  "year": 2026,
+  "timezone": "America/Chicago",
+  "week": null,
+  "website": "https://www.firstchampionship.org",
+  "remap_teams": null,
+  "city": "Houston",
+  "state_prov": "TX",
+  "country": "USA",
+  "postal_code": "77010",
+  "lat": null,
+  "lng": null,
+  "location_name": "George R. Brown Convention Center",
+  "address": "1001 Avenida De Las Americas",
+  "gmaps_place_id": null,
+  "gmaps_url": null,
+  "start_date": "2026-04-29",
+  "end_date": "2026-05-02",
+  "webcasts": [
+    {
+      "type": "youtube",
+      "channel": "265TvNiCV94",
+      "date": "2026-04-29"
+    },
+    {
+      "type": "youtube",
+      "channel": "qez41N1qB9s",
+      "date": "2026-04-30"
+    },
+    {
+      "type": "youtube",
+      "channel": "XuQbxsAbEXg",
+      "date": "2026-05-01"
+    },
+    {
+      "type": "youtube",
+      "channel": "h5CFfVw6H0Y",
+      "date": "2026-05-02"
+    }
+  ]
+}

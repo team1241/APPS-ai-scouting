@@ -1,0 +1,82 @@
+{
+  "Schedule": [
+    {
+      "description": "Qualification 1",
+      "startTime": "2026-04-30T08:00:00",
+      "matchNumber": 1,
+      "field": "Primary",
+      "tournamentLevel": "Qualification",
+      "teams": [
+        {
+          "teamNumber": 9427,
+          "station": "Red1",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 971,
+          "station": "Red2",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 1912,
+          "station": "Red3",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 5338,
+          "station": "Blue1",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 2583,
+          "station": "Blue2",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 2137,
+          "station": "Blue3",
+          "surrogate": false
+        }
+      ]
+    },
+    {
+      "description": "Qualification 2",
+      "startTime": "2026-04-30T08:08:00",
+      "matchNumber": 2,
+      "field": "Primary",
+      "tournamentLevel": "Qualification",
+      "teams": [
+        {
+          "teamNumber": 167,
+          "station": "Red1",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 2106,
+          "station": "Red2",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 10021,
+          "station": "Red3",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 1218,
+          "station": "Blue1",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 1241,
+          "station": "Blue2",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 2881,
+          "station": "Blue3",
+          "surrogate": false
+        }
+      ]
+    }
+  ]
+}

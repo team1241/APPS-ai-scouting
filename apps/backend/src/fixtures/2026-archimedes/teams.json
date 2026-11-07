@@ -1,0 +1,92 @@
+{
+  "teamCountTotal": 6,
+  "teamCountPage": 6,
+  "pageCurrent": 1,
+  "pageTotal": 1,
+  "teams": [
+    {
+      "teamNumber": 27,
+      "nameFull": "Walsh Education Foundation/David W. Elliott Memorial Foundation/BorgWarner/Team 221 LLC/REV Robotics/Lawrence Plastics/Techmode, LLC/AMT/Chase Plastics/PMMI Foundation/White Pine Helicopters/Rotary Club of Clarkston/BGM Engineering/Omnia Data Services Corp/BOWMAN Chevrolet/Prime Energy CS/1-800-GOT-JUNK?/Amica/Michigan Drone Flights/Oakland University - School of Engineering and Computer Science/Atom Tech/Rehab/YAYMARSHALL/The Edwards Family/Nana & Papa McKay/FLIP/Razal Grandparents/The Law office of Robert Spencer/Linda McClelland/Online Marketing/River of Life Christian Church/BAE Systems/Shovel Bums/WSM Consulting LLC/Hungry Howie's/IGD Solutions/AUCH/Club Pilates - Clarkston/MATRIX Engineered Systems/ESSENTIAL Electric/INTERLINK Networks/adkison, need & allen, PLLC/Don's Electric/Dort Financial Credit Union/Michigan Flight Museum and Air Adventures/BHD Builders/Cyberlink Computing LLC/Clarkston Foundation/Air-Way Global Manufacturing/Kitchen tune up/Gestam... &Clarkston High School",
+      "nameShort": "Team RUSH",
+      "city": "Clarkston",
+      "stateProv": "Michigan",
+      "country": "USA",
+      "rookieYear": 1997,
+      "robotName": "",
+      "districtCode": "FIM",
+      "schoolName": "Clarkston High School",
+      "website": "",
+      "homeCMP": null
+    },
+    {
+      "teamNumber": 103,
+      "nameFull": "Rev Robotics/Mar Van Industries/In memory of Jamie Wright/Cima&Palisades High School",
+      "nameShort": "Cybersonics",
+      "city": "Kintnersville",
+      "stateProv": "Pennsylvania",
+      "country": "USA",
+      "rookieYear": 1997,
+      "robotName": "",
+      "districtCode": "FMA",
+      "schoolName": "Palisades High School",
+      "website": "",
+      "homeCMP": null
+    },
+    {
+      "teamNumber": 131,
+      "nameFull": "NH Department of Education/HUB International New England LLC/BAE/Argosy Foundation/Gene Haas Foundation/West Coast Products/Comcast/PB & J Records/Queen City Rotary Club/Central Pride Foundation/Manchester Rotary Club/Order of AHEPA Chapter 44/Marine Corps Detachment League #542/BOSCH Community Fund/CHAOS Families and Alumni&4-H&Manchester Central High School",
+      "nameShort": "CHAOS",
+      "city": "Manchester",
+      "stateProv": "New Hampshire",
+      "country": "USA",
+      "rookieYear": 1992,
+      "robotName": "",
+      "districtCode": "NE",
+      "schoolName": "4-H & Manchester Central High School",
+      "website": "",
+      "homeCMP": null
+    },
+    {
+      "teamNumber": 167,
+      "nameFull": "Procter & Gamble/Bayer Foundation/John Deere/RTX/BAE Systems/Gene Haas Foundation/IDT/IBEW 405/Hall and Hall Engineering&Iowa City High School&West Senior High School&Marion High School&Mount Vernon High School&Liberty High School&Mid-Prairie Virtual Academy",
+      "nameShort": "Children of the Corn",
+      "city": "Iowa City",
+      "stateProv": "Iowa",
+      "country": "USA",
+      "rookieYear": 1998,
+      "robotName": "",
+      "districtCode": null,
+      "schoolName": "Mid-Prairie Virtual Academy & Mount Vernon High School & Marion High School & Liberty High School & West Senior High School & Iowa City High School",
+      "website": "",
+      "homeCMP": null
+    },
+    {
+      "teamNumber": 548,
+      "nameFull": "General Motors/Bosch/Kyocera/Reliable Software Resources/Schaefer Screw Products/Autokiniton/Alro Steel Corporation/Gutherie Lumber/State of Michigan/Northville Public Schools&Northville High School",
+      "nameShort": "Robostangs",
+      "city": "Northville",
+      "stateProv": "Michigan",
+      "country": "USA",
+      "rookieYear": 2001,
+      "robotName": "",
+      "districtCode": "FIM",
+      "schoolName": "Northville High School",
+      "website": "",
+      "homeCMP": null
+    },
+    {
+      "teamNumber": 587,
+      "nameFull": "REV Robotics/JW Faircloth & Son/Gene Haas Foundation/Eno River Farm/Corning Incorporated STEAM Fund/Orange County Schools/Kiwanis Club of Hillsborough/Fidelity Investments/Barbara Lott/JC Electric/Gonzalez Painters and Contractors, Inc.&Cedar Ridge High&Family/Community&Orange High School",
+      "nameShort": "The Hedgehogs",
+      "city": "Hillsborough",
+      "stateProv": "North Carolina",
+      "country": "USA",
+      "rookieYear": 2001,
+      "robotName": "",
+      "districtCode": "FNC",
+      "schoolName": "Orange High School & Cedar Ridge High & Family/Community",
+      "website": "",
+      "homeCMP": null
+    }
+  ]
+}

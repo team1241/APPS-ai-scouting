@@ -1,0 +1,92 @@
+{
+  "teamCountTotal": 6,
+  "teamCountPage": 6,
+  "pageCurrent": 1,
+  "pageTotal": 1,
+  "teams": [
+    {
+      "teamNumber": 772,
+      "nameFull": "GM, Centerline, Idea Engineering Services, Windsor Essex FIRST Robotics, FIRST Robotics Canada, Tregaskiss, St. Clair College, University of Windsor, 519 Games,  and Sandwich Secondary School &Sandwich Secondary School",
+      "nameShort": "Sabre Bytes Robotics ",
+      "city": "LaSalle",
+      "stateProv": "Ontario",
+      "country": "Canada",
+      "rookieYear": 2002,
+      "robotName": "",
+      "districtCode": "ONT",
+      "schoolName": "Sandwich Secondary School",
+      "website": "",
+      "homeCMP": null
+    },
+    {
+      "teamNumber": 865,
+      "nameFull": "Toronto District School Board/Motorola Solutions Foundation/The Optimist Club of Etobicoke/BWXT Nuclear Energy Canada Inc./FIRST Robotics Canada/The Eternal House of Cats/WARP7 Parents & Supporters&Western Technical-Commercial School",
+      "nameShort": "WARP7",
+      "city": "Toronto",
+      "stateProv": "Ontario",
+      "country": "Canada",
+      "rookieYear": 2002,
+      "robotName": "",
+      "districtCode": "ONT",
+      "schoolName": "Western Technical-Commercial School",
+      "website": "",
+      "homeCMP": null
+    },
+    {
+      "teamNumber": 919,
+      "nameFull": "The A. Pereira Foundation/Argosy Foundation/Gene Haas Foundation/Magna International/First Robotics Canada/LENOVO/Altis Labs/Harbord Robotics Boosters: Families & Community/Siemens/Sable&Harbord Collegiate Institute",
+      "nameShort": "PANTHERA TIGRIS",
+      "city": "Toronto",
+      "stateProv": "Ontario",
+      "country": "Canada",
+      "rookieYear": 2002,
+      "robotName": "",
+      "districtCode": "ONT",
+      "schoolName": "Harbord Collegiate Institute",
+      "website": "",
+      "homeCMP": null
+    },
+    {
+      "teamNumber": 1114,
+      "nameFull": "General Motors/Barlow Manufacturing/GoBeyond Group/Niagara-on-the-Lake Rotary Club/WestCoast Products&Governor Simcoe Secondary School",
+      "nameShort": "Simbotics",
+      "city": "St Catharines",
+      "stateProv": "Ontario",
+      "country": "Canada",
+      "rookieYear": 2003,
+      "robotName": "",
+      "districtCode": "ONT",
+      "schoolName": "Governor Simcoe Secondary School",
+      "website": "",
+      "homeCMP": null
+    },
+    {
+      "teamNumber": 1305,
+      "nameFull": "General Motors/Canadore College/PEO North Bay Chapter/Enbridge Gas/CIM Northern Gateway Branch/Nipissing-Parry Sound Catholic District School Board&Near North Student Robotics Initiative",
+      "nameShort": "Ice Cubed",
+      "city": "North Bay",
+      "stateProv": "Ontario",
+      "country": "Canada",
+      "rookieYear": 2004,
+      "robotName": "",
+      "districtCode": "ONT",
+      "schoolName": "Near North Student Robotics Initiative",
+      "website": "",
+      "homeCMP": null
+    },
+    {
+      "teamNumber": 1325,
+      "nameFull": "Pacline Overhead Conveyors/MHI Canada Aerospace/Actemium/General Motors/KPMG/Sheridan College/Google/Gene Haas Foundation/Weston Forest Products/Hatch/Ideal Auto Tech/Nye Manufacturing/AMD/Royal Bank of Canada/MindShare Workspace/Agora Manufacturing/Thompson Centres/Allied Gold Corporation/Stial Technologies/IMAX/ERT Hazmat/Anto Wholesale Inc&Family/Community",
+      "nameShort": "Inverse Paradox",
+      "city": "Mississauga",
+      "stateProv": "Ontario",
+      "country": "Canada",
+      "rookieYear": 2004,
+      "robotName": "",
+      "districtCode": "ONT",
+      "schoolName": "Family/Community",
+      "website": "",
+      "homeCMP": null
+    }
+  ]
+}

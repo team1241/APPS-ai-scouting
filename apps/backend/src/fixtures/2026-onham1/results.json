@@ -1,0 +1,100 @@
+{
+  "Matches": [
+    {
+      "isReplay": false,
+      "matchVideoLink": null,
+      "description": "Playoff Match 1 (R1)",
+      "matchNumber": 1,
+      "scoreRedFinal": 705,
+      "scoreRedFoul": 30,
+      "scoreRedAuto": 146,
+      "scoreBlueFinal": 205,
+      "scoreBlueFoul": 0,
+      "scoreBlueAuto": 57,
+      "autoStartTime": "2026-10-31T15:56:58.887",
+      "actualStartTime": "2026-10-31T15:56:58.887",
+      "tournamentLevel": "Playoff",
+      "postResultTime": "2026-10-31T16:00:28.807",
+      "teams": [
+        {
+          "teamNumber": 7558,
+          "station": "Red1",
+          "dq": false
+        },
+        {
+          "teamNumber": 2056,
+          "station": "Red2",
+          "dq": false
+        },
+        {
+          "teamNumber": 854,
+          "station": "Red3",
+          "dq": false
+        },
+        {
+          "teamNumber": 3161,
+          "station": "Blue1",
+          "dq": false
+        },
+        {
+          "teamNumber": 5409,
+          "station": "Blue2",
+          "dq": false
+        },
+        {
+          "teamNumber": 9996,
+          "station": "Blue3",
+          "dq": false
+        }
+      ]
+    },
+    {
+      "isReplay": false,
+      "matchVideoLink": null,
+      "description": "Qualification 1",
+      "matchNumber": 1,
+      "scoreRedFinal": 277,
+      "scoreRedFoul": 5,
+      "scoreRedAuto": 78,
+      "scoreBlueFinal": 274,
+      "scoreBlueFoul": 0,
+      "scoreBlueAuto": 39,
+      "autoStartTime": "2026-10-31T08:45:50.63",
+      "actualStartTime": "2026-10-31T08:45:50.63",
+      "tournamentLevel": "Qualification",
+      "postResultTime": "2026-10-31T08:50:13.907",
+      "teams": [
+        {
+          "teamNumber": 4907,
+          "station": "Red1",
+          "dq": false
+        },
+        {
+          "teamNumber": 4946,
+          "station": "Red2",
+          "dq": false
+        },
+        {
+          "teamNumber": 4476,
+          "station": "Red3",
+          "dq": false
+        },
+        {
+          "teamNumber": 3683,
+          "station": "Blue1",
+          "dq": false
+        },
+        {
+          "teamNumber": 9406,
+          "station": "Blue2",
+          "dq": false
+        },
+        {
+          "teamNumber": 4152,
+          "station": "Blue3",
+          "dq": false
+        }
+      ]
+    }
+  ]
+}

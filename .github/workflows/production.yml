@@ -1,6 +1,8 @@
 name: Production readiness
 
 on:
+  pull_request:
+    branches: [main]
   push:
     branches: [main]
   workflow_dispatch:
@@ -9,11 +11,52 @@ permissions:
   contents: read
 
 concurrency:
-  group: production-readiness
+  group: production-readiness-${{ github.event_name == 'pull_request' && github.event.pull_request.number || 'production' }}
   cancel-in-progress: false
 
 jobs:
+  reference-tests:
+    name: Reference and schedule regression tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: scouting_test
+        ports: [5432:5432]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/scouting_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - run: npx --yes pnpm@12.3.4 install --frozen-lockfile
+      - name: Check code
+        run: |
+          npx --yes pnpm@12.3.4 check
+          npx --yes pnpm@12.3.4 typecheck
+          npx --yes pnpm@12.3.4 test:build-compat
+          node --test apps/backend/src/frc-events.test.ts apps/backend/src/event-config.test.ts apps/mastra/src/mastra/observability.test.ts apps/mastra/src/mastra/workflows/session.test.ts packages/scouting/src/extraction.test.ts apps/backend/src/extraction-config.test.ts apps/backend/src/mastra-client.test.ts apps/backend/src/extraction-reply.test.ts
+      - name: Migrate disposable test database
+        run: |
+          touch apps/backend/.env
+          npx --yes pnpm@12.3.4 db:migrate
+          npx --yes pnpm@12.3.4 db:types:check
+      - name: Verify reference imports and schedule delivery
+        run: node --test apps/backend/src/reference.test.ts apps/backend/src/events.test.ts apps/backend/src/schedule-job.test.ts apps/backend/src/reference-provider.test.ts apps/backend/src/tba-event-link.test.ts apps/backend/src/schedule-policy.test.ts apps/backend/src/schedule-provider.test.ts
+
   migrate:
+    if: github.event_name != 'pull_request'
+    needs: reference-tests
     name: Validate and migrate production
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -24,12 +67,6 @@ jobs:
           node-version: "24"
       - name: Install dependencies
         run: npx --yes pnpm@12.3.4 install --frozen-lockfile
-      - name: Check code
-        run: |
-          npx --yes pnpm@12.3.4 check
-          npx --yes pnpm@12.3.4 typecheck
-          npx --yes pnpm@12.3.4 test:build-compat
-          node --test apps/backend/src/frc-events.test.ts apps/backend/src/event-config.test.ts apps/mastra/src/mastra/observability.test.ts apps/mastra/src/mastra/workflows/session.test.ts packages/scouting/src/extraction.test.ts apps/backend/src/extraction-config.test.ts apps/backend/src/mastra-client.test.ts apps/backend/src/extraction-reply.test.ts
       - name: Apply production migrations and verify generated types
         env:
           DATABASE_URL: ${{ secrets.PRODUCTION_MIGRATION_DATABASE_URL }}

@@ -1,0 +1,73 @@
+{
+  "key": "2026cmptx",
+  "name": "Einstein Field",
+  "short_name": "Einstein",
+  "event_code": "cmptx",
+  "event_type": 4,
+  "event_type_string": "Championship Finals",
+  "parent_event_key": null,
+  "playoff_type": 10,
+  "playoff_type_string": "Double Elimination Bracket (8 Alliances)",
+  "district": null,
+  "division_keys": [
+    "2026arc",
+    "2026cur",
+    "2026dal",
+    "2026gal",
+    "2026hop",
+    "2026joh",
+    "2026mil",
+    "2026new"
+  ],
+  "first_event_id": null,
+  "first_event_code": "cmptx",
+  "year": 2026,
+  "timezone": "America/Chicago",
+  "week": null,
+  "website": "https://www.firstchampionship.org",
+  "remap_teams": null,
+  "city": "Houston",
+  "state_prov": "TX",
+  "country": "USA",
+  "postal_code": "77010",
+  "lat": null,
+  "lng": null,
+  "location_name": "George R. Brown Convention Center",
+  "address": "1001 Avenida De Las Americas",
+  "gmaps_place_id": null,
+  "gmaps_url": null,
+  "start_date": "2026-05-02",
+  "end_date": "2026-05-02",
+  "webcasts": [
+    {
+      "type": "youtube",
+      "channel": "11EJNc9VMn8",
+      "date": "2026-04-30"
+    },
+    {
+      "type": "youtube",
+      "channel": "dtP3LZMkgqQ",
+      "date": "2026-05-01"
+    },
+    {
+      "type": "youtube",
+      "channel": "HkI21hq7dIw",
+      "date": "2026-05-02"
+    },
+    {
+      "type": "youtube",
+      "channel": "pDb17D4Jchk",
+      "date": "2026-05-02"
+    },
+    {
+      "type": "youtube",
+      "channel": "cqLLqH7lr1E",
+      "date": "2026-05-02"
+    },
+    {
+      "type": "youtube",
+      "channel": "MFGaMe0zSA8",
+      "date": "2026-05-02"
+    }
+  ]
+}
