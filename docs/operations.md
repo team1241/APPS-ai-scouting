@@ -132,7 +132,7 @@ The old `REFERENCE_SYNC_ENABLED` and `REFERENCE_SYNC_ADMIN_USER_ID` settings are
 
 ## Participation validation (#3)
 
-Apply `20261107210000_session_participation` through the migration pipeline. Deploy Mastra first: backend turns now send `deferFinalization: true`, keeping extraction resumable while the backend validates and finalizes. Existing suspended runs can resume; completed sessions remain complete. Then deploy the backend. No new credentials or polling service are required.
+Apply `20261107220000_session_participation` through the migration pipeline. Deploy Mastra first: backend turns now send `deferFinalization: true`, keeping extraction resumable while the backend validates and finalizes. Existing suspended runs can resume; completed sessions remain complete. Then deploy the backend. No new credentials or polling service are required.
 
 Admins configure an event with `/event validation <event-id> off|warn|strict`. New events default to warn; refresh preserves the mode. Changes apply to open sessions on their next processing turn, using their original event. `/event` shows the active event, validation mode, snapshot state/acquisition time, and the caller's five most recent open sessions with their event, match/team and validation status, even when scouting is paused. `/event reference <event-id>` retains detailed provider/import diagnostics.
 

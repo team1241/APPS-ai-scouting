@@ -17,6 +17,7 @@ import { saveIncomingNote } from "./repositories/intake.ts";
 import { enrollMember } from "./repositories/members.ts";
 import { overrideReference, readReference, syncReference } from "./repositories/reference.ts";
 import { withTenant } from "./repositories/tenant.ts";
+import { runScheduleJob } from "./schedule-job.ts";
 
 let seq = 10000;
 const next = () => String(++seq);
@@ -29,7 +30,13 @@ const provider: ReferenceProvider = {
   source: "frc_events",
   load: async () => ({
     complete: true,
-    teams: [],
+    teams: participants.map((p) => ({
+      number: p.number,
+      name: null,
+      city: null,
+      region: null,
+      country: null,
+    })),
     matches: [
       {
         key: "qm:1",
@@ -397,5 +404,57 @@ test("validation uses primary participants despite supplemental conflicts or tim
           .execute(),
       ),
       /session_match_event_fk/,
+    );
+  }));
+
+test("automatically acquired rosters and schedules validate; legacy roster backfill never refetches saved matches", async () =>
+  fixture(async (org, event) => {
+    await mode(org, event, "strict");
+    let scheduleCalls = 0,
+      rosterCalls = 0;
+    const acquisition: ReferenceProvider = {
+      source: "frc_events",
+      load: async () => {
+        scheduleCalls++;
+        return provider.load(2026, "GH3");
+      },
+      loadRoster: async () => {
+        rosterCalls++;
+        return { ...(await provider.load(2026, "GH3")), matches: [] };
+      },
+    };
+    const options = {
+      now: new Date("2026-11-08T00:00:00Z"),
+      providers: { first: acquisition, tba: acquisition },
+      fetcher: (async () =>
+        new Response(JSON.stringify({ ok: true }), { status: 200 })) as typeof fetch,
+    };
+    assert.equal((await runScheduleJob(org, "mock", options)).received, 1);
+    await note(org);
+    assert.equal((await finish(org)).result.status, "complete");
+    const before = await readReference(org, "1", event);
+    assert.equal(before.teams.length, 6);
+    assert.ok(before.schedulePoll?.roster_received_at);
+    await withTenant(org, (tx) =>
+      tx
+        .updateTable("schedule_poll")
+        .set({ roster_received_at: null })
+        .where("organization_id", "=", org)
+        .where("event_id", "=", event)
+        .execute(),
+    );
+    const later = { ...options, now: new Date("2026-11-08T00:10:00Z") };
+    assert.equal((await runScheduleJob(org, "mock", later)).received, 1);
+    assert.equal(scheduleCalls, 1);
+    assert.equal(rosterCalls, 1);
+    const after = await readReference(org, "1", event);
+    assert.deepEqual(after.matches, before.matches);
+    assert.deepEqual(after.schedulePoll?.received_at, before.schedulePoll?.received_at);
+    await note(org);
+    assert.equal((await finish(org)).result.status, "complete");
+    assert.equal(
+      (await runScheduleJob(org, "mock", { ...options, now: new Date("2026-11-08T00:20:00Z") }))
+        .attempted,
+      0,
     );
   }));
