@@ -1,4 +1,9 @@
-import { extractionResultSchema, finalizeExtraction } from "@ai-scouting/scouting";
+import {
+  extractionResultSchema,
+  finalizeExtraction,
+  requirements,
+  type Specification,
+} from "@ai-scouting/scouting";
 
 export async function extractSessionTurn(
   baseUrl: string,
@@ -6,6 +11,7 @@ export async function extractSessionTurn(
   turnId: string,
   text: string,
   serviceToken?: string,
+  specification: Specification = requirements,
 ) {
   const response = await fetch(new URL(`/scouting/sessions/${sessionId}/turn`, baseUrl), {
     method: "POST",
@@ -14,10 +20,11 @@ export async function extractSessionTurn(
       "content-type": "application/json",
       ...(serviceToken ? { Authorization: `Bearer ${serviceToken}` } : {}),
     },
-    body: JSON.stringify({ turnId, text, deferFinalization: true }),
+    body: JSON.stringify({ turnId, text, specification, deferFinalization: true }),
     signal: AbortSignal.timeout(90000),
   });
   if (!response.ok) throw Error(`Mastra session request failed (HTTP ${response.status})`);
   const result = extractionResultSchema.parse(await response.json());
-  return finalizeExtraction(result.values);
+  if (result.specificationVersion !== specification.version) throw Error("Specification mismatch");
+  return finalizeExtraction(result.values, specification);
 }

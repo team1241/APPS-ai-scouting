@@ -5,6 +5,7 @@ import { finalizeExtraction } from "@ai-scouting/scouting";
 import { db } from "./db.ts";
 import { eventCommand } from "./event-commands.ts";
 import { parseEventConfig } from "./event-config.ts";
+import { cleanupPublished } from "./published-test-cleanup.ts";
 import type { ReferenceProvider } from "./reference-provider.ts";
 import { changeEvent } from "./repositories/events.ts";
 import {
@@ -99,6 +100,7 @@ async function fixture(run: (org: string, event: string) => Promise<void>) {
     await run(org, created.eventId);
   } finally {
     await withTenant(org, async (tx) => {
+      await cleanupPublished(tx, org);
       for (const table of [
         "raw_entry",
         "intake_rejection",
@@ -213,6 +215,12 @@ test("warn permits explicit unverified save; off bypasses checks; only admins ca
     assert.match(saved.result.question ?? "", /save unverified/);
     await note(org, "1", saved.question, "save unverified");
     assert.equal((await finish(org)).result.status, "complete");
+    const { readObservationHistory } = await import("./repositories/observations.ts");
+    const records = await readObservationHistory(org, "1");
+    assert.equal(records[0]?.outcome, "warning_acknowledged");
+    assert.equal(records[0]?.validCoverage, false);
+    assert.ok(records[0]);
+    assert.equal((records[0].provenance as { rawEntryIds: string[] }).rawEntryIds.length, 2);
     await mode(org, event, "off");
     await note(org);
     assert.equal((await finish(org)).result.status, "complete");
@@ -456,5 +464,184 @@ test("automatically acquired rosters and schedules validate; legacy roster backf
       (await runScheduleJob(org, "mock", { ...options, now: new Date("2026-11-08T00:20:00Z") }))
         .attempted,
       0,
+    );
+  }));
+
+test("published versions survive selection changes; finalization is concurrent and immutable", async () =>
+  fixture(async (org, event) => {
+    const { requirements } = await import("@ai-scouting/scouting");
+    const { publishSpecification, selectSpecification, readObservationHistory } = await import(
+      "./repositories/observations.ts"
+    );
+    await mode(org, event, "off");
+    const original = await note(org);
+    const first = await finish(org, 1241, null);
+    const v2 = {
+      ...requirements,
+      version: "test-v2",
+      fields: [
+        ...requirements.fields,
+        {
+          key: "extra",
+          type: "boolean" as const,
+          required: true,
+          description: "Practice",
+          question: "Extra?",
+        },
+      ],
+    };
+    await assert.rejects(publishSpecification(org, "2", 2026, "match", v2), /Forbidden/);
+    await publishSpecification(org, "1", 2026, "match", v2);
+    await assert.rejects(publishSpecification(org, "1", 2026, "match", v2), /duplicate/);
+    await selectSpecification(org, "1", event, v2.version);
+    await note(org, "1", first.question, "no climb");
+    const claim = await claimExtraction(org);
+    assert.ok(claim);
+    assert.equal(claim.id, original);
+    assert.equal(claim.specification.version, requirements.version);
+    const complete = finalizeExtraction(
+      { match: "Q1", team_number: 1241, climbed: false, notes: null },
+      claim.specification,
+    );
+    const results = await Promise.all([
+      finishExtraction(org, claim.id, claim.lease, complete, null),
+      finishExtraction(org, claim.id, claim.lease, complete, null),
+    ]);
+    assert.equal(results.filter((r) => r.numUpdatedRows === 1n).length, 1);
+    let history = await readObservationHistory(org, "1");
+    assert.equal(history.length, 1);
+    assert.equal(history[0]?.outcome, "unchecked");
+    assert.equal(history[0]?.validCoverage, false);
+    await assert.rejects(
+      withTenant(org, (tx) =>
+        tx
+          .updateTable("observation_revision")
+          .set({ team_number: 999 })
+          .where("organization_id", "=", org)
+          .execute(),
+      ),
+      /immutable/,
+    );
+    await assert.rejects(
+      withTenant(org, (tx) =>
+        tx
+          .updateTable("published_specification")
+          .set({ document: "{}" })
+          .where("organization_id", "=", org)
+          .execute(),
+      ),
+      /immutable/,
+    );
+    await note(org);
+    const newer = await claimExtraction(org);
+    assert.ok(newer);
+    assert.equal(newer.specification.version, "test-v2");
+    const incomplete = finalizeExtraction(
+      { match: "Q1", team_number: 1241, climbed: false, notes: null, extra: null },
+      newer.specification,
+    );
+    assert.equal(
+      (await finishExtraction(org, newer.id, newer.lease, incomplete, "v2question")).result.status,
+      "needs_review",
+    );
+    history = await readObservationHistory(org, "1");
+    assert.equal(history.length, 1);
+  }));
+
+test("corrections retain history and original event, deny foreign/stale targets, and explicit re-extraction creates a new revision", async () =>
+  fixture(async (org, event) => {
+    const { readObservationHistory } = await import("./repositories/observations.ts");
+    await syncReference(org, "1", event, provider);
+    await mode(org, event, "strict");
+    await note(org);
+    await finish(org);
+    let history = await readObservationHistory(org, "1");
+    const original = history[0];
+    assert.ok(original);
+    assert.equal(original.validCoverage, true);
+    await changeEvent(org, "1", next(), { kind: "activate", eventId: null });
+    const correction = async (target: string, user = "1", reextract = false) =>
+      saveIncomingNote({
+        organizationId: org,
+        channel: "telegram",
+        externalUserId: user,
+        externalUpdateId: next(),
+        text: "Q1 team 1242 no climb",
+        correctionRevisionId: target,
+        reextract,
+      });
+    assert.equal(await correction(original.id, "2"), "completed_session");
+    assert.equal((await readObservationHistory(org, "2")).length, 0);
+    await fixture(async (other) => {
+      assert.equal(
+        await saveIncomingNote({
+          organizationId: other,
+          channel: "telegram",
+          externalUserId: "1",
+          externalUpdateId: next(),
+          text: "foreign correction",
+          correctionRevisionId: original.id,
+        }),
+        "completed_session",
+      );
+    });
+    assert.equal(await correction(randomUUID()), "completed_session");
+    const a = await correction(original.id),
+      b = await correction(original.id);
+    assert.equal(typeof a, "object");
+    assert.equal(typeof b, "object");
+    const invalid = await finish(org, 9999);
+    assert.equal(invalid.result.status, "needs_review");
+    await note(org, "1", invalid.question, "team 1242");
+    // The second independent correction can finish first. The stale contender cannot replace it.
+    await finish(org, 1242);
+    assert.match((await finish(org, 1242)).result.question ?? "", /no longer current/);
+    history = await readObservationHistory(org, "1");
+    assert.equal(history.length, 2);
+    assert.equal(history.filter((r) => r.current).length, 1);
+    const current = history.find((r) => r.current);
+    assert.ok(current);
+    assert.equal(current.replaces_revision_id, original.id);
+    assert.equal(current.event_id, event);
+    assert.equal(await correction(original.id), "completed_session");
+    assert.equal(typeof (await correction(current.id, "1", true)), "object");
+    // Skip the stale failed contender when claiming the explicit re-extraction.
+    const pending = await claimExtraction(org);
+    assert.ok(pending);
+    assert.match(pending.text, /explicitReextractionOf/);
+    await finishExtraction(
+      org,
+      pending.id,
+      pending.lease,
+      finalizeExtraction({ match: "Q1", team_number: 1242, climbed: false, notes: null }),
+      null,
+    );
+    history = await readObservationHistory(org, "1");
+    assert.equal(history.length, 3);
+    assert.equal(history.filter((r) => r.current).length, 1);
+    assert.ok(history.every((r) => r.event_id === event));
+  }));
+
+test("ambiguous question receipts never select an arbitrary session", async () =>
+  fixture(async (org) => {
+    await note(org);
+    await note(org);
+    await withTenant(org, (tx) =>
+      tx
+        .updateTable("raw_entry")
+        .set({ follow_up_message_id: "ambiguous" })
+        .where("organization_id", "=", org)
+        .execute(),
+    );
+    assert.equal(
+      await saveIncomingNote({
+        organizationId: org,
+        channel: "telegram",
+        externalUserId: "1",
+        externalUpdateId: next(),
+        text: "no climb",
+        replyToMessageId: "ambiguous",
+      }),
+      "completed_session",
     );
   }));

@@ -6,6 +6,7 @@ import { sql } from "kysely";
 import { db } from "./db.ts";
 import { eventCommand } from "./event-commands.ts";
 import { parseEventConfig } from "./event-config.ts";
+import { cleanupPublished } from "./published-test-cleanup.ts";
 import { changeEvent, readEvents } from "./repositories/events.ts";
 import { claimExtraction, finishExtraction } from "./repositories/extraction.ts";
 import { saveIncomingNote } from "./repositories/intake.ts";
@@ -46,6 +47,7 @@ async function create(org: string, name: string) {
 }
 async function cleanup(org: string) {
   await withTenant(org, async (tx) => {
+    await cleanupPublished(tx, org);
     for (const table of [
       "raw_entry",
       "intake_rejection",

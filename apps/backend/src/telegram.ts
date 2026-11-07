@@ -42,16 +42,31 @@ export function telegramRoutes(organizationId: string, secret: string) {
           chat_id: chat.id,
           text: "Use /scout <event-id> <note>. Find event IDs with /events.",
         });
-      const commandReply = override
-        ? null
-        : await telegramCommand({
-            organizationId,
-            userId: String(sender?.id),
-            updateId: String(update.update_id),
-            text: message.text,
-            name: typeof sender?.first_name === "string" ? sender.first_name : "Scout",
-            botToken: process.env.TELEGRAM_BOT_TOKEN,
-          });
+      const correction =
+        /^\/(correct|reextract)(?:@\w+)?\s+([0-9a-f-]{36})(?:\s+([\s\S]+))?$/i.exec(
+          message.text.trim(),
+        );
+      if (
+        correction &&
+        (!uuidPattern.test(correction[2] ?? "") ||
+          (correction[1]?.toLowerCase() === "correct" && !correction[3]?.trim()))
+      )
+        return c.json({
+          method: "sendMessage",
+          chat_id: chat.id,
+          text: "Use /correct <revision-id> <complete replacement note> or /reextract <revision-id>.",
+        });
+      const commandReply =
+        override || correction
+          ? null
+          : await telegramCommand({
+              organizationId,
+              userId: String(sender?.id),
+              updateId: String(update.update_id),
+              text: message.text,
+              name: typeof sender?.first_name === "string" ? sender.first_name : "Scout",
+              botToken: process.env.TELEGRAM_BOT_TOKEN,
+            });
       if (commandReply !== null)
         return c.json({
           method: "sendMessage",
@@ -64,7 +79,9 @@ export function telegramRoutes(organizationId: string, secret: string) {
         channel: "telegram",
         externalUserId: String(sender?.id),
         externalUpdateId: String(update.update_id),
-        text: message.text,
+        text: correction?.[3] ?? message.text,
+        correctionRevisionId: correction?.[2],
+        reextract: correction?.[1]?.toLowerCase() === "reextract",
         eventId: explicit?.[1],
         replyToMessageId:
           !override && Number.isSafeInteger(object(message.reply_to_message)?.message_id)
@@ -84,7 +101,7 @@ export function telegramRoutes(organizationId: string, secret: string) {
               : result === "invalid_event"
                 ? "Your note was not submitted because the selected event is unavailable. Check /events and resend it with a valid event."
                 : result === "completed_session"
-                  ? "That session is complete. Corrections are not supported yet (#4); this reply was not added or submitted as a new note."
+                  ? "Correction target unavailable. Use /correct <current revision-id> <complete replacement note> from your own completion confirmation. This reply was not submitted."
                   : result === "legacy_session"
                     ? "This older session has no event. Your reply was not submitted. Check /event, then resend the complete note as a new message."
                     : `Received your scouting note. Processing it now…\nEvent: ${result.eventName}`,

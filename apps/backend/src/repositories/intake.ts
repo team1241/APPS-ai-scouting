@@ -1,5 +1,5 @@
-import { requirements } from "@ai-scouting/scouting";
 import { activeEvent, lockEventContext } from "./events.ts";
+import { sessionSpecification } from "./observations.ts";
 import { withTenant } from "./tenant.ts";
 
 interface IncomingNote {
@@ -10,6 +10,8 @@ interface IncomingNote {
   text: string;
   replyToMessageId?: string;
   eventId?: string;
+  correctionRevisionId?: string;
+  reextract?: boolean;
 }
 type Rejection = "no_active_event" | "invalid_event" | "legacy_session" | "completed_session";
 // Context validation, deduplication and persistence share one transaction.
@@ -57,20 +59,54 @@ export function saveIncomingNote(
         .execute();
       return reason;
     };
-    const parent = note.replyToMessageId
+    const correction = note.correctionRevisionId
       ? await tx
-          .selectFrom("raw_entry")
-          .select(["id", "status"])
+          .selectFrom("observation_revision")
+          .selectAll()
           .where("organization_id", "=", note.organizationId)
           .where("member_id", "=", identity.member_id)
-          .where("follow_up_message_id", "=", note.replyToMessageId)
-          .where("parent_entry_id", "is", null)
-          .forUpdate()
+          .where("id", "=", note.correctionRevisionId)
           .executeTakeFirst()
       : undefined;
+    if (note.correctionRevisionId && !correction) return reject("completed_session");
+    if (
+      correction &&
+      (await tx
+        .selectFrom("observation_revision")
+        .select("id")
+        .where("organization_id", "=", note.organizationId)
+        .where("replaces_revision_id", "=", correction.id)
+        .executeTakeFirst())
+    )
+      return reject("completed_session");
+    const parents =
+      note.replyToMessageId && !correction
+        ? await tx
+            .selectFrom("raw_entry")
+            .select(["id", "status"])
+            .where("organization_id", "=", note.organizationId)
+            .where("member_id", "=", identity.member_id)
+            .where("follow_up_message_id", "=", note.replyToMessageId)
+            .where("parent_entry_id", "is", null)
+            .forUpdate()
+            .limit(2)
+            .execute()
+        : [];
+    if (parents.length > 1) return reject("completed_session");
+    const parent = parents[0];
     if (parent?.status === "done") return reject("completed_session");
     let eventId: string, eventName: string, specificationVersion: string;
-    if (parent) {
+    if (correction) {
+      const event = await tx
+        .selectFrom("event")
+        .selectAll()
+        .where("organization_id", "=", note.organizationId)
+        .where("id", "=", correction.event_id)
+        .executeTakeFirstOrThrow();
+      eventId = event.id;
+      eventName = event.name;
+      specificationVersion = correction.specification_version;
+    } else if (parent) {
       const context = await tx
         .selectFrom("scouting_session")
         .innerJoin("event", (join) =>
@@ -88,8 +124,7 @@ export function saveIncomingNote(
       specificationVersion = context.specification_version;
     } else {
       const active = await activeEvent(tx, note.organizationId);
-      if (!active || active.archived || active.specification_version !== requirements.version)
-        return reject("no_active_event");
+      if (!active || active.archived) return reject("no_active_event");
       const selected = note.eventId
         ? await tx
             .selectFrom("event")
@@ -98,12 +133,12 @@ export function saveIncomingNote(
             .where("id", "=", note.eventId)
             .executeTakeFirst()
         : active;
-      if (!selected || selected.archived || selected.specification_version !== requirements.version)
-        return reject("invalid_event");
+      if (!selected || selected.archived) return reject("invalid_event");
       eventId = selected.id;
       eventName = selected.name;
       specificationVersion = selected.specification_version;
     }
+    await sessionSpecification(tx, note.organizationId, eventId, specificationVersion);
     const entry = await tx
       .insertInto("raw_entry")
       .values({
@@ -137,6 +172,8 @@ export function saveIncomingNote(
           member_id: identity.member_id,
           event_id: eventId,
           specification_version: specificationVersion,
+          replaces_revision_id: correction?.id ?? null,
+          reextraction: !!note.reextract,
         })
         .execute();
     return { status: "saved", sessionId: parent?.id ?? entry.id, eventName };

@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
-import { type ExtractionResult, requirements } from "@ai-scouting/scouting";
+import { type ExtractionResult, finalizeExtraction } from "@ai-scouting/scouting";
 import { sql } from "kysely";
+import { sessionSpecification } from "./observations.ts";
 import { validateSessionInTransaction } from "./participation.ts";
 import { withTenant } from "./tenant.ts";
 
@@ -58,12 +59,52 @@ export function claimExtraction(organizationId: string) {
       .where("organization_id", "=", organizationId)
       .where("id", "=", row.id)
       .executeTakeFirstOrThrow();
-    if (session.specification_version !== requirements.version)
-      throw Error("Session specification changed; operator migration required");
+    const specification = await sessionSpecification(
+      tx,
+      organizationId,
+      session.event_id as string,
+      session.specification_version,
+    );
     // Keep the immutable transport envelope in raw_entry, but do not send its UUID as scouting content.
     const original =
       /^\/scout(?:@\w+)?\s+[0-9a-f-]{36}\s+([\s\S]+)$/i.exec(row.text.trim())?.[1] ?? row.text;
-    const text = JSON.stringify({ original, followUps: replies.map((r) => r.text) });
+    const reextractionSources: { id: string; text: string }[] = [];
+    let revisionId = session.reextraction ? session.replaces_revision_id : null;
+    const seen = new Set<string>();
+    while (revisionId && !seen.has(revisionId)) {
+      seen.add(revisionId);
+      const source = await tx
+        .selectFrom("observation_revision")
+        .select(["session_id", "replaces_revision_id"])
+        .where("organization_id", "=", organizationId)
+        .where("id", "=", revisionId)
+        .executeTakeFirstOrThrow();
+      const entries = await tx
+        .selectFrom("raw_entry")
+        .select(["id", "text"])
+        .where("organization_id", "=", organizationId)
+        .where((eb) =>
+          eb.or([eb("id", "=", source.session_id), eb("parent_entry_id", "=", source.session_id)]),
+        )
+        .orderBy("received_at")
+        .orderBy("id")
+        .execute();
+      reextractionSources.unshift(...entries);
+      const sourceSession = await tx
+        .selectFrom("scouting_session")
+        .select("reextraction")
+        .where("organization_id", "=", organizationId)
+        .where("id", "=", source.session_id)
+        .executeTakeFirstOrThrow();
+      revisionId = sourceSession.reextraction ? source.replaces_revision_id : null;
+    }
+    const text = JSON.stringify({
+      original,
+      followUps: replies.map((r) => r.text),
+      ...(session.reextraction
+        ? { explicitReextractionOf: session.replaces_revision_id, reextractionSources }
+        : {}),
+    });
     const lease = new Date();
     await tx
       .updateTable("raw_entry")
@@ -76,6 +117,7 @@ export function claimExtraction(organizationId: string) {
       .where("id", "=", row.id)
       .execute();
     return {
+      specification,
       id: row.id,
       lease,
       chatId: identity.external_id,
@@ -102,6 +144,21 @@ export function finishExtraction(
       .forUpdate()
       .executeTakeFirst();
     if (!raw) return { numUpdatedRows: 0n, result, notice: null };
+    const context = await tx
+      .selectFrom("scouting_session")
+      .selectAll()
+      .where("organization_id", "=", organizationId)
+      .where("id", "=", id)
+      .executeTakeFirstOrThrow();
+    const specification = await sessionSpecification(
+      tx,
+      organizationId,
+      context.event_id as string,
+      context.specification_version,
+    );
+    if (result.specificationVersion !== specification.version)
+      throw Error("Specification mismatch");
+    result = finalizeExtraction(result.values, specification);
     // Serialize identity resolution for this scout. Provisional notes remain independent.
     await sql`select pg_advisory_xact_lock(hashtextextended(${`${organizationId}:${raw.member_id}`}, 31))`.execute(
       tx,
@@ -166,6 +223,76 @@ export function finishExtraction(
       notice = `Another open session (${conflict}) already targets this event, match and team. This note is stored separately and has not been merged. Reply “keep separate” to continue this independent note. To add to the earlier session, reply to its original question explicitly.`;
       result = { ...result, status: "needs_review", question: notice };
     }
+    let staleCorrection = false;
+    if (result.status === "complete") {
+      if (context.replaces_revision_id) {
+        const target = await tx
+          .selectFrom("observation_revision")
+          .selectAll()
+          .where("organization_id", "=", organizationId)
+          .where("id", "=", context.replaces_revision_id)
+          .where("member_id", "=", raw.member_id)
+          .forUpdate()
+          .executeTakeFirstOrThrow();
+        const newer = await tx
+          .selectFrom("observation_revision")
+          .select("id")
+          .where("organization_id", "=", organizationId)
+          .where("replaces_revision_id", "=", target.id)
+          .executeTakeFirst();
+        if (newer) {
+          staleCorrection = true;
+          result = {
+            ...result,
+            status: "needs_review",
+            question: `Correction target is no longer current. Your draft is retained. Start /correct ${newer.id} <complete replacement note> to correct the current revision.`,
+          };
+        }
+      }
+    }
+    if (result.status === "complete") {
+      const event = await tx
+        .selectFrom("event")
+        .select("season")
+        .where("organization_id", "=", organizationId)
+        .where("id", "=", context.event_id as string)
+        .executeTakeFirstOrThrow();
+      const sources = await tx
+        .selectFrom("raw_entry")
+        .select("id")
+        .where("organization_id", "=", organizationId)
+        .where((eb) => eb.or([eb("id", "=", id), eb("parent_entry_id", "=", id)]))
+        .orderBy("received_at")
+        .orderBy("id")
+        .execute();
+      await tx
+        .insertInto("observation_revision")
+        .values({
+          organization_id: organizationId,
+          session_id: id,
+          member_id: raw.member_id,
+          event_id: context.event_id as string,
+          match_id: validation.matchId,
+          team_number: result.values.team_number as number,
+          specification_version: specification.version,
+          season: event.season,
+          values: JSON.stringify(result.values),
+          validation: JSON.stringify(validation),
+          outcome:
+            validation.mode === "off"
+              ? "unchecked"
+              : validation.status === "valid"
+                ? "validated"
+                : "warning_acknowledged",
+          provenance: JSON.stringify({
+            rawEntryIds: sources.map((r) => r.id),
+            reextraction: context.reextraction,
+          }),
+          replaces_revision_id: context.replaces_revision_id,
+        })
+        .onConflict((oc) => oc.column("session_id").doNothing())
+        .execute();
+    }
     const updated = await tx
       .updateTable("raw_entry")
       .set({
@@ -196,13 +323,25 @@ export function finishExtraction(
           match_label: typeof result.values.match === "string" ? result.values.match : null,
           team_number:
             typeof result.values.team_number === "number" ? result.values.team_number : null,
-          status: result.status === "complete" ? "complete" : "collecting",
+          status: staleCorrection
+            ? "superseded"
+            : result.status === "complete"
+              ? "complete"
+              : "collecting",
           completed_at: result.status === "complete" ? new Date() : null,
         })
         .where("organization_id", "=", organizationId)
         .where("id", "=", id)
         .execute();
     }
+    const revision = await tx
+      .selectFrom("observation_revision")
+      .select(["id", "outcome"])
+      .where("organization_id", "=", organizationId)
+      .where("session_id", "=", id)
+      .executeTakeFirst();
+    if (revision)
+      notice = `${revision.outcome}. Revision ${revision.id}. To correct: /correct ${revision.id} <complete replacement note>. To explicitly re-extract: /reextract ${revision.id}`;
     return { ...updated, result, notice };
   });
 }

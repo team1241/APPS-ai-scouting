@@ -327,3 +327,7 @@ A web app is the recommended administration surface because schedules, configura
 - Measure extraction and dictation accuracy in a noisy venue; test reconnect bursts and real scout behavior.
 - Verify automatic deployment on a future release, and coordinate backend/Mastra contract compatibility.
 - Measure real costs before promising the $20 target or selecting higher tiers.
+
+## Implemented #4 contract
+
+Versioned tenant/season/kind publications and append-only finalized observations are implemented. See [operations](operations.md#published-specifications-and-corrections-4) for Telegram correction commands, authorization, identity policy and deployment order, and [development](development.md#versioned-observation-contract) for backend/Mastra contracts. This supersedes roadmap statements describing finalized observations and correction policy as pending. Administration UI remains #5. Pit/general are publication boundaries only; this release collects match observations and introduces no official game-specific schema. Coverage queries must exclude warning-acknowledged and unchecked revisions and must use only the current revision.
