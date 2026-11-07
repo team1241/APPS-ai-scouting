@@ -198,15 +198,11 @@ Use a 2026 offseason event with a published schedule. Verify provider normalizat
 
 ## 8. Reliability and event-day operations
 
-Implemented worker: five-second polling while enabled, one claimed entry at a time, up to three attempts with a one-minute retry delay, and five-minute stale-processing recovery. Durable raw entries protect against agent failure. Exhausted retries currently require manual intervention.
+Event-aware worker control and recovery tooling are implemented for #10. `EVENT_MODE=on|auto|off` controls extraction/outbound claims; auto uses attended events' local dates and short webhook activity bursts, with no idle queue-polling queries. A separate bounded recovery cron handles delayed work while HTTP sleeps. Reference acquisition remains one-time in its own cron. The backend's session/immutable revision state remains authoritative.
 
-Telegram sends and database commits are not atomic. A crash can repeat a question or leave a confirmation undelivered. Add a durable outbound-message queue/outbox with delivery tracking, retry visibility, and an explicit policy for ambiguous sends. Do not promise exactly-once delivery to Telegram.
+The #6 outbox provides transactional enqueueing, fenced delivery claims and explicit ambiguity; Telegram delivery is not exactly once. Restored pending/sending jobs must be quarantined because a database rollback cannot undo messages already sent. Queue snapshots, a disposable event simulation and a full public/Mastra restore drill are included. No scouting data or recipients are exposed through health responses.
 
-Render Free sleeps after 15 minutes without inbound traffic; outbound worker queries do not prevent that. Once asleep, the in-process worker cannot make progress until the service wakes. Neon polling can nevertheless keep database compute awake while the backend runs. The earlier Railway-specific event-mode design does not apply unchanged.
-
-Planned event mode: `auto`, `on`, `off`, timezone-aware event windows, explicit manual override, and a deployment-compatible wake/recovery plan. For reliable live events, assess paid always-on backend hosting rather than depending on an in-process timer to wake a sleeping service. Background polling should reduce/stop during idle periods without losing eventual retry recovery.
-
-Operational views should expose queue age, failed entries, exhausted attempts, outbound failures, sync freshness, and recent processing/model costs. Add restore/backups verification, structured redacted logs, and alerts appropriate to the budget.
+Use always-running Railway during live events and auto/Serverless only with a separate recovery plan during idle periods. Actual service settings, live wake behavior, provider usage and Neon PITR/grants still require an authorized rollout verification. See [event-day reliability](event-day-reliability.md) for modes, conditional hosting decision, measured simulated evidence, cost assumptions, recovery procedure and remaining release gates.
 
 ## 9. Environments and deployment
 
@@ -217,48 +213,17 @@ Operational views should expose queue age, failed entries, exhausted attempts, o
 
 Production backend: <https://ai-scoutingbackend-production.up.railway.app>. Render was the previous host. Mastra project: <https://projects.mastra.ai/team-1241/ai-scouting>. Local testing uses a tunnel for Telegram webhooks; restarting local processes/tunnels may require webhook registration again.
 
-Releases apply reviewed migrations through GitHub Actions before backend rollout, using separate migration/runtime credentials. Mastra has a separate deployment path. Automatic Render deployment is configured but still needs verification after a successful-check/no-rollout incident. See [operations](operations.md#release-workflow) for the procedure and [development](development.md#mastra-build-compatibility) for the existing pnpm compatibility patch.
+Releases apply reviewed migrations through GitHub Actions before backend rollout, using separate migration/runtime credentials. Mastra has a separate deployment path. Railway Wait for CI and deployed-revision verification remain release gates; the historical Render investigation is retired. See [operations](operations.md#release-workflow) for the procedure and [development](development.md#mastra-build-compatibility) for the existing pnpm compatibility patch.
 
 Repository work uses GitHub issue prefixes as defined in [AGENTS.md](../AGENTS.md).
 
 ## 10. Costs and budget
 
-All amounts below are **USD**, excluding tax, exchange rates, domain registration, and developer subscriptions. Public prices checked 2026-11-02; these are planning inputs, not account invoices. Confirm actual subscribed plans and usage in the consoles before changing infrastructure.
+The approximately USD $20/month operating goal remains provisional, excluding tax, exchange rates, domains and developer subscriptions. The [#10 budget assessment](event-day-reliability.md#budget-update-usd-checked-2026-11-07) contains current primary-source prices, explicit event/idle assumptions and local simulated evidence. It supersedes earlier Render-based hosting scenarios. Railway is the existing backend host; no paid tier or automatic top-up is enabled by the reliability work.
 
-| Item                            | Current approach and published cost                                                                                            | Budget implication                                                                           |
-| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------- |
-| Render backend                  | Free $0; published smallest paid compute approximately $7/month                                                                | Free cold starts accepted for now; paid hosting is the first reliability upgrade             |
-| Neon                            | Free: 100 CU-hours/project/month, 1 GB storage; Launch compute $0.106/CU-hour and storage $0.35/GB-month                       | Development and production usage both matter; schemas do not create separate free allowances |
-| Mastra Platform                 | Starter $0 base; 24 CPU-hours included, then $0.35/hour; 100K observability events, then $10/100K; 10 GB egress, then $0.10/GB | Free base does not mean unlimited free usage                                                 |
-| Mastra persistent server option | $100/project                                                                                                                   | Outside the original $20 target; not selected                                                |
-| Anthropic                       | Direct API usage, separate from hosting                                                                                        | Varies with note volume, follow-ups, prompt size, reasoning, and retries                     |
-| Admin web app                   | Hosting/auth not selected                                                                                                      | Static hosting may avoid another server; SSR or separate paid services add costs             |
-| Telegram                        | Standard bot messaging has no per-message charge in this design                                                                | No SMS spend in the initial system                                                           |
-| CI and event data APIs          | No paid plan selected                                                                                                          | Verify private-repo CI allowances and provider terms/rate limits; not priced as unlimited    |
+The user-selected disposable event measured queue/recovery behavior and local process resources, with no real model requests. Neon CU-hours, actual tokens, hosting allocations and platform overages remain unmeasured. The modeled Railway/model/Launch subtotal is $7.522 under the documented assumptions, excluding unknown overages and additional account-wide traffic. Always-active 0.25-CU Neon compute alone can cost $19.08/month at the cited Launch rate. Do not promise the $20 goal before measuring the actual account's development/production/cron and event workload.
 
-Sources: [Render Free behavior](https://render.com/docs/free), [Render published compute comparison](https://render.com/articles/render-vs-railway), [Neon pricing](https://neon.com/pricing), [Mastra pricing](https://mastra.ai/pricing). Neon bills our external database; Mastra-hosted database pricing is not the database choice here. Direct Anthropic keys are used; the optional Mastra gateway's markup is not assumed.
-
-### Illustrative model budget
-
-Published Haiku 5.5 rates for prompts up to 100K tokens: $0.10/million input and $0.50/million output. Sonnet 5.5: $2/million input and $10/million output. [Anthropic model comparison/pricing](https://platform.claude.com/docs/en/models/haiku-5-5/overview).
-
-| Workload                      | Assumption                                 | Estimated API cost |
-| ----------------------------- | ------------------------------------------ | ------------------ |
-| One extraction attempt        | 2,000 input + 500 output tokens            | $0.00045           |
-| 2,000 extraction attempts     | Same token sizes; no caching discount      | $0.90              |
-| 100 future strategy questions | 20,000 input + 2,000 output each on Sonnet | $6.00              |
-
-These are arithmetic examples, not measured production averages. Follow-ups and retries add attempts. Context growth, thinking tokens, model changes, and larger outputs can materially change cost. Prompt caching is a proposed optimization, not an assumed discount in these estimates. The strategist workload is not implemented.
-
-### Monthly planning scenarios
-
-- **Quiet development:** $0 hosting base within allowances, plus actual model calls. This requires managing idle database polling.
-- **One event, free hosting:** approximately $0.90 extraction-only model example; approximately $6.90 with the future strategy example, plus any platform/database overages. Cold-start limitations remain.
-- **One event, paid backend:** approximately $7.90 extraction-only or $13.90 with the strategy example, before Neon/Mastra overages and other costs.
-
-These scenarios are estimates, not fixed-price packages. Paid Neon can push the last scenario over $20: an always-awake 0.25-CU compute for a 30-day month alone is 180 CU-hours, or about $19.08 at the Launch compute rate, before storage and other usage. On Free, the same workload exceeds the quoted 100-CU-hour allowance. A 48-hour event at 0.25 CU is 12 CU-hours. Actual compute size, active periods, and multiple branch computes determine consumption.
-
-Cost controls: measure tokens per attempt and per completed note; monitor dev/prod database compute; limit idle polling; sync reference data conditionally; avoid sending full event histories to every prompt; configure provider spend controls/alerts where available; retain only needed traces; review usage after the first event. No cost ceiling should be claimed solely from these estimates.
+Follow-ups and retries increase extraction attempts; strategy/briefings add workloads beyond the extraction-only model. Use native Mastra token/cost metrics, provider billing and Neon/Railway usage for the same reporting interval. Idle worker controls reduce continuous database polling but recovery/acquisition cron, traces and health/database probes still have costs. Configure spend alerts and review event usage before changing tiers or adding strategy automation.
 
 ## 11. Automatic match notifications
 

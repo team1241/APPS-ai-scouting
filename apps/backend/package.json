@@ -10,7 +10,9 @@
     "db:types:check": "pnpm db:generate --verify",
     "db:migrate": "node --env-file-if-exists=.env src/migrate.ts",
     "db:sync": "pnpm db:migrate && pnpm db:generate",
-    "schedule:sync": "node --env-file-if-exists=.env src/schedule-sync.ts"
+    "schedule:sync": "node --env-file-if-exists=.env src/schedule-sync.ts",
+    "worker:run": "node --env-file-if-exists=.env src/worker-run.ts",
+    "operations": "node --env-file-if-exists=.env src/operations.ts"
   },
   "dependencies": {
     "@ai-scouting/scouting": "workspace:*",
