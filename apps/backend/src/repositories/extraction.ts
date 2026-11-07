@@ -10,6 +10,16 @@ export function claimExtraction(organizationId: string) {
       .selectAll()
       .where("organization_id", "=", organizationId)
       .where("parent_entry_id", "is", null)
+      .where((eb) =>
+        eb.exists(
+          eb
+            .selectFrom("scouting_session")
+            .select("scouting_session.id")
+            .whereRef("scouting_session.organization_id", "=", "raw_entry.organization_id")
+            .whereRef("scouting_session.id", "=", "raw_entry.id")
+            .where("scouting_session.event_id", "is not", null),
+        ),
+      )
       .where("processing_attempts", "<", 3)
       .where("next_attempt_at", "<=", new Date())
       .where((eb) =>
@@ -41,16 +51,6 @@ export function claimExtraction(organizationId: string) {
       .orderBy("received_at")
       .orderBy("id")
       .execute();
-    await tx
-      .insertInto("scouting_session")
-      .values({
-        id: row.id,
-        organization_id: organizationId,
-        member_id: row.member_id,
-        specification_version: requirements.version,
-      })
-      .onConflict((oc) => oc.columns(["organization_id", "id"]).doNothing())
-      .execute();
     const session = await tx
       .selectFrom("scouting_session")
       .selectAll()
@@ -59,7 +59,10 @@ export function claimExtraction(organizationId: string) {
       .executeTakeFirstOrThrow();
     if (session.specification_version !== requirements.version)
       throw Error("Session specification changed; operator migration required");
-    const text = JSON.stringify({ original: row.text, followUps: replies.map((r) => r.text) });
+    // Keep the immutable transport envelope in raw_entry, but do not send its UUID as scouting content.
+    const original =
+      /^\/scout(?:@\w+)?\s+[0-9a-f-]{36}\s+([\s\S]+)$/i.exec(row.text.trim())?.[1] ?? row.text;
+    const text = JSON.stringify({ original, followUps: replies.map((r) => r.text) });
     const lease = new Date();
     await tx
       .updateTable("raw_entry")

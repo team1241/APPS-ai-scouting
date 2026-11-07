@@ -12,11 +12,12 @@
     "db:sync": "pnpm db:migrate && pnpm db:generate"
   },
   "dependencies": {
+    "@ai-scouting/scouting": "workspace:*",
     "@hono/node-server": "^2.1.5",
     "hono": "^4.13.14",
     "kysely": "^0.29.7",
     "pg": "^8.23.1",
-    "@ai-scouting/scouting": "workspace:*"
+    "windows-iana": "5.1.0"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",

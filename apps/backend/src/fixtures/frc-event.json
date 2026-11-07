@@ -1,0 +1,22 @@
+{
+  "Events": [
+    {
+      "address": "55 Forest Street",
+      "website": "http://www.nefirst.org/",
+      "webcasts": [],
+      "timezone": "Eastern Standard Time",
+      "code": "CTHAR",
+      "divisionCode": null,
+      "name": "* NE District Hartford Event (Cancelled)",
+      "type": "DistrictEvent",
+      "districtCode": "NE",
+      "venue": "Hartford Public High School",
+      "city": "Hartford",
+      "stateprov": "CT",
+      "country": "USA",
+      "dateStart": "2020-04-03T00:00:00",
+      "dateEnd": "2020-04-05T23:59:59"
+    }
+  ],
+  "eventCount": 1
+}
