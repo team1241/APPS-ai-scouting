@@ -178,6 +178,7 @@ export interface SchedulePoll {
   event_id: string;
   organization_id: string;
   received_at: Timestamp | null;
+  roster_received_at: Timestamp | null;
   source: string | null;
   status: Generated<string>;
 }

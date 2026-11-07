@@ -36,6 +36,7 @@ export interface Snapshot {
 export interface ReferenceProvider {
   source: Source;
   load(season: number, code: string): Promise<Snapshot>;
+  loadRoster?(season: number, code: string): Promise<Snapshot>;
 }
 export function object(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== "object" || Array.isArray(value))
@@ -396,6 +397,104 @@ export function tbaScheduleProvider(fetcher: typeof fetch = fetch): ReferencePro
         complete: true,
         eventFacts,
       };
+    },
+  };
+}
+
+// Used to fill legacy schedule-only acquisitions without requesting their schedule again.
+export function frcRosterProvider(fetcher: typeof fetch = fetch): ReferenceProvider {
+  return {
+    source: "frc_events",
+    async load(season, code) {
+      const ref = parseFrcReference(String(season), code);
+      const user = process.env.FRC_EVENTS_USERNAME,
+        key = process.env.FRC_EVENTS_AUTHORIZATION_KEY;
+      if (!user || !key) throw new Error("FIRST credentials are not configured");
+      const headers = {
+        authorization: `Basic ${Buffer.from(`${user}:${key}`).toString("base64")}`,
+      };
+      const teams: ReferenceTeam[] = [];
+      let pages = 1;
+      let total: unknown;
+      for (let page = 1; page <= pages; page++) {
+        const data = normalizeFrcTeams(
+          await request(
+            `https://frc-api.firstinspires.org/v3.0/${ref.season}/teams?eventCode=${ref.code}&page=${page}`,
+            headers,
+            fetcher,
+          ),
+        );
+        if (
+          data.page !== page ||
+          data.pages > 100 ||
+          (page > 1 && (pages !== data.pages || total !== data.total))
+        )
+          throw new Error("Unstable roster pagination");
+        pages = data.pages;
+        total = data.total;
+        teams.push(...data.teams);
+      }
+      unique(teams, (t) => t.number);
+      if (teams.length !== total) throw new Error("Incomplete roster");
+      return { teams, matches: [], complete: true };
+    },
+  };
+}
+export function tbaRosterProvider(fetcher: typeof fetch = fetch): ReferenceProvider {
+  return {
+    source: "tba",
+    async load(season, code) {
+      if (!new RegExp(`^${season}[a-z0-9]+$`).test(code)) throw new Error("Invalid TBA key");
+      const key = process.env.TBA_AUTH_KEY;
+      if (!key) throw new Error("TBA credentials are not configured");
+      const teams = unique(
+        list(
+          await request(
+            `https://www.thebluealliance.com/api/v3/event/${code}/teams`,
+            { "X-TBA-Auth-Key": key },
+            fetcher,
+          ),
+        ).map((v) => {
+          const t = object(v);
+          return {
+            number: positive(t.team_number),
+            name: text(t.nickname),
+            city: text(t.city),
+            region: text(t.state_prov),
+            country: text(t.country),
+          };
+        }),
+        (t) => t.number,
+      );
+      return { teams, matches: [], complete: true };
+    },
+  };
+}
+export function frcAcquisitionProvider(fetcher: typeof fetch = fetch): ReferenceProvider {
+  const roster = frcRosterProvider(fetcher),
+    schedule = frcScheduleProvider(fetcher);
+  return {
+    source: "frc_events",
+    loadRoster: roster.load,
+    async load(season, code) {
+      const snapshot = await schedule.load(season, code);
+      if (!snapshot.matches.length) return snapshot;
+      const teams = await roster.load(season, code);
+      return { ...snapshot, teams: teams.teams, complete: snapshot.complete && teams.complete };
+    },
+  };
+}
+export function tbaAcquisitionProvider(fetcher: typeof fetch = fetch): ReferenceProvider {
+  const roster = tbaRosterProvider(fetcher),
+    schedule = tbaScheduleProvider(fetcher);
+  return {
+    source: "tba",
+    loadRoster: roster.load,
+    async load(season, code) {
+      const snapshot = await schedule.load(season, code);
+      if (!snapshot.matches.length) return snapshot;
+      const teams = await roster.load(season, code);
+      return { ...snapshot, teams: teams.teams, complete: snapshot.complete && teams.complete };
     },
   };
 }

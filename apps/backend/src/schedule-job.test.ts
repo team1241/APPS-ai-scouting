@@ -7,11 +7,13 @@ import { db } from "./db.ts";
 import { normalizeFrcEvent } from "./frc-events.ts";
 import {
   normalizeFrcSchedule,
+  normalizeFrcTeams,
   type ReferenceProvider,
   type Snapshot,
 } from "./reference-provider.ts";
 import { changeEvent } from "./repositories/events.ts";
 import { enrollMember } from "./repositories/members.ts";
+import { syncReference } from "./repositories/reference.ts";
 import { withTenant } from "./repositories/tenant.ts";
 import { runScheduleJob } from "./schedule-job.ts";
 
@@ -71,7 +73,7 @@ test("all added events poll from 6pm, retry every ten minutes, stop durably afte
       load: async () => {
         calls++;
         return {
-          teams: [],
+          teams: normalizeFrcTeams(await fixture("teams")).teams,
           matches: phase === "empty" ? [] : matches,
           complete: phase !== "partial",
           eventFacts: metadata,
@@ -184,7 +186,11 @@ test("FIRST failure falls back to linked TBA; notification timeout never restart
         source: "tba" as const,
         load: async () => {
           calls++;
-          return { teams: [], matches, complete: true };
+          return {
+            teams: normalizeFrcTeams(await fixture("teams")).teams,
+            matches,
+            complete: true,
+          };
         },
       },
     };
@@ -226,7 +232,11 @@ test("failed schedule persistence cannot stop polling or queue a notification", 
     const providers = {
       first: {
         source: "frc_events" as const,
-        load: async () => ({ teams: [], matches: valid ? matches : broken, complete: true }),
+        load: async () => ({
+          teams: normalizeFrcTeams(await fixture("teams")).teams,
+          matches: valid ? matches : broken,
+          complete: true,
+        }),
       },
       tba: {
         source: "tba" as const,
@@ -286,7 +296,11 @@ test("notification retries recheck admin membership and new schedule tables enfo
     const providers = {
       first: {
         source: "frc_events" as const,
-        load: async () => ({ teams: [], matches, complete: true }),
+        load: async () => ({
+          teams: normalizeFrcTeams(await fixture("teams")).teams,
+          matches,
+          complete: true,
+        }),
       },
       tba: {
         source: "tba" as const,
@@ -353,5 +367,181 @@ test("notification retries recheck admin membership and new schedule tables enfo
   } finally {
     await cleanup(org);
     await cleanup(other);
+  }
+});
+
+test("automatic acquisition saves the event roster alongside the schedule", async () => {
+  const org = randomUUID();
+  try {
+    const id = await setup(org);
+    process.env.FRC_EVENTS_USERNAME = "fixture";
+    process.env.FRC_EVENTS_AUTHORIZATION_KEY = "fixture";
+    const fetcher: typeof fetch = async (url) => {
+      const u = String(url);
+      if (u.includes("api.telegram.org")) return Response.json({ ok: true });
+      if (u.includes("/events?")) return Response.json({ Events: [await fixture("event")] });
+      if (u.includes("/teams?")) return Response.json(await fixture("teams"));
+      assert.ok(u.includes("/schedule/ONOSH?tournamentLevel=Qualification"));
+      return Response.json(await fixture("qualification"));
+    };
+    await runScheduleJob(org, "test-bot", { now: at(0), fetcher });
+    const teams = await withTenant(org, (tx) =>
+      tx
+        .selectFrom("event_team")
+        .select("id")
+        .where("organization_id", "=", org)
+        .where("event_id", "=", id)
+        .execute(),
+    );
+    assert.equal(teams.length, 6, "schedule acquisition must also persist roster details");
+  } finally {
+    await cleanup(org);
+  }
+});
+
+test("legacy schedule-only receipt backfills its roster once without schedule requests or duplicate messages", async () => {
+  const org = randomUUID();
+  try {
+    const id = await setup(org);
+    const matches = normalizeFrcSchedule(await fixture("qualification"), "Qualification");
+    await syncReference(org, "1", id, {
+      source: "frc_events",
+      load: async () => ({ teams: [], matches, complete: true }),
+    });
+    await withTenant(org, (tx) =>
+      tx
+        .updateTable("schedule_notification")
+        .set({ status: "sent", sent_at: at(0) })
+        .where("organization_id", "=", org)
+        .execute(),
+    );
+    const before = await withTenant(org, async (tx) => ({
+      poll: await tx
+        .selectFrom("schedule_poll")
+        .selectAll()
+        .where("organization_id", "=", org)
+        .where("event_id", "=", id)
+        .executeTakeFirstOrThrow(),
+      matches: await tx
+        .selectFrom("event_match")
+        .selectAll()
+        .where("organization_id", "=", org)
+        .orderBy("id")
+        .execute(),
+    }));
+    assert.ok(before.poll.received_at);
+    assert.equal(before.poll.roster_received_at, null);
+    let rosterCalls = 0;
+    const providers = {
+      first: {
+        source: "frc_events" as const,
+        load: async (): Promise<Snapshot> => {
+          throw new Error("must not fetch saved schedule");
+        },
+        loadRoster: async () => {
+          rosterCalls++;
+          return {
+            teams: normalizeFrcTeams(await fixture("teams")).teams,
+            matches: [],
+            complete: true,
+          };
+        },
+      },
+      tba: {
+        source: "tba" as const,
+        load: async (): Promise<Snapshot> => {
+          throw new Error("not linked");
+        },
+      },
+    };
+    const fetcher: typeof fetch = async () => {
+      throw new Error("must not send another message");
+    };
+    const results = await Promise.all([
+      runScheduleJob(org, "test-bot", { now: at(10), providers, fetcher }),
+      runScheduleJob(org, "test-bot", { now: at(10), providers, fetcher }),
+    ]);
+    assert.equal(rosterCalls, 1);
+    assert.equal(
+      results.reduce((n, r) => n + r.notified, 0),
+      0,
+    );
+    const after = await withTenant(org, async (tx) => ({
+      poll: await tx
+        .selectFrom("schedule_poll")
+        .selectAll()
+        .where("organization_id", "=", org)
+        .where("event_id", "=", id)
+        .executeTakeFirstOrThrow(),
+      teams: await tx
+        .selectFrom("event_team")
+        .select("id")
+        .where("organization_id", "=", org)
+        .execute(),
+      matches: await tx
+        .selectFrom("event_match")
+        .selectAll()
+        .where("organization_id", "=", org)
+        .orderBy("id")
+        .execute(),
+      notifications: await tx
+        .selectFrom("schedule_notification")
+        .select("status")
+        .where("organization_id", "=", org)
+        .execute(),
+    }));
+    assert.equal(after.teams.length, 6);
+    assert.ok(after.poll.roster_received_at);
+    assert.deepEqual(after.poll.received_at, before.poll.received_at);
+    assert.deepEqual(after.matches, before.matches);
+    assert.equal(after.notifications.length, 2);
+    assert.ok(after.notifications.every((n) => n.status === "sent"));
+    await runScheduleJob(org, "test-bot", { now: at(20), providers, fetcher });
+    assert.equal(rosterCalls, 1);
+  } finally {
+    await cleanup(org);
+  }
+});
+test("a schedule without a usable roster keeps acquisition pending and sends no success message", async () => {
+  const org = randomUUID();
+  try {
+    const id = await setup(org);
+    const providers = {
+      first: {
+        source: "frc_events" as const,
+        load: async () => ({
+          teams: [],
+          matches: normalizeFrcSchedule(await fixture("qualification"), "Qualification"),
+          complete: true,
+        }),
+      },
+      tba: {
+        source: "tba" as const,
+        load: async (): Promise<Snapshot> => {
+          throw new Error("not linked");
+        },
+      },
+    };
+    const result = await runScheduleJob(org, "test-bot", {
+      now: at(0),
+      providers,
+      fetcher: async () => {
+        throw new Error("must not notify");
+      },
+    });
+    assert.equal(result.received, 0);
+    assert.equal(result.notified, 0);
+    const poll = await withTenant(org, (tx) =>
+      tx
+        .selectFrom("schedule_poll")
+        .selectAll()
+        .where("organization_id", "=", org)
+        .where("event_id", "=", id)
+        .executeTakeFirstOrThrow(),
+    );
+    assert.equal(poll.received_at, null);
+    assert.equal(poll.roster_received_at, null);
+  } finally {
+    await cleanup(org);
   }
 });

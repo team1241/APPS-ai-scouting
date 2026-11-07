@@ -88,9 +88,12 @@ export async function eventCommand(
       if (operation?.toLowerCase() === "reference") {
         const data = await readReference(organizationId, userId, eventId);
         const poll = data.schedulePoll;
-        const schedule = poll?.received_at
-          ? `Automatic schedule polling stopped: saved ${poll.received_at.toISOString()}.`
-          : `Automatic schedule polling: ${poll?.status ?? "waiting for 6 p.m. on the first event day"}.${poll?.error ? ` ${poll.error}` : ""}`;
+        const schedule =
+          poll?.received_at && poll.roster_received_at
+            ? `Automatic roster/schedule polling stopped: saved ${poll.received_at.toISOString()}.`
+            : poll?.received_at
+              ? `Schedule saved; roster acquisition ${poll.status === "received" ? "pending" : poll.status}.${poll.error ? ` ${poll.error}` : ""}`
+              : `Automatic roster/schedule polling: ${poll?.status ?? "not yet attempted; eligible from 6 p.m. on the first event day"}.${poll?.error ? ` ${poll.error}` : ""}`;
         const notifications = data.scheduleNotifications.length
           ? `\nAdmin notifications: ${data.scheduleNotifications.map((n) => n.status).join(", ")}.`
           : "";

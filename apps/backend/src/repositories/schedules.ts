@@ -25,6 +25,22 @@ export async function lockSchedulePoll(
     .executeTakeFirstOrThrow();
 }
 
+export async function recordRosterReceipt(
+  tx: Transaction<DB>,
+  organizationId: string,
+  eventId: string,
+  now: Date,
+) {
+  await lockSchedulePoll(tx, organizationId, eventId);
+  await tx
+    .updateTable("schedule_poll")
+    .set({ roster_received_at: now })
+    .where("organization_id", "=", organizationId)
+    .where("event_id", "=", eventId)
+    .where("roster_received_at", "is", null)
+    .execute();
+}
+
 // Receipt and recipient snapshots commit in the same transaction as the schedule.
 export async function recordScheduleReceipt(
   tx: Transaction<DB>,
@@ -33,7 +49,7 @@ export async function recordScheduleReceipt(
   source: Source,
   now: Date,
 ) {
-  await lockSchedulePoll(tx, organizationId, event.id);
+  const poll = await lockSchedulePoll(tx, organizationId, event.id);
   const changed = await tx
     .updateTable("schedule_poll")
     .set({ received_at: now, status: "received", source, error: null })
@@ -62,7 +78,7 @@ export async function recordScheduleReceipt(
         organization_id: organizationId,
         event_id: event.id,
         telegram_user_id: admin.external_id,
-        text: `The match schedule for ${event.name} (${event.season}${event.frc_event_code ? ` ${event.frc_event_code}` : ""}) has been received and saved. Automatic schedule polling has stopped.`,
+        text: `The ${poll.roster_received_at ? "team roster and match schedule" : "match schedule"} for ${event.name} (${event.season}${event.frc_event_code ? ` ${event.frc_event_code}` : ""}) ${poll.roster_received_at ? "have" : "has"} been received and saved. ${poll.roster_received_at ? "Automatic polling has stopped." : "Schedule polling has stopped; roster acquisition will continue."}`,
         next_attempt_at: now,
       })
       .onConflict((oc) =>
@@ -82,7 +98,9 @@ export function scheduleCandidates(organizationId: string) {
       .selectAll("e")
       .where("e.organization_id", "=", organizationId)
       .where("e.archived", "=", false)
-      .where("p.received_at", "is", null)
+      .where((eb) =>
+        eb.or([eb("p.received_at", "is", null), eb("p.roster_received_at", "is", null)]),
+      )
       .orderBy("e.start_date")
       .execute(),
   );
@@ -97,7 +115,7 @@ export function claimSchedulePoll(organizationId: string, eventId: string, now: 
       .executeTakeFirstOrThrow();
     if (!schedulePollingStarted(event, now)) return null;
     const poll = await lockSchedulePoll(tx, organizationId, eventId);
-    if (poll.received_at) return null;
+    if (poll.received_at && poll.roster_received_at) return null;
     if (!event.frc_event_code && !event.tba_event_key) return null;
     if (poll.attempted_at && now.getTime() - poll.attempted_at.getTime() < schedulePollInterval)
       return null;
@@ -108,7 +126,7 @@ export function claimSchedulePoll(organizationId: string, eventId: string, now: 
       .where("organization_id", "=", organizationId)
       .where("event_id", "=", eventId)
       .execute();
-    return { event, attemptId };
+    return { event, attemptId, rosterOnly: Boolean(poll.received_at) };
   });
 }
 export function finishSchedulePoll(
@@ -121,7 +139,8 @@ export function finishSchedulePoll(
 ) {
   return withTenant(organizationId, async (tx) => {
     const poll = await lockSchedulePoll(tx, organizationId, eventId);
-    if (poll.received_at || poll.attempt_id !== attemptId) return false;
+    if ((poll.received_at && poll.roster_received_at) || poll.attempt_id !== attemptId)
+      return false;
     const event = await tx
       .selectFrom("event")
       .selectAll()
@@ -153,20 +172,40 @@ export function finishSchedulePoll(
           [source]: snapshot.eventFacts,
         } as typeof event.provider_facts;
       }
-      if (!snapshot.complete || !snapshot.matches.length) continue;
-      await persistReferenceSnapshot(tx, organizationId, event, source, snapshot);
+      if (
+        !snapshot.complete ||
+        !snapshot.teams.length ||
+        (!poll.received_at && !snapshot.matches.length)
+      )
+        continue;
+      await persistReferenceSnapshot(
+        tx,
+        organizationId,
+        event,
+        source,
+        poll.received_at ? { ...snapshot, matches: [] } : snapshot,
+      );
+      await recordRosterReceipt(tx, organizationId, event.id, now);
       received = source;
       break;
     }
     if (received) {
       await recordScheduleReceipt(tx, organizationId, event, received, now);
+      await tx
+        .updateTable("schedule_poll")
+        .set({ status: "received", error: null })
+        .where("organization_id", "=", organizationId)
+        .where("event_id", "=", eventId)
+        .execute();
       return true;
     }
     await tx
       .updateTable("schedule_poll")
       .set({
         status: failed ? "failed" : "waiting",
-        error: failed ? "Schedule provider failed; will retry" : "Schedule not published yet",
+        error: failed
+          ? "Roster/schedule provider failed; will retry"
+          : "Roster or schedule not published yet",
       })
       .where("organization_id", "=", organizationId)
       .where("event_id", "=", eventId)
