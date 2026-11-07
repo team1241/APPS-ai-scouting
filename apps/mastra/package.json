@@ -9,10 +9,11 @@
     "typecheck": "tsc"
   },
   "dependencies": {
+    "@ai-scouting/scouting": "workspace:*",
     "@mastra/core": "^1.80.0",
+    "@mastra/observability": "1.23.1",
     "@mastra/pg": "^1.33.0",
-    "zod": "^4.6.7",
-    "@ai-scouting/scouting": "workspace:*"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",

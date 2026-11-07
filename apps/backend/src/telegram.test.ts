@@ -87,6 +87,18 @@ test("authenticated Telegram intake persists and deduplicates notes", async () =
     const resumed = await claimExtraction(id);
     assert.ok(resumed);
     assert.equal(resumed.id, claimed.id);
+    assert.notEqual(resumed.turnId, claimed.turnId);
+    const session = await tenant((tx) =>
+      tx
+        .selectFrom("scouting_session")
+        .selectAll()
+        .where("id", "=", claimed.id)
+        .executeTakeFirstOrThrow(),
+    );
+    assert.equal(session.member_id, members[0]);
+    assert.equal(session.match_label, "Q42");
+    assert.equal(session.team_number, 1241);
+    assert.equal(session.status, "collecting");
     assert.match(resumed.text, /No climb/);
     const completed = finalizeExtraction({
       match: "Q42",
@@ -99,6 +111,15 @@ test("authenticated Telegram intake persists and deduplicates notes", async () =
       tx.selectFrom("raw_entry").selectAll().where("id", "=", claimed.id).executeTakeFirstOrThrow(),
     );
     assert.equal(root.status, "done");
+    const completedSession = await tenant((tx) =>
+      tx
+        .selectFrom("scouting_session")
+        .selectAll()
+        .where("id", "=", claimed.id)
+        .executeTakeFirstOrThrow(),
+    );
+    assert.equal(completedSession.status, "complete");
+    assert.ok(completedSession.completed_at);
     assert.equal(root.text, update.message.text);
   } finally {
     await tenant(async (tx) => {

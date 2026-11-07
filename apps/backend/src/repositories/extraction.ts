@@ -1,4 +1,5 @@
-import type { ExtractionResult } from "@ai-scouting/scouting";
+import { createHash } from "node:crypto";
+import { type ExtractionResult, requirements } from "@ai-scouting/scouting";
 import { sql } from "kysely";
 import { withTenant } from "./tenant.ts";
 
@@ -40,6 +41,25 @@ export function claimExtraction(organizationId: string) {
       .orderBy("received_at")
       .orderBy("id")
       .execute();
+    await tx
+      .insertInto("scouting_session")
+      .values({
+        id: row.id,
+        organization_id: organizationId,
+        member_id: row.member_id,
+        specification_version: requirements.version,
+      })
+      .onConflict((oc) => oc.columns(["organization_id", "id"]).doNothing())
+      .execute();
+    const session = await tx
+      .selectFrom("scouting_session")
+      .selectAll()
+      .where("organization_id", "=", organizationId)
+      .where("id", "=", row.id)
+      .executeTakeFirstOrThrow();
+    if (session.specification_version !== requirements.version)
+      throw Error("Session specification changed; operator migration required");
+    const text = JSON.stringify({ original: row.text, followUps: replies.map((r) => r.text) });
     const lease = new Date();
     await tx
       .updateTable("raw_entry")
@@ -55,7 +75,8 @@ export function claimExtraction(organizationId: string) {
       id: row.id,
       lease,
       chatId: identity.external_id,
-      text: JSON.stringify({ original: row.text, followUps: replies.map((r) => r.text) }),
+      text,
+      turnId: createHash("sha256").update(text).digest("hex"),
     };
   });
 }
@@ -67,8 +88,8 @@ export function finishExtraction(
   result: ExtractionResult,
   messageId: string | null,
 ) {
-  return withTenant(organizationId, (tx) =>
-    tx
+  return withTenant(organizationId, async (tx) => {
+    const updated = await tx
       .updateTable("raw_entry")
       .set({
         status: result.status === "complete" ? "done" : "needs_review",
@@ -79,9 +100,25 @@ export function finishExtraction(
       .where("organization_id", "=", organizationId)
       .where("id", "=", id)
       .where("processing_started_at", "=", lease)
-      .executeTakeFirst(),
-  );
+      .executeTakeFirst();
+    if (updated.numUpdatedRows === 1n) {
+      await tx
+        .updateTable("scouting_session")
+        .set({
+          match_label: typeof result.values.match === "string" ? result.values.match : null,
+          team_number:
+            typeof result.values.team_number === "number" ? result.values.team_number : null,
+          status: result.status === "complete" ? "complete" : "collecting",
+          completed_at: result.status === "complete" ? new Date() : null,
+        })
+        .where("organization_id", "=", organizationId)
+        .where("id", "=", id)
+        .execute();
+    }
+    return updated;
+  });
 }
+
 export function failExtraction(organizationId: string, id: string, lease: Date) {
   return withTenant(organizationId, (tx) =>
     tx

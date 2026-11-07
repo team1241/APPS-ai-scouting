@@ -1,27 +1,11 @@
-import {
-  extractionInputSchema,
-  extractionResultSchema,
-  extractionShape,
-  finalizeExtraction,
-} from "@ai-scouting/scouting";
-import { createStep, createWorkflow } from "@mastra/core/workflows";
+import { extractionShape, finalizeExtraction } from "@ai-scouting/scouting";
 import { extractor } from "../agents/extractor.ts";
+import { createSessionWorkflow } from "./session.ts";
 
-const extract = createStep({
-  id: "extract-required-fields",
-  inputSchema: extractionInputSchema,
-  outputSchema: extractionResultSchema,
-  execute: async ({ inputData }) => {
-    const response = await extractor.generate(JSON.stringify({ scoutingNote: inputData.text }), {
-      structuredOutput: { schema: extractionShape() },
-    });
-    return finalizeExtraction(response.object);
-  },
+export const sessionWorkflow = createSessionWorkflow(async (text, tracingContext) => {
+  const response = await extractor.generate(JSON.stringify({ scoutingNote: text }), {
+    structuredOutput: { schema: extractionShape() },
+    tracingContext,
+  });
+  return finalizeExtraction(response.object);
 });
-export const extractionWorkflow = createWorkflow({
-  id: "scouting-extraction",
-  inputSchema: extractionInputSchema,
-  outputSchema: extractionResultSchema,
-})
-  .then(extract)
-  .commit();

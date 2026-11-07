@@ -1,13 +1,16 @@
 import { Mastra } from "@mastra/core/mastra";
-import { SimpleAuth } from "@mastra/core/server";
+import { registerApiRoute, SimpleAuth } from "@mastra/core/server";
 import { PostgresStore } from "@mastra/pg";
-
+import { z } from "zod";
 import { extractor } from "./agents/extractor.ts";
-import { extractionWorkflow } from "./workflows/extraction.ts";
+import { createObservability } from "./observability.ts";
+import { sessionWorkflow } from "./workflows/extraction.ts";
+import { advanceSession, sessionTurnSchema } from "./workflows/session.ts";
 
 export const mastra = new Mastra({
   agents: { extractor },
-  workflows: { "scouting-extraction": extractionWorkflow },
+  workflows: { "scouting-session": sessionWorkflow },
+  observability: createObservability(),
   storage: process.env.MASTRA_DATABASE_URL
     ? new PostgresStore({
         id: "ai-scouting-storage",
@@ -18,6 +21,43 @@ export const mastra = new Mastra({
       })
     : undefined,
   server: {
+    apiRoutes: [
+      registerApiRoute("/scouting/sessions/:runId/turn", {
+        method: "POST",
+        // Custom routes are outside SimpleAuth's default /api/* protection.
+        middleware: async (c, next) => {
+          const token = process.env.MASTRA_SERVICE_TOKEN;
+          if (token) {
+            const { timingSafeEqual } = await import("node:crypto");
+            const actual = Buffer.from(c.req.header("authorization") ?? "");
+            const expected = Buffer.from(`Bearer ${token}`);
+            if (actual.length !== expected.length || !timingSafeEqual(actual, expected))
+              return c.json({ error: "Unauthorized" }, 401);
+          } else if (process.env.NODE_ENV === "production") {
+            return c.json({ error: "Service token required" }, 503);
+          }
+          await next();
+        },
+        handler: async (c) => {
+          const runId = z.string().uuid().safeParse(c.req.param("runId"));
+          const turn = sessionTurnSchema.safeParse(await c.req.json().catch(() => null));
+          if (!runId.success || !turn.success)
+            return c.json({ error: "Invalid session turn" }, 400);
+          // Configured storage is mandatory: a suspended session must survive restarts.
+          if (!process.env.MASTRA_DATABASE_URL)
+            return c.json({ error: "Session storage required" }, 503);
+          try {
+            const result = await advanceSession(sessionWorkflow, runId.data, turn.data);
+            return c.json(result);
+          } catch {
+            return c.json(
+              { error: "Session turn unavailable; retry or inspect workflow state" },
+              503,
+            );
+          }
+        },
+      }),
+    ],
     auth: process.env.MASTRA_SERVICE_TOKEN
       ? new SimpleAuth({
           tokens: { [process.env.MASTRA_SERVICE_TOKEN]: { id: "scouting-backend" } },
@@ -25,7 +65,7 @@ export const mastra = new Mastra({
             const req = request instanceof Request ? request : request.raw;
             return (
               req?.method === "POST" &&
-              new URL(req.url).pathname === "/api/workflows/scouting-extraction/start-async"
+              /^\/scouting\/sessions\/[a-f0-9-]+\/turn$/.test(new URL(req.url).pathname)
             );
           },
         })

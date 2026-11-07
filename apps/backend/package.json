@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node --watch --env-file-if-exists=.env src/index.ts",
+    "dev": "pnpm db:sync && node --watch --env-file-if-exists=.env src/index.ts",
     "start": "node src/index.ts",
     "typecheck": "tsc",
     "db:generate": "kysely-codegen --dialect postgres --env-file .env --default-schema public --out-file src/db.generated.ts --include-pattern \"public.*\" --exclude-pattern \"public.kysely_*\"",

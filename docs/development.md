@@ -8,7 +8,7 @@ Use Node 24 or newer and the pinned pnpm version in `package.json`. Run `pnpm in
 
 Copy each app's `.env.example` to its ignored `.env`, and fill credentials privately. Use the Neon development branch and development bot. Local Anthropic credentials and production credentials are separate.
 
-Run `pnpm dev` to start both applications. For a Telegram test, the backend, Mastra, and a public tunnel must all remain running. Environment changes require restarting the affected process.
+Run `pnpm dev` to start both applications. Backend development startup first applies pending migrations to its configured development database and regenerates types; failure prevents the backend from starting. Restart the dev command after adding a migration. Production `start` intentionally uses the restricted runtime role and does not migrate. For a Telegram test, the backend, Mastra, and a public tunnel must all remain running. Environment changes require restarting the affected process.
 
 ## Local Telegram setup
 
@@ -27,7 +27,7 @@ Re-register the webhook when the tunnel URL changes. Unknown accounts receive an
 
 In `apps/mastra/.env`, configure `ANTHROPIC_API_KEY` and `MASTRA_DATABASE_URL` for the development branch's restricted Mastra login. In backend `.env`, set `MASTRA_URL=http://127.0.0.1:4111` and `EXTRACTION_ENABLED=true`. A local service token is optional; hosted authentication is covered in operations.
 
-The extraction contract comes from `packages/scouting/src/requirements.json`. Update the version when meaning or fields change, and rebuild Mastra after edits. This is a starter template, not an official game schema. The shared package validates it and derives the structured-output schema. Invoke `scouting-extraction` through the workflow endpoint; the agent's free-text endpoint does not run deterministic finalization.
+The extraction contract comes from `packages/scouting/src/requirements.json`. Update the version when meaning or fields change, and rebuild Mastra after edits. This is a starter template, not an official game schema. The shared package validates it and derives the structured-output schema. The backend invokes `POST /scouting/sessions/:runId/turn`, which starts or resumes the durable `scouting-session` workflow. Calling the agent directly bypasses deterministic finalization.
 
 Do not run a Mastra production build while its dev watcher is active: stop the parent CLI and listener first. To run built output locally, use `node --env-file=.env .mastra/output/index.mjs` from `apps/mastra`.
 
@@ -35,12 +35,12 @@ Do not run a Mastra production build while its dev watcher is active: stop the p
 
 Commands run from the repository root and load `apps/backend/.env`:
 
-| Command | Purpose |
-| --- | --- |
-| `pnpm db:migrate` | Apply pending forward migrations |
-| `pnpm db:generate` | Introspect the public schema and replace generated types |
-| `pnpm db:sync` | Migrate, then generate types only after success |
-| `pnpm db:types:check` | Verify committed types against database introspection |
+| Command               | Purpose                                                  |
+| --------------------- | -------------------------------------------------------- |
+| `pnpm db:migrate`     | Apply pending forward migrations                         |
+| `pnpm db:generate`    | Introspect the public schema and replace generated types |
+| `pnpm db:sync`        | Migrate, then generate types only after success          |
+| `pnpm db:types:check` | Verify committed types against database introspection    |
 
 Add a timestamp-prefixed TypeScript migration under `apps/backend/src/migrations`. Export async `up(db: Kysely<any>)` and `down(db: Kysely<any>)`, importing `Kysely` from `kysely`. Migration types intentionally remain independent of the current generated database types. Add a new migration rather than editing one applied to a shared database. The runner applies files in name order, moves forward only, and closes its connection pool.
 
@@ -60,7 +60,7 @@ From the root:
 pnpm check
 pnpm typecheck
 pnpm test:build-compat
-node --test packages/scouting/src/extraction.test.ts apps/backend/src/extraction-config.test.ts apps/backend/src/mastra-client.test.ts apps/backend/src/extraction-reply.test.ts
+node --test apps/mastra/src/mastra/observability.test.ts apps/mastra/src/mastra/workflows/session.test.ts packages/scouting/src/extraction.test.ts apps/backend/src/extraction-config.test.ts apps/backend/src/mastra-client.test.ts apps/backend/src/extraction-reply.test.ts
 ```
 
 From `apps/backend`, run the development Neon integration tests:
@@ -84,3 +84,10 @@ After dependency upgrades, run `pnpm test:build-compat` and `pnpm --filter @ai-s
 ## Shared agent skills
 
 Neon and Mastra skills live in `.agents/skills`; Claude Code uses relative symlinks from `.claude/skills`. Upstream sources and pinned revisions are in `.agents/skills-sources.json`. Update selected skill directories from a reviewed upstream commit, update the recorded revision together, and preserve the symlinks. These are shared repository tooling, not application packages.
+
+
+## Mastra traces
+
+Run the local Mastra dev server and open Studio’s Traces view. `@mastra/observability` records workflow/step spans and extractor/model child spans. Traces persist in the configured Mastra storage schema; when platform credentials are available, the platform exporter also forwards them to Mastra Platform. Sensitive-data filtering is enabled. The service token stays restricted to the session endpoint and does not grant trace access.
+
+Only new executions produce traces; previously completed runs are not backfilled. A resumed session may produce another trace branch/execution segment tied to the same workflow run ID. Retried cached turns do not invoke the model again. Inspect input/output and timing in Studio, and track trace storage/observability usage alongside the model budget.

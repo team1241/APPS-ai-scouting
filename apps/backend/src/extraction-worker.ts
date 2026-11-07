@@ -1,5 +1,5 @@
 import { extractionReply } from "./extraction-reply.ts";
-import { extractNote } from "./mastra-client.ts";
+import { extractSessionTurn } from "./mastra-client.ts";
 import { claimExtraction, failExtraction, finishExtraction } from "./repositories/extraction.ts";
 
 export function startExtractionWorker(
@@ -16,7 +16,13 @@ export function startExtractionWorker(
     try {
       entry = await claimExtraction(organizationId);
       if (!entry) return;
-      const result = await extractNote(baseUrl, entry.text, serviceToken);
+      const result = await extractSessionTurn(
+        baseUrl,
+        entry.id,
+        entry.turnId,
+        entry.text,
+        serviceToken,
+      );
       if (!result.question) {
         const saved = await finishExtraction(organizationId, entry.id, entry.lease, result, null);
         if (saved.numUpdatedRows !== 1n) throw Error("Extraction lease expired before save");

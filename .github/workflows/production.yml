@@ -29,7 +29,7 @@ jobs:
           npx --yes pnpm@12.3.4 check
           npx --yes pnpm@12.3.4 typecheck
           npx --yes pnpm@12.3.4 test:build-compat
-          node --test packages/scouting/src/extraction.test.ts apps/backend/src/extraction-config.test.ts apps/backend/src/mastra-client.test.ts apps/backend/src/extraction-reply.test.ts
+          node --test apps/mastra/src/mastra/observability.test.ts apps/mastra/src/mastra/workflows/session.test.ts packages/scouting/src/extraction.test.ts apps/backend/src/extraction-config.test.ts apps/backend/src/mastra-client.test.ts apps/backend/src/extraction-reply.test.ts
       - name: Apply production migrations and verify generated types
         env:
           DATABASE_URL: ${{ secrets.PRODUCTION_MIGRATION_DATABASE_URL }}

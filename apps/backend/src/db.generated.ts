@@ -75,10 +75,23 @@ export interface RawEntry {
   text: string;
 }
 
+export interface ScoutingSession {
+  completed_at: Timestamp | null;
+  created_at: Generated<Timestamp>;
+  id: string;
+  match_label: string | null;
+  member_id: string;
+  organization_id: string;
+  specification_version: string;
+  status: Generated<string>;
+  team_number: number | null;
+}
+
 export interface DB {
   channel_identity: ChannelIdentity;
   invitation: Invitation;
   member: Member;
   organization: Organization;
   raw_entry: RawEntry;
+  scouting_session: ScoutingSession;
 }

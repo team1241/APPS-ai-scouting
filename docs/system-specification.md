@@ -1,6 +1,6 @@
 # AI Scouting system specification
 
-Version: 1.0 • Updated: 2026-11-02 • Owner: Team 1241
+Version: 1.0 • Updated: 2026-11-07 • Owner: Team 1241
 
 This document consolidates the product decisions, implementation progress, architecture, deployment history, and future direction discussed during initial development. It is the current planning reference. “Implemented” describes repository code and previously verified deployments, not a fresh live-service audit. “Planned” records agreed direction; “proposed” identifies recommendations still open to change.
 
@@ -16,11 +16,11 @@ The original operating target is approximately USD $20/month. Free tiers are acc
 
 ## 2. Roles and user experience
 
-| Role | Intended responsibilities |
-| --- | --- |
-| Scout | Submit notes and answer follow-up questions |
+| Role       | Intended responsibilities                                               |
+| ---------- | ----------------------------------------------------------------------- |
+| Scout      | Submit notes and answer follow-up questions                             |
 | Strategist | Review observations, compare teams, and ask match-preparation questions |
-| Admin | Manage membership, invitations, events, specifications, and operations |
+| Admin      | Manage membership, invitations, events, specifications, and operations  |
 
 The initial bot processes private chats. Group/channel intake is not implemented. Telegram enrollment creates a member with the scout role; strategist/admin promotion requires a separate administrative path.
 
@@ -44,30 +44,30 @@ Admins can create, list, and revoke reusable Telegram invitations. Joining enrol
 
 ## 3. Current implementation status
 
-| Capability | Status |
-| --- | --- |
-| Hono backend and Mastra app in a pnpm monorepo | Implemented |
-| Neon intake tables, tenant isolation, repositories, migrations/types | Implemented |
-| Telegram webhook, enrollment checks, deduplication | Implemented and previously tested locally/hosted |
-| Reusable admin invitation commands | Implemented; production command routing previously verified |
-| Specification-driven Anthropic extraction and linked follow-ups | Implemented with starter specification |
-| Separate development bot and Neon branch | Configured |
-| Mastra Platform deployment and restricted backend credential | Configured and previously smoke-tested |
-| Render production backend | Deployed |
-| GitHub production readiness and migration workflow | Implemented; user confirmed successful run |
-| Automatic Render deployment after readiness | Configured, but one successful run did not trigger rollout; unresolved |
-| Event configuration, reference imports, schedule validation | Planned; not implemented |
-| Final observations, corrections, review queue | Planned; not implemented |
-| Admin web app and web authentication | Proposed; not implemented |
-| Strategist agent, statistics, summaries | Planned; not implemented |
-| Automatic/manual event mode | Planned; not implemented |
+| Capability                                                           | Status                                                                 |
+| -------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| Hono backend and Mastra app in a pnpm monorepo                       | Implemented                                                            |
+| Neon intake tables, tenant isolation, repositories, migrations/types | Implemented                                                            |
+| Telegram webhook, enrollment checks, deduplication                   | Implemented and previously tested locally/hosted                       |
+| Reusable admin invitation commands                                   | Implemented; production command routing previously verified            |
+| Specification-driven Anthropic extraction and linked follow-ups      | Implemented with starter specification                                 |
+| Separate development bot and Neon branch                             | Configured                                                             |
+| Mastra Platform deployment and restricted backend credential         | Configured and previously smoke-tested                                 |
+| Railway production backend                                           | Deployed                                                               |
+| GitHub production readiness and migration workflow                   | Implemented; user confirmed successful run                             |
+| Automatic Render deployment after readiness                          | Configured, but one successful run did not trigger rollout; unresolved |
+| Event configuration, reference imports, schedule validation          | Planned; not implemented                                               |
+| Final observations, corrections, review queue                        | Planned; not implemented                                               |
+| Admin web app and web authentication                                 | Proposed; not implemented                                              |
+| Strategist agent, statistics, summaries                              | Planned; not implemented                                               |
+| Automatic/manual event mode                                          | Planned; not implemented                                               |
 
 ## 4. Architecture and ownership
 
 ```mermaid
 flowchart TD
   Scout[Scout: Telegram private chat] --> Telegram[Telegram Bot API]
-  Telegram -->|HTTPS webhook| Backend[Hono backend: Render]
+  Telegram -->|HTTPS webhook| Backend[Hono backend: Railway]
   Backend -->|Tenant repositories| Public[(Neon: scouting tables)]
   Backend -->|Authenticated workflow request| Mastra[Mastra Platform]
   Mastra --> Anthropic[Anthropic API]
@@ -82,18 +82,18 @@ flowchart TD
 
 Solid connections represent existing integration; dashed connections represent planned work. Both Neon nodes are logical boundaries within the same database environment, not separate copied databases.
 
-| Component | Choice and responsibility | Reason / tradeoff |
-| --- | --- | --- |
-| Scout channel | Telegram | Low setup effort; uses existing phones and supports typed/dictated input. Depends on Telegram accounts and venue connectivity. |
-| Application backend | Node 24 + Hono on Render | Owns intake, access control, scouting persistence, retries, and future reference sync/data API. Free hosting was accepted while Railway signup was unavailable. |
-| Agent runtime | Managed Mastra Platform | Hosts extraction agents/workflows and Studio; avoids operating the agent server ourselves. Adds an HTTP/authentication boundary and platform usage charges. |
-| Database | Neon Postgres | One transactional source for scouting data with separate dev/production branches and scale-to-zero capability. |
-| Agent storage | Dedicated `mastra` schema in Neon | Reuses database infrastructure while isolating agent tables and permissions. A shared compute budget and failure domain remain. |
-| Database access | Kysely + pg, centralized backend repositories | Typed queries, explicit migrations, and one place for tenant/transaction rules. No route-level SQL or model-generated SQL. |
-| Shared contracts | `packages/scouting` + Zod | Specification, structured output, and deterministic completeness rules shared across applications. |
-| Formatting/lint | Biome | Shared workspace configuration and checks. |
-| Extraction provider | Direct Anthropic API key; Haiku 5.5 | Inexpensive extraction model. Quality must be measured on real scouting notes. |
-| Admin interface | Small dedicated web app, proposed | Suitable for event lists, specifications, review, and settings; Telegram retains scout intake and quick commands. Framework, hosting, and web identity provider are undecided. |
+| Component           | Choice and responsibility                     | Reason / tradeoff                                                                                                                                                              |
+| ------------------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Scout channel       | Telegram                                      | Low setup effort; uses existing phones and supports typed/dictated input. Depends on Telegram accounts and venue connectivity.                                                 |
+| Application backend | Node 24 + Hono on Railway                      | Owns intake, access control, scouting persistence, retries, and future reference sync/data API. Free hosting was accepted while Railway signup was unavailable.                |
+| Agent runtime       | Managed Mastra Platform                       | Hosts extraction agents/workflows and Studio; avoids operating the agent server ourselves. Adds an HTTP/authentication boundary and platform usage charges.                    |
+| Database            | Neon Postgres                                 | One transactional source for scouting data with separate dev/production branches and scale-to-zero capability.                                                                 |
+| Agent storage       | Dedicated `mastra` schema in Neon             | Reuses database infrastructure while isolating agent tables and permissions. A shared compute budget and failure domain remain.                                                |
+| Database access     | Kysely + pg, centralized backend repositories | Typed queries, explicit migrations, and one place for tenant/transaction rules. No route-level SQL or model-generated SQL.                                                     |
+| Shared contracts    | `packages/scouting` + Zod                     | Specification, structured output, and deterministic completeness rules shared across applications.                                                                             |
+| Formatting/lint     | Biome                                         | Shared workspace configuration and checks.                                                                                                                                     |
+| Extraction provider | Direct Anthropic API key; Haiku 5.5           | Inexpensive extraction model. Quality must be measured on real scouting notes.                                                                                                 |
+| Admin interface     | Small dedicated web app, proposed             | Suitable for event lists, specifications, review, and settings; Telegram retains scout intake and quick commands. Framework, hosting, and web identity provider are undecided. |
 
 ### Alternatives and rationale
 
@@ -131,13 +131,23 @@ Public reference facts can be shared; attendance, active-event selection, specif
 
 Secrets remain in ignored local environment files or provider/GitHub secret stores. Never embed credentials in this document or source control. Hosted backend-to-Mastra calls use HTTPS and a dedicated service token restricted to the extraction workflow endpoint; Studio uses platform authentication.
 
+### Durable scouting sessions
+
+Each initial scouting submission creates a tenant/member-owned `scouting_session`, using its root raw-entry ID as the stable Mastra run ID. Linked Telegram answers resume that run rather than starting another extraction workflow. The run suspends with the current requirements result while waiting and completes when required data is present. The backend stores match/team identity as it becomes available and tracks completion separately from immutable raw messages.
+
+A session's turn ID is a hash of its original note and ordered replies. Replaying a persisted turn returns the cached result; concurrent identical requests in one Mastra process share execution. Provider errors suspend without a result so retry can resume the same run. A crashed execution left in a running/failed state needs operator recovery rather than silently starting another run. Snapshot storage must be configured. Completed sessions reject new turns; corrections start separate submissions pending the finalized observation/history feature.
+
+Sessions pin the current specification version. Processing refuses a version mismatch rather than silently changing an open session's requirements. Full multi-version schema support remains planned. Event context and automatic association of independent notes to the same scout/match/team remain blocked on event configuration; the current session boundary is one initial submission and its explicitly linked replies. Different submissions remain independent, including notes by different scouts about the same match.
+
+The session endpoint is `POST /scouting/sessions/:runId/turn`, authenticated with the backend service token. The stateless extraction workflow has been removed; the worker uses sessions exclusively. Run the database migration, deploy Mastra with the new endpoint, then deploy the backend. Do not switch the worker before the endpoint is available. Telegram outbound delivery still has the documented non-atomic send/commit limitation.
+
 ## 6. Extraction requirements
 
 The current JSON requirements document is a starter template, not an official 2026 or 2027 game specification. It requires a match label, positive team number, and explicit climb outcome; free-text notes are optional. Supported field types are text, positive integer, and boolean.
 
 Requirements determine field descriptions, required fields, and follow-up wording. Missing/ambiguous values become null; explicit false is valid data. Application code computes completeness instead of trusting an agent's assertion. Scout input is untrusted data and cannot override the specification.
 
-Future specifications should be published immutable versions associated with season and observation kind (`match`, `pit`, `general`). Each note should retain its assigned specification version across follow-ups and deployments. Re-extraction under another version must be explicit. The current prototype records the resulting version but does not yet provide that complete lifecycle. Define the actual 2027 requirements after Kickoff.
+Future specifications should be published immutable versions associated with season and observation kind (`match`, `pit`, `general`). Each note should retain its assigned specification version across follow-ups and deployments. Re-extraction under another version must be explicit. The current session rejects changes to its pinned version; loading multiple published schemas remains planned. Define the actual 2027 requirements after Kickoff.
 
 ## 7. Event configuration and external data
 
@@ -151,17 +161,17 @@ Use internal event/match IDs with optional source identifiers. Do not assume pro
 
 ### First event settings
 
-| Setting | Requirement |
-| --- | --- |
-| Name and season | Any supported year, including historical/offseason testing |
-| Source identifiers | Optional FRC Events and TBA identifiers, or manual event |
-| Event type | Official, offseason, practice |
-| Dates/timezone | Local event context and schedule rendering |
-| Attendance | Whether 1241 attends; scouting another event remains possible |
-| Specification version | Explicit published requirements for extraction |
-| Validation mode | Off, warn, strict; initially warn |
-| Archive state | Preserve history and remove old events from ordinary selection |
-| Organization active event | One active scouting event for 1241 initially |
+| Setting                   | Requirement                                                    |
+| ------------------------- | -------------------------------------------------------------- |
+| Name and season           | Any supported year, including historical/offseason testing     |
+| Source identifiers        | Optional FRC Events and TBA identifiers, or manual event       |
+| Event type                | Official, offseason, practice                                  |
+| Dates/timezone            | Local event context and schedule rendering                     |
+| Attendance                | Whether 1241 attends; scouting another event remains possible  |
+| Specification version     | Explicit published requirements for extraction                 |
+| Validation mode           | Off, warn, strict; initially warn                              |
+| Archive state             | Preserve history and remove old events from ordinary selection |
+| Organization active event | One active scouting event for 1241 initially                   |
 
 Active event is an organization setting. Attach it when a note is received and preserve it across event switches and follow-ups. Do not infer event/match from webhook arrival time, especially after offline queuing. Handling a delayed note from a previous event needs an explicit scout override or review flow; the initial active-event default alone cannot resolve it.
 
@@ -185,12 +195,12 @@ Operational views should expose queue age, failed entries, exhausted attempts, o
 
 ## 9. Environments and deployment
 
-| Environment | Bot | Database | Agent runtime |
-| --- | --- | --- | --- |
-| Development | Separate dev bot | Neon development branch | Local Mastra; optional separate hosted dev project later |
-| Production | `@theory6_scouting_bot` | Neon production branch, restricted app logins | Mastra Platform production project |
+| Environment | Bot                     | Database                                      | Agent runtime                                            |
+| ----------- | ----------------------- | --------------------------------------------- | -------------------------------------------------------- |
+| Development | Separate dev bot        | Neon development branch                       | Local Mastra; optional separate hosted dev project later |
+| Production  | `@theory6_scouting_bot` | Neon production branch, restricted app logins | Mastra Platform production project                       |
 
-Production backend: <https://apps-ai-scouting.onrender.com>. Mastra project: <https://projects.mastra.ai/team-1241/ai-scouting>. Local testing uses a tunnel for Telegram webhooks; restarting local processes/tunnels may require webhook registration again.
+Production backend: <https://ai-scoutingbackend-production.up.railway.app>. Render was the previous host. Mastra project: <https://projects.mastra.ai/team-1241/ai-scouting>. Local testing uses a tunnel for Telegram webhooks; restarting local processes/tunnels may require webhook registration again.
 
 Releases apply reviewed migrations through GitHub Actions before backend rollout, using separate migration/runtime credentials. Mastra has a separate deployment path. Automatic Render deployment is configured but still needs verification after a successful-check/no-rollout incident. See [operations](operations.md#release-workflow) for the procedure and [development](development.md#mastra-build-compatibility) for the existing pnpm compatibility patch.
 
@@ -200,16 +210,16 @@ Repository work uses GitHub issue prefixes as defined in [AGENTS.md](../AGENTS.m
 
 All amounts below are **USD**, excluding tax, exchange rates, domain registration, and developer subscriptions. Public prices checked 2026-11-02; these are planning inputs, not account invoices. Confirm actual subscribed plans and usage in the consoles before changing infrastructure.
 
-| Item | Current approach and published cost | Budget implication |
-| --- | --- | --- |
-| Render backend | Free $0; published smallest paid compute approximately $7/month | Free cold starts accepted for now; paid hosting is the first reliability upgrade |
-| Neon | Free: 100 CU-hours/project/month, 1 GB storage; Launch compute $0.106/CU-hour and storage $0.35/GB-month | Development and production usage both matter; schemas do not create separate free allowances |
-| Mastra Platform | Starter $0 base; 24 CPU-hours included, then $0.35/hour; 100K observability events, then $10/100K; 10 GB egress, then $0.10/GB | Free base does not mean unlimited free usage |
-| Mastra persistent server option | $100/project | Outside the original $20 target; not selected |
-| Anthropic | Direct API usage, separate from hosting | Varies with note volume, follow-ups, prompt size, reasoning, and retries |
-| Admin web app | Hosting/auth not selected | Static hosting may avoid another server; SSR or separate paid services add costs |
-| Telegram | Standard bot messaging has no per-message charge in this design | No SMS spend in the initial system |
-| CI and event data APIs | No paid plan selected | Verify private-repo CI allowances and provider terms/rate limits; not priced as unlimited |
+| Item                            | Current approach and published cost                                                                                            | Budget implication                                                                           |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------- |
+| Render backend                  | Free $0; published smallest paid compute approximately $7/month                                                                | Free cold starts accepted for now; paid hosting is the first reliability upgrade             |
+| Neon                            | Free: 100 CU-hours/project/month, 1 GB storage; Launch compute $0.106/CU-hour and storage $0.35/GB-month                       | Development and production usage both matter; schemas do not create separate free allowances |
+| Mastra Platform                 | Starter $0 base; 24 CPU-hours included, then $0.35/hour; 100K observability events, then $10/100K; 10 GB egress, then $0.10/GB | Free base does not mean unlimited free usage                                                 |
+| Mastra persistent server option | $100/project                                                                                                                   | Outside the original $20 target; not selected                                                |
+| Anthropic                       | Direct API usage, separate from hosting                                                                                        | Varies with note volume, follow-ups, prompt size, reasoning, and retries                     |
+| Admin web app                   | Hosting/auth not selected                                                                                                      | Static hosting may avoid another server; SSR or separate paid services add costs             |
+| Telegram                        | Standard bot messaging has no per-message charge in this design                                                                | No SMS spend in the initial system                                                           |
+| CI and event data APIs          | No paid plan selected                                                                                                          | Verify private-repo CI allowances and provider terms/rate limits; not priced as unlimited    |
 
 Sources: [Render Free behavior](https://render.com/docs/free), [Render published compute comparison](https://render.com/articles/render-vs-railway), [Neon pricing](https://neon.com/pricing), [Mastra pricing](https://mastra.ai/pricing). Neon bills our external database; Mastra-hosted database pricing is not the database choice here. Direct Anthropic keys are used; the optional Mastra gateway's markup is not assumed.
 
@@ -217,11 +227,11 @@ Sources: [Render Free behavior](https://render.com/docs/free), [Render published
 
 Published Haiku 5.5 rates for prompts up to 100K tokens: $0.10/million input and $0.50/million output. Sonnet 5.5: $2/million input and $10/million output. [Anthropic model comparison/pricing](https://platform.claude.com/docs/en/models/haiku-5-5/overview).
 
-| Workload | Assumption | Estimated API cost |
-| --- | --- | --- |
-| One extraction attempt | 2,000 input + 500 output tokens | $0.00045 |
-| 2,000 extraction attempts | Same token sizes; no caching discount | $0.90 |
-| 100 future strategy questions | 20,000 input + 2,000 output each on Sonnet | $6.00 |
+| Workload                      | Assumption                                 | Estimated API cost |
+| ----------------------------- | ------------------------------------------ | ------------------ |
+| One extraction attempt        | 2,000 input + 500 output tokens            | $0.00045           |
+| 2,000 extraction attempts     | Same token sizes; no caching discount      | $0.90              |
+| 100 future strategy questions | 20,000 input + 2,000 output each on Sonnet | $6.00              |
 
 These are arithmetic examples, not measured production averages. Follow-ups and retries add attempts. Context growth, thinking tokens, model changes, and larger outputs can materially change cost. Prompt caching is a proposed optimization, not an assumed discount in these estimates. The strategist workload is not implemented.
 
@@ -271,21 +281,21 @@ Coverage checks and missing-team messages should be deterministic and require no
 
 ## 12. Roadmap and future features
 
-| Priority | Deliverable | Completion outcome |
-| --- | --- | --- |
-| Next | Event model, active-event settings, provider adapters and schedule validation | A note retains event context and validates match/team against imported data |
-| Next | Final observations and versioned specifications | Complete drafts become queryable domain records; corrections preserve history |
-| Next | Minimal authenticated admin web app | Events, specification selection, review queue, members/invitations, operational status |
-| Before live event reliance | Retry administration, outbound delivery tracking, event-day hosting decision, rollout verification | Failures are visible/recoverable and deployment behavior is proven |
-| Then | Deterministic team statistics and strategist agent | Answers use typed query tools and cite source observations; no arbitrary model SQL |
-| Then | Automatic upcoming-match briefings | Role-selected recipients receive evidence-based summaries of every team in 1241’s upcoming match |
-| Then | Automatic qualification coverage alerts | Configured recipients hear only about matches with missing team observations after a grace period |
-| Then | Strategy and coverage dashboard | Strategists can compare teams, inspect conflicts, and see missing coverage |
-| Later | Pit/general observations, scout assignments and coverage tracking | Collection expands beyond one match-note template |
-| Later | Batched follow-up questions | Reconnected scouts avoid a flood of separate questions |
-| Later | Optional Discord summary delivery | Authorized strategy-channel output; not another intake dependency |
-| Later | Multi-organization onboarding and explicit sharing grants | Teams remain isolated unless owners grant access |
-| Conditional | Native/offline app, SMS, media/voice attachments | Add only after real venue tests show Telegram gaps; price and design separately |
+| Priority                   | Deliverable                                                                                        | Completion outcome                                                                                |
+| -------------------------- | -------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| Next                       | Event model, active-event settings, provider adapters and schedule validation                      | A note retains event context and validates match/team against imported data                       |
+| Next                       | Final observations and versioned specifications                                                    | Complete drafts become queryable domain records; corrections preserve history                     |
+| Next                       | Minimal authenticated admin web app                                                                | Events, specification selection, review queue, members/invitations, operational status            |
+| Before live event reliance | Retry administration, outbound delivery tracking, event-day hosting decision, rollout verification | Failures are visible/recoverable and deployment behavior is proven                                |
+| Then                       | Deterministic team statistics and strategist agent                                                 | Answers use typed query tools and cite source observations; no arbitrary model SQL                |
+| Then                       | Automatic upcoming-match briefings                                                                 | Role-selected recipients receive evidence-based summaries of every team in 1241’s upcoming match  |
+| Then                       | Automatic qualification coverage alerts                                                            | Configured recipients hear only about matches with missing team observations after a grace period |
+| Then                       | Strategy and coverage dashboard                                                                    | Strategists can compare teams, inspect conflicts, and see missing coverage                        |
+| Later                      | Pit/general observations, scout assignments and coverage tracking                                  | Collection expands beyond one match-note template                                                 |
+| Later                      | Batched follow-up questions                                                                        | Reconnected scouts avoid a flood of separate questions                                            |
+| Later                      | Optional Discord summary delivery                                                                  | Authorized strategy-channel output; not another intake dependency                                 |
+| Later                      | Multi-organization onboarding and explicit sharing grants                                          | Teams remain isolated unless owners grant access                                                  |
+| Conditional                | Native/offline app, SMS, media/voice attachments                                                   | Add only after real venue tests show Telegram gaps; price and design separately                   |
 
 A web app is the recommended administration surface because schedules, configuration, review tables, and historical edits benefit from visible state. Telegram remains the primary scout workflow and may expose `/event` and limited admin shortcuts. Web login must map to existing membership and enforce roles on the backend; provider choice remains open.
 

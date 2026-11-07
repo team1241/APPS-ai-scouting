@@ -4,9 +4,9 @@ The [system specification](system-specification.md) owns architecture, environme
 
 ## Production configuration
 
-Configure the backend on Render with its production bot token, webhook secret, organization ID, restricted pooled `DATABASE_URL`, `MASTRA_URL`, matching `MASTRA_SERVICE_TOKEN`, and `EXTRACTION_ENABLED=true`. Use each app's `.env.example` as the variable reference. Never use the production bot or database for local tests.
+Configure the backend on Railway with its production bot token, webhook secret, organization ID, restricted pooled `DATABASE_URL`, `MASTRA_URL`, matching `MASTRA_SERVICE_TOKEN`, and `EXTRACTION_ENABLED=true`. Use each app's `.env.example` as the variable reference. Never use the production bot or database for local tests.
 
-Mastra Platform receives the production `ANTHROPIC_API_KEY`, `MASTRA_DATABASE_URL`, and the same application service token. This token is not a platform-wide deployment credential. Backend requests require HTTPS, refuse redirects, and authorize only the extraction workflow endpoint; Studio retains platform authentication. Startup validates required extraction configuration before the backend listens.
+Mastra Platform receives the production `ANTHROPIC_API_KEY`, `MASTRA_DATABASE_URL`, and the same application service token. This token is not a platform-wide deployment credential. Backend requests require HTTPS, refuse redirects, and authorize only the authenticated session endpoint; Studio retains platform authentication. Startup validates required extraction configuration before the backend listens.
 
 Mastra's database login has USAGE/CREATE only in its dedicated schema; the administrator owns the schema and the adapter creates its tables. Development uses a separate login/branch. PUBLIC access to `public` and `mastra` is revoked; explicitly grant runtime permissions and review future schemas for equivalent isolation. Backend runtime cannot migrate or administer roles. Keep administrative migration credentials out of deployed runtime configuration.
 
@@ -16,11 +16,11 @@ Ignored `apps/backend/.env.render` is a local transfer aid for production runtim
 
 GitHub Actions `Production readiness` runs on pushes to `main` or manual dispatch. The workflow file is the authoritative check list. The production owner/unpooled connection belongs in the repository secret `PRODUCTION_MIGRATION_DATABASE_URL` and is exposed only to migration verification. Jobs serialize migrations without cancelling a running migration. Generated types must match the migrated database.
 
-Render is configured for `checksPass`. A failed migration must block deployment; resolve it before any manual rollout. Keep schema changes compatible with the previous application during rollout. The known successful-check/no-deployment incident remains tracked in GitHub; verify the actual deployed SHA after releases rather than assuming the trigger worked.
+Enable Railway **Wait for CI** for the GitHub-linked backend service, so the existing production migration workflow finishes successfully before Railway deploys. This setting must be verified in Railway; it is not set by the repository workflow. A failed migration must block deployment; resolve it before any manual rollout. Keep schema changes compatible with the previous application during rollout. Do not add migrations to the production start command or give the runtime role owner permissions.
 
 Mastra has a separate deployment lifecycle. Deploy compatible agent contracts before enabling a backend that depends on them, then smoke-test authorized extraction and rejected unauthorized requests. When using a deployment env-file, include only intended production overlays; never upload the entire local development environment. Keep the pnpm build-compatibility check described in development.
 
-Register the production Telegram webhook against the Render backend's `/telegram/webhook` with the configured secret. `/health` checks process availability; `/health/db` checks database access. Check webhook status/pending updates and processing failures when diagnosing missing replies. Do not expose credential values in logs or diagnostic output.
+Register the production Telegram webhook against the Railway backend's `/telegram/webhook` with the configured secret. `/health` checks process availability; `/health/db` checks database access. Check webhook status/pending updates and processing failures when diagnosing missing replies. Do not expose credential values in logs or diagnostic output.
 
 ## Invitations and membership
 
@@ -35,3 +35,10 @@ Share the returned link with the intended team. Each user opens it and taps Star
 Commands bypass extraction. Group chats cannot create or redeem invitations. Other-organization tokens are rejected. Concurrent joining/revocation is serialized in database transactions. Enrollment grants scout access; initial admins and role changes require an administrative path.
 
 Invitation rollout requires both invitation migrations, including the restricted runtime permission grant, before backend deployment. No invitation-specific environment variable is needed. Test the dev bot before production.
+
+
+## Durable-session rollout
+
+Apply the scouting-session migration through the migration pipeline. Deploy Mastra first with `MASTRA_DATABASE_URL` and the authenticated `/scouting/sessions/:runId/turn` endpoint, then deploy the backend worker. The legacy extraction endpoint has been removed; older backends must be upgraded to the session client. Test a note requiring several replies and verify one run ID persists across them. Pending pre-session notes are adopted when next claimed; completed historical notes are not replayed.
+
+Open sessions pin their specification version: finish them before changing the template version or provide an explicit migration. Failed provider calls remain resumable; inspect runs left running/failed after interruption before manual recovery. The retry coalescer is process-local; keep one backend worker/one Mastra instance initially and do not assume distributed exactly-once execution. Delivery of questions still has the existing send/commit ambiguity.
