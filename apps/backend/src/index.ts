@@ -15,7 +15,12 @@ if (process.env.TELEGRAM_ORGANIZATION_ID && process.env.TELEGRAM_WEBHOOK_SECRET)
 }
 
 // No database query, so a wake-up ping does not wake Neon.
-app.get("/health", (c) => c.json({ ok: true }));
+app.get("/health", (c) =>
+  c.json({
+    ok: true,
+    ...(process.env.RAILWAY_GIT_COMMIT_SHA ? { revision: process.env.RAILWAY_GIT_COMMIT_SHA } : {}),
+  }),
+);
 
 app.get("/health/db", async (c) => {
   await checkDatabase();
