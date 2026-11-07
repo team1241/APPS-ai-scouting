@@ -7,7 +7,7 @@ import {
 } from "../reference-provider.ts";
 import { memberInTransaction } from "./membership.ts";
 import { persistReferenceSnapshot } from "./reference-cache.ts";
-import { lockSchedulePoll, recordScheduleReceipt } from "./schedules.ts";
+import { lockSchedulePoll, recordRosterReceipt, recordScheduleReceipt } from "./schedules.ts";
 import { withTenant } from "./tenant.ts";
 
 // The transaction lock spans fetch and persistence: another process cannot apply an older
@@ -69,6 +69,8 @@ export function syncReference(
     }
     await lockSchedulePoll(tx, organizationId, event.id);
     await persistReferenceSnapshot(tx, organizationId, event, provider.source, snapshot);
+    if (snapshot.complete && snapshot.teams.length)
+      await recordRosterReceipt(tx, organizationId, event.id, attempted);
     if (snapshot.complete && snapshot.matches.length)
       await recordScheduleReceipt(tx, organizationId, event, provider.source, attempted);
     await tx

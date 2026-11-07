@@ -1,9 +1,9 @@
 import {
-  frcScheduleProvider,
+  frcAcquisitionProvider,
   type ReferenceProvider,
   type Snapshot,
   type Source,
-  tbaScheduleProvider,
+  tbaAcquisitionProvider,
 } from "./reference-provider.ts";
 import {
   claimScheduleNotification,
@@ -25,8 +25,8 @@ export async function runScheduleJob(
   const now = options?.now ?? new Date(),
     fetcher = options?.fetcher ?? fetch;
   const providers = options?.providers ?? {
-    first: frcScheduleProvider(fetcher),
-    tba: tbaScheduleProvider(fetcher),
+    first: frcAcquisitionProvider(fetcher),
+    tba: tbaAcquisitionProvider(fetcher),
   };
   let attempted = 0,
     received = 0,
@@ -43,9 +43,16 @@ export async function runScheduleJob(
     ] as const) {
       if (!code) continue;
       try {
-        const snapshot = await provider.load(claim.event.season, code);
+        const load = claim.rosterOnly ? provider.loadRoster : provider.load;
+        if (!load) throw new Error("Roster-only import is unavailable");
+        const snapshot = await load(claim.event.season, code);
         snapshots.push({ source: provider.source, snapshot });
-        if (snapshot.complete && snapshot.matches.length) break;
+        if (
+          snapshot.complete &&
+          snapshot.teams.length &&
+          (claim.rosterOnly || snapshot.matches.length)
+        )
+          break;
       } catch {
         failed = true;
       }
