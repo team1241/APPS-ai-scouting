@@ -25,10 +25,8 @@ export async function telegramCommand(input: {
   const command = rawCommand?.split("@")[0]?.toLowerCase();
   const argument = rest.join(" ");
   const { organizationId, userId } = input;
-  if (command === "/correct")
+  if (command === "/correct" || command === "/reextract")
     return "To request an investigation, use /flag <team-number> [match-number] [note]. You do not need to rewrite your scouting note.";
-  if (command === "/reextract")
-    return "Use /reextract <current revision-id> from your completion confirmation. To request an investigation, use /flag <team-number> [match-number] [note].";
   if (command === "/flag") {
     const result = await submitObservationFlag({
       ...input,

@@ -245,7 +245,7 @@ export function finishExtraction(
           result = {
             ...result,
             status: "needs_review",
-            question: `Correction target is no longer current. Your draft is retained. Use /flag ${result.values.team_number} to request an investigation, or /reextract ${newer.id} to extract the current revision again.`,
+            question: `Correction target is no longer current. Your draft is retained. Use /flag ${result.values.team_number} to request an investigation.`,
           };
         }
       }
@@ -341,7 +341,7 @@ export function finishExtraction(
       .where("session_id", "=", id)
       .executeTakeFirst();
     if (revision)
-      notice = `${revision.outcome}. Revision ${revision.id}. To request an investigation: /flag ${result.values.team_number} [match-number] [note]. Team requests: /flags. To explicitly re-extract: /reextract ${revision.id}`;
+      notice = `${revision.outcome}. Revision ${revision.id}. To request an investigation: /flag ${result.values.team_number} [match-number] [note]. Team requests: /flags.`;
     return { ...updated, result, notice };
   });
 }

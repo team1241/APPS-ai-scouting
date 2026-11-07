@@ -774,6 +774,34 @@ test("flag requests preserve observations, deduplicate concurrent retries, and a
         }),
       });
     assert.match(((await routed.json()) as { text: string }).text, /Flag recorded/);
+    const route = (await import("./telegram.ts")).telegramRoutes(org, "secret");
+    for (const text of [
+      `/reextract ${before[0].id}`,
+      `/REEXTRACT@scouting_bot ${before[0].id}`,
+      "/reextract invalid",
+      `/correct ${before[0].id} replacement`,
+    ]) {
+      const retired = await route.request("/", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "X-Telegram-Bot-Api-Secret-Token": "secret",
+        },
+        body: JSON.stringify({
+          update_id: Number(next()),
+          message: { chat: { id: 1, type: "private" }, from: { id: 1 }, text },
+        }),
+      });
+      const reply = (await retired.json()) as { text: string };
+      assert.match(reply.text, /use \/flag/);
+      assert.doesNotMatch(reply.text, /Received your scouting note/);
+      assert.equal(
+        await claimExtraction(org),
+        null,
+        "retired commands must not start extraction or a replacement session",
+      );
+    }
+
     const replacement = await saveIncomingNote({
       organizationId: org,
       channel: "telegram",

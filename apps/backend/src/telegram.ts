@@ -42,26 +42,16 @@ export function telegramRoutes(organizationId: string, secret: string) {
           chat_id: chat.id,
           text: "Use /scout <event-id> <note>. Find event IDs with /events.",
         });
-      const correction = /^\/(reextract)(?:@\w+)?\s+([0-9a-f-]{36})(?:\s+([\s\S]+))?$/i.exec(
-        message.text.trim(),
-      );
-      if (correction && (!uuidPattern.test(correction[2] ?? "") || !!correction[3]?.trim()))
-        return c.json({
-          method: "sendMessage",
-          chat_id: chat.id,
-          text: "Use /reextract <revision-id>. To request an investigation, use /flag <team-number> [match-number] [note].",
-        });
-      const commandReply =
-        override || correction
-          ? null
-          : await telegramCommand({
-              organizationId,
-              userId: String(sender?.id),
-              updateId: String(update.update_id),
-              text: message.text,
-              name: typeof sender?.first_name === "string" ? sender.first_name : "Scout",
-              botToken: process.env.TELEGRAM_BOT_TOKEN,
-            });
+      const commandReply = override
+        ? null
+        : await telegramCommand({
+            organizationId,
+            userId: String(sender?.id),
+            updateId: String(update.update_id),
+            text: message.text,
+            name: typeof sender?.first_name === "string" ? sender.first_name : "Scout",
+            botToken: process.env.TELEGRAM_BOT_TOKEN,
+          });
       if (commandReply !== null)
         return c.json({
           method: "sendMessage",
@@ -74,9 +64,7 @@ export function telegramRoutes(organizationId: string, secret: string) {
         channel: "telegram",
         externalUserId: String(sender?.id),
         externalUpdateId: String(update.update_id),
-        text: correction?.[3] ?? message.text,
-        correctionRevisionId: correction?.[2],
-        reextract: correction?.[1]?.toLowerCase() === "reextract",
+        text: message.text,
         eventId: explicit?.[1],
         replyToMessageId:
           !override && Number.isSafeInteger(object(message.reply_to_message)?.message_id)
@@ -96,7 +84,7 @@ export function telegramRoutes(organizationId: string, secret: string) {
               : result === "invalid_event"
                 ? "Your note was not submitted because the selected event is unavailable. Check /events and resend it with a valid event."
                 : result === "completed_session"
-                  ? "That completed submission cannot accept this reply. Use /flag <team-number> [match-number] [note] to request an investigation, or /reextract <current revision-id> to explicitly extract it again."
+                  ? "That completed submission cannot accept this reply. Use /flag <team-number> [match-number] [note] to request an investigation."
                   : result === "legacy_session"
                     ? "This older session has no event. Your reply was not submitted. Check /event, then resend the complete note as a new message."
                     : `Received your scouting note. Processing it now…\nEvent: ${result.eventName}`,
