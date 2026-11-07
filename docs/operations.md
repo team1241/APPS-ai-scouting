@@ -88,7 +88,7 @@ Deploy the event migration before the backend. On rollout, historical eventless 
 3. Merge the reviewed change. Verify Production readiness applies all migrations and checks generated types before Railway deploys; keep Wait for CI enabled.
 4. Confirm Railway's `/health` reports the intended commit and `/health/db` succeeds.
 5. In the production bot, use an enrolled admin account to select the intended season/code with `/event set`, then inspect `/event` before asking scouts to submit notes.
-6. Verify one complete submission/follow-up and its Studio trace. Retain historical eventless records without assigning them automatically.
+6. Verify one complete submission/follow-up and its private workflow recovery state. Retain historical eventless records without assigning them automatically.
 
 This event feature changes only the backend and database; the existing deployed session workflow already provides its extraction contract. Future changes to that contract still require coordinated Mastra/backend deployment as described above.
 
@@ -191,3 +191,7 @@ The caller must be a current tenant admin. List returns 100 rows; pass an option
 For #10, `created_at`/`next_attempt_at` measure queue age/due lag; `attempted_at`, `lease_expires_at`, `updated_at`, `sent_at`, attempts and intervention timestamps measure claim, interruption and recovery latency. These are wall-clock database/worker timestamps, not proof the recipient read a message. Hosting/event-mode, cost analysis and backup/restore remain #10 work.
 
 Webhook-response inventory: intake accepted/rejected/enrollment acknowledgments, `/scout` syntax errors and every command response (including `/start`, invitations, events, `/flag`, `/flags` and retired-command guidance) remain synchronous Telegram webhook responses. Telegram provides no send result/message ID for these responses. They are best effort, outside the durable outbox, and may be lost or repeated independently of committed command/intake state; duplicate intake intentionally returns no second acknowledgment. The asynchronous follow-up questions, saved confirmations and schedule/roster receipt notifications use the durable outbox. No scout-facing `/correct` or `/reextract` is restored.
+
+## Privacy release gate
+
+Follow [Privacy boundaries](privacy.md) before enabling web enrollment or data exports. Publish the [notice](privacy-notice.md) with the responsible adult lead’s contact, and verify retention and vendor settings. Trace exports use a strict content-free allowlist; retain them for at most 30 days and restrict access. Workflow snapshots remain private content-bearing operational records.
