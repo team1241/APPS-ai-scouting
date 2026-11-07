@@ -44,24 +44,24 @@ Admins can create, list, and revoke reusable Telegram invitations. Joining enrol
 
 ## 3. Current implementation status
 
-| Capability                                                           | Status                                                                 |
-| -------------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| Hono backend and Mastra app in a pnpm monorepo                       | Implemented                                                            |
-| Neon intake tables, tenant isolation, repositories, migrations/types | Implemented                                                            |
-| Telegram webhook, enrollment checks, deduplication                   | Implemented and previously tested locally/hosted                       |
-| Reusable admin invitation commands                                   | Implemented; production command routing previously verified            |
-| Specification-driven Anthropic extraction and linked follow-ups      | Implemented with starter specification                                 |
-| Separate development bot and Neon branch                             | Configured                                                             |
-| Mastra Platform deployment and restricted backend credential         | Configured and previously smoke-tested                                 |
-| Railway production backend                                           | Deployed                                                               |
-| GitHub production readiness and migration workflow                   | Implemented; user confirmed successful run                             |
-| Automatic Render deployment after readiness                          | Configured, but one successful run did not trigger rollout; unresolved |
-| API-backed event configuration and session context                   | Implemented for issue #1                                               |
-| Reference imports and schedule validation                            | Planned; not implemented                                               |
-| Final observations, corrections, review queue                        | Planned; not implemented                                               |
-| Admin web app and web authentication                                 | Proposed; not implemented                                              |
-| Strategist agent, statistics, summaries                              | Planned; not implemented                                               |
-| Automatic/manual event mode                                          | Planned; not implemented                                               |
+| Capability                                                           | Status                                                                    |
+| -------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| Hono backend and Mastra app in a pnpm monorepo                       | Implemented                                                               |
+| Neon intake tables, tenant isolation, repositories, migrations/types | Implemented                                                               |
+| Telegram webhook, enrollment checks, deduplication                   | Implemented and previously tested locally/hosted                          |
+| Reusable admin invitation commands                                   | Implemented; production command routing previously verified               |
+| Specification-driven Anthropic extraction and linked follow-ups      | Implemented with starter specification                                    |
+| Separate development bot and Neon branch                             | Configured                                                                |
+| Mastra Platform deployment and restricted backend credential         | Configured and previously smoke-tested                                    |
+| Railway production backend                                           | Deployed                                                                  |
+| GitHub production readiness and migration workflow                   | Implemented; user confirmed successful run                                |
+| Automatic Render deployment after readiness                          | Configured, but one successful run did not trigger rollout; unresolved    |
+| API-backed event configuration and session context                   | Implemented for issue #1                                                  |
+| Reference imports and schedule validation                            | Reference import implementation in progress (#2); validation planned (#3) |
+| Final observations, corrections, review queue                        | Planned; not implemented                                                  |
+| Admin web app and web authentication                                 | Proposed; not implemented                                                 |
+| Strategist agent, statistics, summaries                              | Planned; not implemented                                                  |
+| Automatic/manual event mode                                          | Planned; not implemented                                                  |
 
 ## 4. Architecture and ownership
 
@@ -152,7 +152,7 @@ Future specifications should be published immutable versions associated with sea
 
 ## 7. Event configuration and external data
 
-API-backed event configuration, active-event selection, intake-time session binding and explicit delayed-note event selection are implemented for issue #1. FIRST event-detail lookup and selection by season/code are implemented. Roster/schedule imports, TBA supplementation, and schedule validation remain planned. Command syntax and setup live in the [operations guide](operations.md#events).
+API-backed event configuration, active-event selection, intake-time session binding and explicit delayed-note event selection are implemented for issue #1. FIRST event-detail lookup and selection by season/code are implemented. Roster/schedule imports, per-source caches, TBA supplementation, sync status and one-time scheduled acquisition with admin Telegram notifications are implemented for issue #2; paired regular-season, Ontario championship and Worlds fixtures and live checks cover verified 2026 playoff formats. Schedule validation remains planned for #3. Command syntax and setup live in the [operations guide](operations.md#events).
 
 ### Source policy
 
@@ -160,7 +160,7 @@ Use the **FRC Events API as the primary source**, with **The Blue Alliance for s
 
 Sources: [FIRST API documentation](https://frc-api-docs.firstinspires.org/), [TBA source repository](https://github.com/the-blue-alliance/the-blue-alliance), [TBA developer APIs](https://www.thebluealliance.com/apidocs).
 
-Use internal event/match IDs with optional source identifiers. Do not assume provider event codes match. Explicitly link corresponding records. Track provenance, last successful synchronization, errors, and organization settings. Provider refreshes update provider facts while preserving organization settings and stable session links; missing primary fields can be supplemented. Provider adapters should normalize data before repository persistence.
+Use internal event/match IDs with optional source identifiers. Do not assume provider event codes match. Resolve corresponding event links automatically from provider-declared FIRST identifiers and a unique compatible match, with manual linking available when resolution fails. Track provenance, last successful synchronization, errors, and organization settings. Provider refreshes update provider facts while preserving organization settings and stable session links; missing primary fields can be supplemented. Provider adapters should normalize data before repository persistence.
 
 ### First event settings
 
@@ -177,6 +177,8 @@ Use internal event/match IDs with optional source identifiers. Do not assume pro
 | Organization active event | One active scouting event for 1241 initially                      |
 
 Active event is an organization setting. Attach it when a note is received and preserve it across event switches and follow-ups. Do not infer event/match from webhook arrival time, especially after offline queuing. Delayed notes can explicitly select an event using the documented scout command; an active event is still required. Existing sessions retain their original event for follow-ups even if scouting is paused. Eventless historical sessions are preserved without automatic reassignment; their incomplete notes must be resubmitted.
+
+Automatic schedule acquisition runs in a separate ten-minute cron job for every added, non-archived provider-backed event, beginning at 6 p.m. event-local time on its first day. It stops permanently for that event after saving the first usable schedule and queues a private confirmation for enrolled Telegram admins. Qualification schedules are preferred; finals-only parents use playoff schedules. Later playoffs, rescheduling, roster refresh and results require an explicit import. Failed/empty/partial responses keep polling; notification delivery state is independent of acquisition. The HTTP backend has no polling timer.
 
 Cache teams and schedules locally, including qualification and full playoff round/set/match identity. Validate that a team participates in a referenced match. Missing schedules must allow intake when an event is active; warn mode flags inconsistencies for clarification/review. Strict mode must preserve the raw note even when it prevents finalization. Failed syncs retain the last usable schedule. Historical matches and existing observation links must survive schedule updates.
 

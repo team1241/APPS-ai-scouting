@@ -1,0 +1,25 @@
+{
+  "allianceCount": "EightAlliance",
+  "weekNumber": 9,
+  "announcements": [],
+  "code": "ARCHIMEDES",
+  "divisionCode": "ARCHIMEDES",
+  "name": "FIRST Championship - FIRST Robotics Competition - Archimedes Division presented by Rockwell Automation, Inc.",
+  "type": "ChampionshipDivision",
+  "districtCode": null,
+  "venue": "George R. Brown Convention Center",
+  "city": "Houston",
+  "stateprov": "TX",
+  "country": "USA",
+  "dateStart": "2026-04-29T00:00:00",
+  "dateEnd": "2026-05-02T23:59:59",
+  "address": "1001 Avenida De Las Americas",
+  "website": "https://www.firstchampionship.org",
+  "webcasts": [
+    "https://www.youtube.com/watch?v=265TvNiCV94",
+    "https://www.youtube.com/watch?v=qez41N1qB9s",
+    "https://www.youtube.com/watch?v=XuQbxsAbEXg",
+    "https://www.youtube.com/watch?v=h5CFfVw6H0Y"
+  ],
+  "timezone": "Central Standard Time"
+}

@@ -1,0 +1,92 @@
+{
+  "teamCountTotal": 6,
+  "teamCountPage": 6,
+  "pageCurrent": 1,
+  "pageTotal": 1,
+  "teams": [
+    {
+      "teamNumber": 854,
+      "nameFull": "TDSB/Hatch Ltd/Google & Martingrove Collegiate Institute",
+      "nameShort": "Iron Bears",
+      "city": "Etobicoke",
+      "stateProv": "Ontario",
+      "country": "Canada",
+      "rookieYear": 2002,
+      "robotName": "",
+      "districtCode": "ONT",
+      "schoolName": "Martingrove Collegiate Institute",
+      "website": "",
+      "homeCMP": null
+    },
+    {
+      "teamNumber": 1241,
+      "nameFull": "General Motors/Pratt & Whitney Canada/Johnston Industrial Plastics Limited/CSC/Zerox/DBG Canada Limited/Symcor/Rev Creations/Rakla Tires/Click N Print/Trans Canada/99Cent Depot/Dreams Convention Center/Studica/City of Mississauga/Peel District School Board&Rick Hansen S.S",
+      "nameShort": "THEORY6",
+      "city": "Mississauga",
+      "stateProv": "Ontario",
+      "country": "Canada",
+      "rookieYear": 2004,
+      "robotName": "",
+      "districtCode": "ONT",
+      "schoolName": "Rick Hansen S.S",
+      "website": "",
+      "homeCMP": null
+    },
+    {
+      "teamNumber": 1325,
+      "nameFull": "Pacline Overhead Conveyors/MHI Canada Aerospace/Actemium/General Motors/KPMG/Sheridan College/Google/Gene Haas Foundation/Weston Forest Products/Hatch/Ideal Auto Tech/Nye Manufacturing/AMD/Royal Bank of Canada/MindShare Workspace/Agora Manufacturing/Thompson Centres/Allied Gold Corporation/Stial Technologies/IMAX/ERT Hazmat/Anto Wholesale Inc&Family/Community",
+      "nameShort": "Inverse Paradox",
+      "city": "Mississauga",
+      "stateProv": "Ontario",
+      "country": "Canada",
+      "rookieYear": 2004,
+      "robotName": "",
+      "districtCode": "ONT",
+      "schoolName": "Family/Community",
+      "website": "",
+      "homeCMP": null
+    },
+    {
+      "teamNumber": 1360,
+      "nameFull": "Google/Studica/TC Energy/CIBC/RTX/Rockwell Automation/1360 Families & Oakville Community FIRST Robotics",
+      "nameShort": "Orbit Robotics",
+      "city": "Oakville",
+      "stateProv": "Ontario",
+      "country": "Canada",
+      "rookieYear": 2004,
+      "robotName": "",
+      "districtCode": "ONT",
+      "schoolName": "Oakville Community FIRST Robotics",
+      "website": "",
+      "homeCMP": null
+    },
+    {
+      "teamNumber": 2056,
+      "nameFull": "Tube-Mac/GM/Motorola/Winona Men's Club/HWDSB&Orchard Park Secondary School",
+      "nameShort": "OP Robotics",
+      "city": "Stoney Creek",
+      "stateProv": "Ontario",
+      "country": "Canada",
+      "rookieYear": 2007,
+      "robotName": "",
+      "districtCode": "ONT",
+      "schoolName": "Orchard Park Secondary School",
+      "website": "",
+      "homeCMP": null
+    },
+    {
+      "teamNumber": 2386,
+      "nameFull": "Arcelor Mittal Dofasco/Halton District School Board/Pathways/BMP Metals/Promach - Edson Packaging/Hatch/Rockwell Automation/Mouser Electronics&Burlington Central High School",
+      "nameShort": "Trojans",
+      "city": "Burlington",
+      "stateProv": "Ontario",
+      "country": "Canada",
+      "rookieYear": 2008,
+      "robotName": "",
+      "districtCode": "ONT",
+      "schoolName": "Burlington Central High School",
+      "website": "",
+      "homeCMP": null
+    }
+  ]
+}

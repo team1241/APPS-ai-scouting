@@ -1,0 +1,14 @@
+{
+  "code": "ONCMP2",
+  "type": "DistrictChampionshipDivision",
+  "captured": "2026-11-07",
+  "originalCounts": {
+    "teams": 49,
+    "qualification": 98,
+    "playoff": 16,
+    "results": 115
+  },
+  "trimmed": true,
+  "rosterPageCount": 1,
+  "providers": ["frc_events", "tba"]
+}

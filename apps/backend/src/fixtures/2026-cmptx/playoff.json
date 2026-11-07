@@ -1,0 +1,628 @@
+{
+  "Schedule": [
+    {
+      "description": "Einstein 1",
+      "startTime": "2026-05-02T14:00:00",
+      "matchNumber": 1,
+      "field": "Primary",
+      "tournamentLevel": "Playoff",
+      "teams": [
+        {
+          "teamNumber": 7407,
+          "station": "Red1",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 5940,
+          "station": "Red2",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 9470,
+          "station": "Red3",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 868,
+          "station": "Blue1",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 2910,
+          "station": "Blue2",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 2046,
+          "station": "Blue3",
+          "surrogate": false
+        }
+      ]
+    },
+    {
+      "description": "Einstein 2",
+      "startTime": "2026-05-02T14:09:00",
+      "matchNumber": 2,
+      "field": "Secondary",
+      "tournamentLevel": "Playoff",
+      "teams": [
+        {
+          "teamNumber": 5181,
+          "station": "Red1",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 7769,
+          "station": "Red2",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 1690,
+          "station": "Red3",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 3506,
+          "station": "Blue1",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 2056,
+          "station": "Blue2",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 6329,
+          "station": "Blue3",
+          "surrogate": false
+        }
+      ]
+    },
+    {
+      "description": "Einstein 3",
+      "startTime": "2026-05-02T14:18:00",
+      "matchNumber": 3,
+      "field": "Primary",
+      "tournamentLevel": "Playoff",
+      "teams": [
+        {
+          "teamNumber": 8613,
+          "station": "Red1",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 6800,
+          "station": "Red2",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 254,
+          "station": "Red3",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 4915,
+          "station": "Blue1",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 2481,
+          "station": "Blue2",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 1678,
+          "station": "Blue3",
+          "surrogate": false
+        }
+      ]
+    },
+    {
+      "description": "Einstein 4",
+      "startTime": "2026-05-02T14:27:00",
+      "matchNumber": 4,
+      "field": "Secondary",
+      "tournamentLevel": "Playoff",
+      "teams": [
+        {
+          "teamNumber": 4065,
+          "station": "Red1",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 4414,
+          "station": "Red2",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 1323,
+          "station": "Red3",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 6324,
+          "station": "Blue1",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 4946,
+          "station": "Blue2",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 2337,
+          "station": "Blue3",
+          "surrogate": false
+        }
+      ]
+    },
+    {
+      "description": "Einstein 5",
+      "startTime": "2026-05-02T14:36:00",
+      "matchNumber": 5,
+      "field": "Primary",
+      "tournamentLevel": "Playoff",
+      "teams": [
+        {
+          "teamNumber": 7407,
+          "station": "Red1",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 5940,
+          "station": "Red2",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 9470,
+          "station": "Red3",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 3506,
+          "station": "Blue1",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 2056,
+          "station": "Blue2",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 6329,
+          "station": "Blue3",
+          "surrogate": false
+        }
+      ]
+    },
+    {
+      "description": "Einstein 6",
+      "startTime": "2026-05-02T14:45:00",
+      "matchNumber": 6,
+      "field": "Secondary",
+      "tournamentLevel": "Playoff",
+      "teams": [
+        {
+          "teamNumber": 4915,
+          "station": "Red1",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 2481,
+          "station": "Red2",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 1678,
+          "station": "Red3",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 6324,
+          "station": "Blue1",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 4946,
+          "station": "Blue2",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 2337,
+          "station": "Blue3",
+          "surrogate": false
+        }
+      ]
+    },
+    {
+      "description": "Einstein 7",
+      "startTime": "2026-05-02T14:54:00",
+      "matchNumber": 7,
+      "field": "Primary",
+      "tournamentLevel": "Playoff",
+      "teams": [
+        {
+          "teamNumber": 868,
+          "station": "Red1",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 2910,
+          "station": "Red2",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 2046,
+          "station": "Red3",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 5181,
+          "station": "Blue1",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 7769,
+          "station": "Blue2",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 1690,
+          "station": "Blue3",
+          "surrogate": false
+        }
+      ]
+    },
+    {
+      "description": "Einstein 8",
+      "startTime": "2026-05-02T15:03:00",
+      "matchNumber": 8,
+      "field": "Secondary",
+      "tournamentLevel": "Playoff",
+      "teams": [
+        {
+          "teamNumber": 8613,
+          "station": "Red1",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 6800,
+          "station": "Red2",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 254,
+          "station": "Red3",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 4065,
+          "station": "Blue1",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 4414,
+          "station": "Blue2",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 1323,
+          "station": "Blue3",
+          "surrogate": false
+        }
+      ]
+    },
+    {
+      "description": "Einstein 9",
+      "startTime": "2026-05-02T15:12:00",
+      "matchNumber": 9,
+      "field": "Primary",
+      "tournamentLevel": "Playoff",
+      "teams": [
+        {
+          "teamNumber": 5181,
+          "station": "Red1",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 7769,
+          "station": "Red2",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 1690,
+          "station": "Red3",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 6324,
+          "station": "Blue1",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 4946,
+          "station": "Blue2",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 2337,
+          "station": "Blue3",
+          "surrogate": false
+        }
+      ]
+    },
+    {
+      "description": "Einstein 10",
+      "startTime": "2026-05-02T15:21:00",
+      "matchNumber": 10,
+      "field": "Secondary",
+      "tournamentLevel": "Playoff",
+      "teams": [
+        {
+          "teamNumber": 8613,
+          "station": "Red1",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 6800,
+          "station": "Red2",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 254,
+          "station": "Red3",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 7407,
+          "station": "Blue1",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 5940,
+          "station": "Blue2",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 9470,
+          "station": "Blue3",
+          "surrogate": false
+        }
+      ]
+    },
+    {
+      "description": "Einstein 11",
+      "startTime": "2026-05-02T15:33:00",
+      "matchNumber": 11,
+      "field": "Primary",
+      "tournamentLevel": "Playoff",
+      "teams": [
+        {
+          "teamNumber": 868,
+          "station": "Red1",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 2046,
+          "station": "Red2",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 2910,
+          "station": "Red3",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 4065,
+          "station": "Blue1",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 4414,
+          "station": "Blue2",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 1323,
+          "station": "Blue3",
+          "surrogate": false
+        }
+      ]
+    },
+    {
+      "description": "Einstein 12",
+      "startTime": "2026-05-02T15:42:00",
+      "matchNumber": 12,
+      "field": "Secondary",
+      "tournamentLevel": "Playoff",
+      "teams": [
+        {
+          "teamNumber": 8613,
+          "station": "Red1",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 6800,
+          "station": "Red2",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 254,
+          "station": "Red3",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 5181,
+          "station": "Blue1",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 7769,
+          "station": "Blue2",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 1690,
+          "station": "Blue3",
+          "surrogate": false
+        }
+      ]
+    },
+    {
+      "description": "Einstein 13",
+      "startTime": "2026-05-02T16:03:00",
+      "matchNumber": 13,
+      "field": "Primary",
+      "tournamentLevel": "Playoff",
+      "teams": [
+        {
+          "teamNumber": 868,
+          "station": "Red1",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 2910,
+          "station": "Red2",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 2046,
+          "station": "Red3",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 5181,
+          "station": "Blue1",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 7769,
+          "station": "Blue2",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 1690,
+          "station": "Blue3",
+          "surrogate": false
+        }
+      ]
+    },
+    {
+      "description": "Einstein Final 1",
+      "startTime": "2026-05-02T16:24:00",
+      "matchNumber": 14,
+      "field": "Secondary",
+      "tournamentLevel": "Playoff",
+      "teams": [
+        {
+          "teamNumber": 4065,
+          "station": "Red1",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 4414,
+          "station": "Red2",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 1323,
+          "station": "Red3",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 868,
+          "station": "Blue1",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 2910,
+          "station": "Blue2",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 2046,
+          "station": "Blue3",
+          "surrogate": false
+        }
+      ]
+    },
+    {
+      "description": "Einstein Final 2",
+      "startTime": "2026-05-02T16:45:00",
+      "matchNumber": 15,
+      "field": "Primary",
+      "tournamentLevel": "Playoff",
+      "teams": [
+        {
+          "teamNumber": 4065,
+          "station": "Red1",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 4414,
+          "station": "Red2",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 1323,
+          "station": "Red3",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 868,
+          "station": "Blue1",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 2910,
+          "station": "Blue2",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 2046,
+          "station": "Blue3",
+          "surrogate": false
+        }
+      ]
+    },
+    {
+      "description": "Einstein Final Tiebreaker",
+      "startTime": "2026-05-02T17:06:00",
+      "matchNumber": 16,
+      "field": "Primary",
+      "tournamentLevel": "Playoff",
+      "teams": [
+        {
+          "teamNumber": 4065,
+          "station": "Red1",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 4414,
+          "station": "Red2",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 1323,
+          "station": "Red3",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 868,
+          "station": "Blue1",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 2046,
+          "station": "Blue2",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 2910,
+          "station": "Blue3",
+          "surrogate": false
+        }
+      ]
+    }
+  ]
+}

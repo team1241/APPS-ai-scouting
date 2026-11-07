@@ -1,0 +1,20 @@
+{
+  "allianceCount": "EightAlliance",
+  "weekNumber": 0,
+  "announcements": [],
+  "code": "ONHAM1",
+  "divisionCode": null,
+  "name": "STEMley Cup Championship",
+  "type": "OffSeasonWithAzureSync",
+  "districtCode": null,
+  "venue": "St. Mary Catholic Secondary School",
+  "city": "Hamilton",
+  "stateprov": "ON",
+  "country": "Canada",
+  "dateStart": "2026-10-30T00:00:00",
+  "dateEnd": "2026-10-31T23:59:59",
+  "address": "200 Whitney Ave",
+  "website": "https://stemleycup.ca/",
+  "webcasts": [],
+  "timezone": "Eastern Standard Time"
+}

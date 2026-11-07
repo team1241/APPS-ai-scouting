@@ -1,0 +1,14 @@
+{
+  "code": "CMPTX",
+  "type": "Championship",
+  "captured": "2026-11-07",
+  "originalCounts": {
+    "teams": 599,
+    "qualification": 0,
+    "playoff": 16,
+    "results": 0
+  },
+  "trimmed": true,
+  "rosterPageCount": 10,
+  "providers": ["frc_events", "tba"]
+}

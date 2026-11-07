@@ -1,0 +1,20 @@
+{
+  "allianceCount": "EightAlliance",
+  "weekNumber": 2,
+  "announcements": [],
+  "code": "ONOSH",
+  "divisionCode": null,
+  "name": "ONT District Durham College Event",
+  "type": "DistrictEvent",
+  "districtCode": "ONT",
+  "venue": "Durham College",
+  "city": "Oshawa",
+  "stateprov": "ON",
+  "country": "Canada",
+  "dateStart": "2026-03-13T00:00:00",
+  "dateEnd": "2026-03-15T23:59:59",
+  "address": "2000 Simcoe Street North",
+  "website": "https://firstroboticscanada.org/event/ont-district-durham-college-event-5/",
+  "webcasts": [],
+  "timezone": "Eastern Standard Time"
+}

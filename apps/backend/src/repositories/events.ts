@@ -2,6 +2,7 @@ import { requirements } from "@ai-scouting/scouting";
 import { sql, type Transaction } from "kysely";
 import type { DB } from "../db.generated.ts";
 import { type EventConfig, parseEventConfig } from "../event-config.ts";
+import { discoverTbaEventKey } from "../tba-event-link.ts";
 import { memberInTransaction } from "./membership.ts";
 import { withTenant } from "./tenant.ts";
 
@@ -45,12 +46,14 @@ interface MutationResult {
   status: "ok" | "forbidden" | "missing" | "active_event" | "unsupported" | "ambiguous";
   eventId?: string;
   eventName?: string;
+  tbaEventKey?: string | null;
 }
 export function changeEvent(
   organizationId: string,
   userId: string,
   updateId: string,
   action: EventAction,
+  discoverTba: typeof discoverTbaEventKey = discoverTbaEventKey,
 ): Promise<MutationResult> {
   return withTenant(organizationId, async (tx) => {
     const member = await memberInTransaction(tx, organizationId, userId);
@@ -63,7 +66,7 @@ export function changeEvent(
       .where("source_update_id", "=", updateId)
       .executeTakeFirst();
     if (previous) return previous.result as unknown as MutationResult;
-    const result = await mutate(tx, organizationId, action);
+    const result = await mutate(tx, organizationId, action, discoverTba);
     await tx
       .insertInto("event_command")
       .values({
@@ -79,6 +82,7 @@ async function mutate(
   tx: Transaction<DB>,
   organizationId: string,
   action: EventAction,
+  discoverTba: typeof discoverTbaEventKey = discoverTbaEventKey,
 ): Promise<MutationResult> {
   if (
     action.kind === "activate-frc" ||
@@ -99,6 +103,19 @@ async function mutate(
     const existing = matches[0];
     if (action.kind === "refresh-frc" && !existing) return { status: "missing" };
     if (existing?.archived && action.kind !== "refresh-frc") return { status: "missing" };
+    let tbaKey = existing?.tba_event_key ?? c.tbaEventKey;
+    if (!tbaKey && (!existing || action.kind === "refresh-frc")) {
+      tbaKey = await discoverTba(c);
+      if (tbaKey) {
+        const linked = await tx
+          .selectFrom("event")
+          .select("id")
+          .where("organization_id", "=", organizationId)
+          .where("tba_event_key", "=", tbaKey)
+          .executeTakeFirst();
+        if (linked && linked.id !== existing?.id) tbaKey = null;
+      }
+    }
     const metadata = {
       name: c.name,
       type: c.type,
@@ -107,6 +124,7 @@ async function mutate(
       end_date: c.endDate,
       timezone: c.timezone,
       frc_event_code: c.frcEventCode,
+      tba_event_key: tbaKey,
     };
     let eventId = existing?.id;
     let eventName = existing?.name ?? c.name;
@@ -120,7 +138,6 @@ async function mutate(
           attending: c.attending,
           specification_version: c.specificationVersion,
           validation_mode: c.validationMode,
-          tba_event_key: c.tbaEventKey,
         })
         .returning("id")
         .executeTakeFirstOrThrow();
@@ -140,8 +157,9 @@ async function mutate(
       return {
         ...(await mutate(tx, organizationId, { kind: "activate", eventId })),
         eventName,
+        tbaEventKey: tbaKey,
       };
-    return { status: "ok", eventId, eventName };
+    return { status: "ok", eventId, eventName, tbaEventKey: tbaKey };
   }
   if (!("eventId" in action)) return { status: "unsupported" };
   const event = action.eventId

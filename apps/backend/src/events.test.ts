@@ -479,3 +479,77 @@ test("FRC event selection imports once, preserves settings, and deduplicates act
     await cleanup(org);
   }
 });
+
+test("event creation persists automatic TBA links, retries missing links on refresh, preserves manual links and deduplicates discovery", async () => {
+  const org = randomUUID();
+  try {
+    await enroll(org);
+    let lookups = 0;
+    const discover = async () => {
+      lookups++;
+      return "2026auto";
+    };
+    const action = { kind: "import-frc" as const, config: config("Auto") };
+    const update = next();
+    const created = await changeEvent(org, "1", update, action, discover);
+    assert.equal(created.status, "ok");
+    assert.ok(created.eventId);
+    assert.equal(created.tbaEventKey, "2026auto");
+    assert.deepEqual(await changeEvent(org, "1", update, action, discover), created);
+    assert.equal(lookups, 1);
+    const refresh = { kind: "refresh-frc" as const, config: action.config };
+    await changeEvent(org, "1", next(), refresh, async () => {
+      throw new Error("existing links must not be rediscovered");
+    });
+    assert.equal(
+      (await readEvents(org, "1"))?.events.find((e) => e.id === created.eventId)?.tba_event_key,
+      "2026auto",
+    );
+    const unlinked = await changeEvent(
+      org,
+      "1",
+      next(),
+      { kind: "import-frc", config: config("Pending") },
+      async () => null,
+    );
+    assert.equal(unlinked.status, "ok");
+    assert.equal(unlinked.tbaEventKey, null);
+    const linked = await changeEvent(
+      org,
+      "1",
+      next(),
+      { kind: "refresh-frc", config: config("Pending") },
+      async () => "2026pending",
+    );
+    assert.equal(linked.tbaEventKey, "2026pending");
+    const manual = await changeEvent(
+      org,
+      "1",
+      next(),
+      { kind: "import-frc", config: { ...config("Manual"), tbaEventKey: "2026manual" } },
+      async () => {
+        throw new Error("manual link must win");
+      },
+    );
+    assert.equal(manual.tbaEventKey, "2026manual");
+    const conflict = await changeEvent(
+      org,
+      "1",
+      next(),
+      { kind: "import-frc", config: config("Conflict") },
+      discover,
+    );
+    assert.equal(conflict.status, "ok");
+    assert.equal(conflict.tbaEventKey, null);
+    assert.equal(
+      (
+        await changeEvent(org, "unauthorized", next(), action, async () => {
+          throw new Error("unauthorized discovery");
+        })
+      ).status,
+      "forbidden",
+    );
+  } finally {
+    await cleanup(org);
+  }
+});

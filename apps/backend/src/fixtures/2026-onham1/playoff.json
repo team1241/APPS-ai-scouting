@@ -1,0 +1,628 @@
+{
+  "Schedule": [
+    {
+      "description": "Playoff Match 1 (R1)",
+      "startTime": "2026-10-31T15:45:00",
+      "matchNumber": 1,
+      "field": "Primary",
+      "tournamentLevel": "Playoff",
+      "teams": [
+        {
+          "teamNumber": 7558,
+          "station": "Red1",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 2056,
+          "station": "Red2",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 854,
+          "station": "Red3",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 3161,
+          "station": "Blue1",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 5409,
+          "station": "Blue2",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 9996,
+          "station": "Blue3",
+          "surrogate": false
+        }
+      ]
+    },
+    {
+      "description": "Playoff Match 2 (R1)",
+      "startTime": "2026-10-31T15:54:00",
+      "matchNumber": 2,
+      "field": "Primary",
+      "tournamentLevel": "Playoff",
+      "teams": [
+        {
+          "teamNumber": 9062,
+          "station": "Red1",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 7166,
+          "station": "Red2",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 10015,
+          "station": "Red3",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 2702,
+          "station": "Blue1",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 7520,
+          "station": "Blue2",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 6978,
+          "station": "Blue3",
+          "surrogate": false
+        }
+      ]
+    },
+    {
+      "description": "Playoff Match 3 (R1)",
+      "startTime": "2026-10-31T16:03:00",
+      "matchNumber": 3,
+      "field": "Primary",
+      "tournamentLevel": "Playoff",
+      "teams": [
+        {
+          "teamNumber": 10554,
+          "station": "Red1",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 1241,
+          "station": "Red2",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 1325,
+          "station": "Red3",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 1360,
+          "station": "Blue1",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 7902,
+          "station": "Blue2",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 4152,
+          "station": "Blue3",
+          "surrogate": false
+        }
+      ]
+    },
+    {
+      "description": "Playoff Match 4 (R1)",
+      "startTime": "2026-10-31T16:12:00",
+      "matchNumber": 4,
+      "field": "Primary",
+      "tournamentLevel": "Playoff",
+      "teams": [
+        {
+          "teamNumber": 2852,
+          "station": "Red1",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 4946,
+          "station": "Red2",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 4476,
+          "station": "Red3",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 2386,
+          "station": "Blue1",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 3683,
+          "station": "Blue2",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 9406,
+          "station": "Blue3",
+          "surrogate": false
+        }
+      ]
+    },
+    {
+      "description": "Playoff Match 5 (R2)",
+      "startTime": "2026-10-31T16:21:00",
+      "matchNumber": 5,
+      "field": "Primary",
+      "tournamentLevel": "Playoff",
+      "teams": [
+        {
+          "teamNumber": 3161,
+          "station": "Red1",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 5409,
+          "station": "Red2",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 9996,
+          "station": "Red3",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 9062,
+          "station": "Blue1",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 7166,
+          "station": "Blue2",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 10015,
+          "station": "Blue3",
+          "surrogate": false
+        }
+      ]
+    },
+    {
+      "description": "Playoff Match 6 (R2)",
+      "startTime": "2026-10-31T16:30:00",
+      "matchNumber": 6,
+      "field": "Primary",
+      "tournamentLevel": "Playoff",
+      "teams": [
+        {
+          "teamNumber": 1360,
+          "station": "Red1",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 7902,
+          "station": "Red2",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 4152,
+          "station": "Red3",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 2386,
+          "station": "Blue1",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 3683,
+          "station": "Blue2",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 9406,
+          "station": "Blue3",
+          "surrogate": false
+        }
+      ]
+    },
+    {
+      "description": "Playoff Match 7 (R2)",
+      "startTime": "2026-10-31T16:39:00",
+      "matchNumber": 7,
+      "field": "Primary",
+      "tournamentLevel": "Playoff",
+      "teams": [
+        {
+          "teamNumber": 7558,
+          "station": "Red1",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 2056,
+          "station": "Red2",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 854,
+          "station": "Red3",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 2702,
+          "station": "Blue1",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 6978,
+          "station": "Blue2",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 7520,
+          "station": "Blue3",
+          "surrogate": false
+        }
+      ]
+    },
+    {
+      "description": "Playoff Match 8 (R2)",
+      "startTime": "2026-10-31T16:48:00",
+      "matchNumber": 8,
+      "field": "Primary",
+      "tournamentLevel": "Playoff",
+      "teams": [
+        {
+          "teamNumber": 10554,
+          "station": "Red1",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 1241,
+          "station": "Red2",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 1325,
+          "station": "Red3",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 2852,
+          "station": "Blue1",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 4946,
+          "station": "Blue2",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 4476,
+          "station": "Blue3",
+          "surrogate": false
+        }
+      ]
+    },
+    {
+      "description": "Playoff Match 9 (R3)",
+      "startTime": "2026-10-31T16:57:00",
+      "matchNumber": 9,
+      "field": "Primary",
+      "tournamentLevel": "Playoff",
+      "teams": [
+        {
+          "teamNumber": 2702,
+          "station": "Red1",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 6978,
+          "station": "Red2",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 7520,
+          "station": "Red3",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 1360,
+          "station": "Blue1",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 7902,
+          "station": "Blue2",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 4152,
+          "station": "Blue3",
+          "surrogate": false
+        }
+      ]
+    },
+    {
+      "description": "Playoff Match 10 (R3)",
+      "startTime": "2026-10-31T17:06:00",
+      "matchNumber": 10,
+      "field": "Primary",
+      "tournamentLevel": "Playoff",
+      "teams": [
+        {
+          "teamNumber": 4476,
+          "station": "Red1",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 4946,
+          "station": "Red2",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 2852,
+          "station": "Red3",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 9062,
+          "station": "Blue1",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 7166,
+          "station": "Blue2",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 10015,
+          "station": "Blue3",
+          "surrogate": false
+        }
+      ]
+    },
+    {
+      "description": "Playoff Match 11 (R4)",
+      "startTime": "2026-10-31T17:18:00",
+      "matchNumber": 11,
+      "field": "Primary",
+      "tournamentLevel": "Playoff",
+      "teams": [
+        {
+          "teamNumber": 7558,
+          "station": "Red1",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 2056,
+          "station": "Red2",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 854,
+          "station": "Red3",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 10554,
+          "station": "Blue1",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 1241,
+          "station": "Blue2",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 1325,
+          "station": "Blue3",
+          "surrogate": false
+        }
+      ]
+    },
+    {
+      "description": "Playoff Match 12 (R4)",
+      "startTime": "2026-10-31T17:27:00",
+      "matchNumber": 12,
+      "field": "Primary",
+      "tournamentLevel": "Playoff",
+      "teams": [
+        {
+          "teamNumber": 9062,
+          "station": "Red1",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 7166,
+          "station": "Red2",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 10015,
+          "station": "Red3",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 2702,
+          "station": "Blue1",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 6978,
+          "station": "Blue2",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 7520,
+          "station": "Blue3",
+          "surrogate": false
+        }
+      ]
+    },
+    {
+      "description": "Playoff Match 13 (R5)",
+      "startTime": "2026-10-31T17:48:00",
+      "matchNumber": 13,
+      "field": "Primary",
+      "tournamentLevel": "Playoff",
+      "teams": [
+        {
+          "teamNumber": 10554,
+          "station": "Red1",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 1241,
+          "station": "Red2",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 1325,
+          "station": "Red3",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 9062,
+          "station": "Blue1",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 7166,
+          "station": "Blue2",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 10015,
+          "station": "Blue3",
+          "surrogate": false
+        }
+      ]
+    },
+    {
+      "description": "Final 1",
+      "startTime": "2026-10-31T18:09:00",
+      "matchNumber": 14,
+      "field": "Primary",
+      "tournamentLevel": "Playoff",
+      "teams": [
+        {
+          "teamNumber": 7558,
+          "station": "Red1",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 2056,
+          "station": "Red2",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 854,
+          "station": "Red3",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 10554,
+          "station": "Blue1",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 1241,
+          "station": "Blue2",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 1325,
+          "station": "Blue3",
+          "surrogate": false
+        }
+      ]
+    },
+    {
+      "description": "Final 2",
+      "startTime": "2026-10-31T18:30:00",
+      "matchNumber": 15,
+      "field": "Primary",
+      "tournamentLevel": "Playoff",
+      "teams": [
+        {
+          "teamNumber": 7558,
+          "station": "Red1",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 2056,
+          "station": "Red2",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 854,
+          "station": "Red3",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 10554,
+          "station": "Blue1",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 1241,
+          "station": "Blue2",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 1325,
+          "station": "Blue3",
+          "surrogate": false
+        }
+      ]
+    },
+    {
+      "description": "Final Tiebreaker",
+      "startTime": "2026-10-31T18:51:00",
+      "matchNumber": 16,
+      "field": "Primary",
+      "tournamentLevel": "Playoff",
+      "teams": [
+        {
+          "teamNumber": 7558,
+          "station": "Red1",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 2056,
+          "station": "Red2",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 854,
+          "station": "Red3",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 10554,
+          "station": "Blue1",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 1241,
+          "station": "Blue2",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 1325,
+          "station": "Blue3",
+          "surrogate": false
+        }
+      ]
+    }
+  ]
+}

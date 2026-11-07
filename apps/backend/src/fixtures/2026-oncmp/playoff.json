@@ -1,0 +1,121 @@
+{
+  "Schedule": [
+    {
+      "description": "Final 1",
+      "startTime": "2026-04-19T15:00:00",
+      "matchNumber": 1,
+      "field": "Primary",
+      "tournamentLevel": "Playoff",
+      "teams": [
+        {
+          "teamNumber": 7712,
+          "station": "Red1",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 2056,
+          "station": "Red2",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 1114,
+          "station": "Red3",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 8349,
+          "station": "Blue1",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 9785,
+          "station": "Blue2",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 7558,
+          "station": "Blue3",
+          "surrogate": false
+        }
+      ]
+    },
+    {
+      "description": "Final 2",
+      "startTime": "2026-04-19T15:21:00",
+      "matchNumber": 2,
+      "field": "Primary",
+      "tournamentLevel": "Playoff",
+      "teams": [
+        {
+          "teamNumber": 7712,
+          "station": "Red1",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 2056,
+          "station": "Red2",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 1114,
+          "station": "Red3",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 8349,
+          "station": "Blue1",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 9785,
+          "station": "Blue2",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 7558,
+          "station": "Blue3",
+          "surrogate": false
+        }
+      ]
+    },
+    {
+      "description": "Final Tiebreaker",
+      "startTime": null,
+      "matchNumber": 3,
+      "field": "Primary",
+      "tournamentLevel": "Playoff",
+      "teams": [
+        {
+          "teamNumber": 7712,
+          "station": "Red1",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 2056,
+          "station": "Red2",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 1114,
+          "station": "Red3",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 8349,
+          "station": "Blue1",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 9785,
+          "station": "Blue2",
+          "surrogate": false
+        },
+        {
+          "teamNumber": 7558,
+          "station": "Blue3",
+          "surrogate": false
+        }
+      ]
+    }
+  ]
+}

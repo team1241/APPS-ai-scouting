@@ -1,0 +1,92 @@
+{
+  "teamCountTotal": 6,
+  "teamCountPage": 6,
+  "pageCurrent": 1,
+  "pageTotal": 1,
+  "teams": [
+    {
+      "teamNumber": 188,
+      "nameFull": "EM Dynamics/Tectle/CGI/Gene Haas Foundation/Boeing/Bartlett Family Restaurants/Peters Family/The Argosy Foundation/DevCycle/Hum Family/Toronto District School Board&Woburn Collegiate Institute",
+      "nameShort": "Blizzard",
+      "city": "Toronto",
+      "stateProv": "Ontario",
+      "country": "Canada",
+      "rookieYear": 1998,
+      "robotName": "",
+      "districtCode": "ONT",
+      "schoolName": "Woburn Collegiate Institute",
+      "website": "",
+      "homeCMP": null
+    },
+    {
+      "teamNumber": 781,
+      "nameFull": "Bruce Power/Nuclear Innovation Institute /Royal Canadian Legion Branch 183 Kincardine/NPX/McKechnie Pharmacy/Kinetic Knights Youth Robotics&Family/Community",
+      "nameShort": "Kinetic Knights",
+      "city": "Kincardine",
+      "stateProv": "Ontario",
+      "country": "Canada",
+      "rookieYear": 2002,
+      "robotName": "",
+      "districtCode": "ONT",
+      "schoolName": "Family/Community",
+      "website": "",
+      "homeCMP": null
+    },
+    {
+      "teamNumber": 1241,
+      "nameFull": "General Motors/Pratt & Whitney Canada/Johnston Industrial Plastics Limited/CSC/Zerox/DBG Canada Limited/Symcor/Rev Creations/Rakla Tires/Click N Print/Trans Canada/99Cent Depot/Dreams Convention Center/Studica/City of Mississauga/Peel District School Board&Rick Hansen S.S",
+      "nameShort": "THEORY6",
+      "city": "Mississauga",
+      "stateProv": "Ontario",
+      "country": "Canada",
+      "rookieYear": 2004,
+      "robotName": "",
+      "districtCode": "ONT",
+      "schoolName": "Rick Hansen S.S",
+      "website": "",
+      "homeCMP": null
+    },
+    {
+      "teamNumber": 2708,
+      "nameFull": "Limestone District School Board/BGC South East/Novelis/RBC Wealth Management Securities/Rotary Kingston-Frontenac Club/Thomson Fasteners/FIRST Canada/Theriault Wealth Management Team of Dominion Securities/Smith Engineering/Robinson/Response I.T./Limestone Learning Foundation/Levac/Fastenal/Princess Auto/Smith Family Orthodontics/Ontario Association of Certified Engineering Technicians and Technologists/Community Foundation for Kingston & Area/Kinarm/Fort Glass/White Cap&LIMESTONE DISTRICT PUBLIC BOARD",
+      "nameShort": "Lake Effect Robotics",
+      "city": "Kingston",
+      "stateProv": "Ontario",
+      "country": "Canada",
+      "rookieYear": 2009,
+      "robotName": "",
+      "districtCode": "ONT",
+      "schoolName": "LIMESTONE DISTRICT PUBLIC BOARD",
+      "website": "",
+      "homeCMP": null
+    },
+    {
+      "teamNumber": 3543,
+      "nameFull": "Ontario Power Generation/Arnprior Optimist Club/Yellow Flag Security&Arnprior District High School",
+      "nameShort": "C4 Robotics",
+      "city": "Arnprior",
+      "stateProv": "Ontario",
+      "country": "Canada",
+      "rookieYear": 2011,
+      "robotName": "",
+      "districtCode": "ONT",
+      "schoolName": "Arnprior District High School",
+      "website": "",
+      "homeCMP": null
+    },
+    {
+      "teamNumber": 4152,
+      "nameFull": "Marwood International/Henkel/Kimberly-Clark/Muskoka Brand Gourmet&Huntsville High School",
+      "nameShort": "Hoya Robotics",
+      "city": "Huntsville",
+      "stateProv": "Ontario",
+      "country": "Canada",
+      "rookieYear": 2012,
+      "robotName": "",
+      "districtCode": "ONT",
+      "schoolName": "Huntsville High School",
+      "website": "",
+      "homeCMP": null
+    }
+  ]
+}

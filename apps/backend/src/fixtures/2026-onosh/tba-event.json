@@ -1,0 +1,83 @@
+{
+  "key": "2026onosh",
+  "name": "ONT District Durham College Event",
+  "short_name": "Durham College",
+  "event_code": "onosh",
+  "event_type": 1,
+  "event_type_string": "District",
+  "parent_event_key": null,
+  "playoff_type": 10,
+  "playoff_type_string": "Double Elimination Bracket (8 Alliances)",
+  "district": {
+    "key": "2026ont",
+    "year": 2026,
+    "abbreviation": "ont",
+    "display_name": "FIRST Canada - Ontario",
+    "official_advancement_counts": {
+      "dcmp": 100,
+      "cmp": 21
+    }
+  },
+  "division_keys": [],
+  "first_event_id": null,
+  "first_event_code": "onosh",
+  "year": 2026,
+  "timezone": "America/New_York",
+  "week": 1,
+  "website": "https://firstroboticscanada.org/event/ont-district-durham-college-event-5/",
+  "remap_teams": null,
+  "city": "Oshawa",
+  "state_prov": "ON",
+  "country": "Canada",
+  "postal_code": "L1G 0C8",
+  "lat": null,
+  "lng": null,
+  "location_name": "Durham College",
+  "address": "2000 Simcoe Street North",
+  "gmaps_place_id": null,
+  "gmaps_url": null,
+  "start_date": "2026-03-13",
+  "end_date": "2026-03-15",
+  "webcasts": [
+    {
+      "type": "youtube",
+      "channel": "zh-CdJSxZYQ",
+      "date": "2026-03-13"
+    },
+    {
+      "type": "youtube",
+      "channel": "8xCf1fyjjDc",
+      "date": "2026-03-13"
+    },
+    {
+      "type": "youtube",
+      "channel": "KxiMft2v8TA",
+      "date": "2026-03-13"
+    },
+    {
+      "type": "youtube",
+      "channel": "SuM9w2_7c1k",
+      "date": "2026-03-13"
+    },
+    {
+      "type": "youtube",
+      "channel": "KxiMft2v8TA",
+      "date": "2026-03-14"
+    },
+    {
+      "type": "youtube",
+      "channel": "SuM9w2_7c1k",
+      "date": "2026-03-14"
+    },
+    {
+      "type": "youtube",
+      "channel": "zh-CdJSxZYQ",
+      "date": "2026-03-15"
+    },
+    {
+      "type": "youtube",
+      "channel": "8xCf1fyjjDc",
+      "date": "2026-03-15"
+    }
+  ]
+}

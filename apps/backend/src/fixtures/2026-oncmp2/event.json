@@ -1,0 +1,20 @@
+{
+  "allianceCount": "EightAlliance",
+  "weekNumber": 7,
+  "announcements": [],
+  "code": "ONCMP2",
+  "divisionCode": "ONCMP2",
+  "name": "FIRST Ontario Provincial Championship - Technology Division",
+  "type": "DistrictChampionshipDivision",
+  "districtCode": "ONT",
+  "venue": "Niagara Falls Convention Centre",
+  "city": "Niagara Falls",
+  "stateprov": "ON",
+  "country": "Canada",
+  "dateStart": "2026-04-16T00:00:00",
+  "dateEnd": "2026-04-19T23:59:59",
+  "address": "6815 Stanley Ave",
+  "website": "https://firstroboticscanada.org/event/first-ontario-provincial-championship-2/",
+  "webcasts": [],
+  "timezone": "Eastern Standard Time"
+}

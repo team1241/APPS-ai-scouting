@@ -1,0 +1,92 @@
+{
+  "teamCountTotal": 6,
+  "teamCountPage": 6,
+  "pageCurrent": 1,
+  "pageTotal": 1,
+  "teams": [
+    {
+      "teamNumber": 188,
+      "nameFull": "EM Dynamics/Tectle/CGI/Gene Haas Foundation/Boeing/Bartlett Family Restaurants/Peters Family/The Argosy Foundation/DevCycle/Hum Family/Toronto District School Board&Woburn Collegiate Institute",
+      "nameShort": "Blizzard",
+      "city": "Toronto",
+      "stateProv": "Ontario",
+      "country": "Canada",
+      "rookieYear": 1998,
+      "robotName": "",
+      "districtCode": "ONT",
+      "schoolName": "Woburn Collegiate Institute",
+      "website": "",
+      "homeCMP": null
+    },
+    {
+      "teamNumber": 610,
+      "nameFull": "Forge Automation/Clado/Parts LogiQ/Actuonix/Alcot Plastics&Crescent School",
+      "nameShort": "Crescent Coyotes",
+      "city": "Toronto",
+      "stateProv": "Ontario",
+      "country": "Canada",
+      "rookieYear": 2001,
+      "robotName": "",
+      "districtCode": "ONT",
+      "schoolName": "Crescent School",
+      "website": "",
+      "homeCMP": null
+    },
+    {
+      "teamNumber": 771,
+      "nameFull": "Raytheon Technologies - Collins Aerospace/Hatch&St. Mildred's-Lightbourn School",
+      "nameShort": "SWAT",
+      "city": "Oakville",
+      "stateProv": "Ontario",
+      "country": "Canada",
+      "rookieYear": 2002,
+      "robotName": "",
+      "districtCode": "ONT",
+      "schoolName": "St. Mildred's-Lightbourn School",
+      "website": "",
+      "homeCMP": null
+    },
+    {
+      "teamNumber": 772,
+      "nameFull": "GM, Centerline, Idea Engineering Services, Windsor Essex FIRST Robotics, FIRST Robotics Canada, Tregaskiss, St. Clair College, University of Windsor, 519 Games,  and Sandwich Secondary School &Sandwich Secondary School",
+      "nameShort": "Sabre Bytes Robotics ",
+      "city": "LaSalle",
+      "stateProv": "Ontario",
+      "country": "Canada",
+      "rookieYear": 2002,
+      "robotName": "",
+      "districtCode": "ONT",
+      "schoolName": "Sandwich Secondary School",
+      "website": "",
+      "homeCMP": null
+    },
+    {
+      "teamNumber": 781,
+      "nameFull": "Bruce Power/Nuclear Innovation Institute /Royal Canadian Legion Branch 183 Kincardine/NPX/McKechnie Pharmacy/Kinetic Knights Youth Robotics&Family/Community",
+      "nameShort": "Kinetic Knights",
+      "city": "Kincardine",
+      "stateProv": "Ontario",
+      "country": "Canada",
+      "rookieYear": 2002,
+      "robotName": "",
+      "districtCode": "ONT",
+      "schoolName": "Family/Community",
+      "website": "",
+      "homeCMP": null
+    },
+    {
+      "teamNumber": 854,
+      "nameFull": "TDSB/Hatch Ltd/Google & Martingrove Collegiate Institute",
+      "nameShort": "Iron Bears",
+      "city": "Etobicoke",
+      "stateProv": "Ontario",
+      "country": "Canada",
+      "rookieYear": 2002,
+      "robotName": "",
+      "districtCode": "ONT",
+      "schoolName": "Martingrove Collegiate Institute",
+      "website": "",
+      "homeCMP": null
+    }
+  ]
+}

@@ -1,0 +1,68 @@
+{
+  "key": "2026oncmp2",
+  "name": "FIRST Ontario Provincial Championship - Technology Division",
+  "short_name": "OPC - Technology",
+  "event_code": "oncmp2",
+  "event_type": 5,
+  "event_type_string": "District Championship Division",
+  "parent_event_key": "2026oncmp",
+  "playoff_type": 10,
+  "playoff_type_string": "Double Elimination Bracket (8 Alliances)",
+  "district": {
+    "key": "2026ont",
+    "year": 2026,
+    "abbreviation": "ont",
+    "display_name": "FIRST Canada - Ontario",
+    "official_advancement_counts": {
+      "dcmp": 100,
+      "cmp": 21
+    }
+  },
+  "division_keys": [],
+  "first_event_id": null,
+  "first_event_code": "oncmp2",
+  "year": 2026,
+  "timezone": "America/New_York",
+  "week": 6,
+  "website": "https://firstroboticscanada.org/event/first-ontario-provincial-championship-2/",
+  "remap_teams": null,
+  "city": "Niagara Falls",
+  "state_prov": "ON",
+  "country": "Canada",
+  "postal_code": "L2G 7B6",
+  "lat": null,
+  "lng": null,
+  "location_name": "Niagara Falls Convention Centre",
+  "address": "6815 Stanley Ave",
+  "gmaps_place_id": null,
+  "gmaps_url": null,
+  "start_date": "2026-04-16",
+  "end_date": "2026-04-19",
+  "webcasts": [
+    {
+      "type": "youtube",
+      "channel": "d5drx_8Ujkk",
+      "date": "2026-04-17"
+    },
+    {
+      "type": "youtube",
+      "channel": "vKbdsFcncbw",
+      "date": "2026-04-18"
+    },
+    {
+      "type": "youtube",
+      "channel": "3gWTNU7lsbE",
+      "date": "2026-04-18"
+    },
+    {
+      "type": "youtube",
+      "channel": "RRB7cwXzYFs",
+      "date": "2026-04-19"
+    },
+    {
+      "type": "youtube",
+      "channel": "853MX55sF3o",
+      "date": "2026-04-19"
+    }
+  ]
+}

@@ -91,3 +91,41 @@ Deploy the event migration before the backend. On rollout, historical eventless 
 6. Verify one complete submission/follow-up and its Studio trace. Retain historical eventless records without assigning them automatically.
 
 This event feature changes only the backend and database; the existing deployed session workflow already provides its extraction contract. Future changes to that contract still require coordinated Mastra/backend deployment as described above.
+
+## Reference imports (#2)
+
+Apply `20261107180000_reference_imports`, `20261107190000_reference_event_facts`, and `20261107200000_schedule_polling` before deploying. Existing manual events and organization/session settings remain usable. Admins can explicitly import cached rosters, schedules, participants and official results:
+
+```text
+/event sync <event-id> frc_events
+/event reference <event-id>
+/event link-tba <event-id> <explicit-TBA-event-key>
+/event sync <event-id> tba
+/event add-tba <TBA-event-key>
+```
+
+Creating a FIRST event automatically looks up TBA using its declared `first_event_code`, matching season, event category and overlapping dates. A unique match is saved on the new event, including differing Worlds provider keys. TBA must have `TBA_AUTH_KEY` configured. Missing, ambiguous, conflicting or failed matches leave FIRST usable and the event visibly unlinked. `/event refresh <season> <FIRST-code>` retries missing links; existing links are preserved. Use `link-tba` only as a manual fallback for an existing FIRST event. `add-tba` creates a separate event for supplemental coverage when FIRST has no event; it does not infer corresponding FIRST codes. TBA requires backend `TBA_AUTH_KEY`. Replacing a previously linked TBA key is refused because its cache requires reconciliation. Select imported events with `/event set <event-id>`.
+
+Imports upsert stable team/match IDs, retain older records absent from new responses, and store each source's facts separately. FIRST takes precedence; null FIRST fields can use TBA values. Backend `overrideReference` supports admin fact overrides; pass an empty object to clear an override. No manual event JSON editing is introduced. `readReference` returns effective facts and sync status/freshness through tenant-authorized operations. Missing sync rows mean absent data; older successes or failed refreshes mean stale data. A first successful schedule save queues one schedule-received notification for each enrolled Telegram admin. Historical results never generate match notifications.
+
+Qualification identity is shared by explicit event linkage and qualification number. For verified 2026 event types and TBA playoff formats, playoff identities map onto the existing FIRST match IDs. The mapper distinguishes full double-elimination brackets from Ontario championship parent finals. Other seasons/formats retain separate source identities. When FIRST metadata is unavailable, unverified playoff identities remain source-specific. Raw event facts preserve provider types and parent/division references; each parent/division remains a separate event scope. FIRST time strings remain local to the event timezone; TBA times use UTC ISO timestamps.
+
+### Automatic schedule acquisition
+
+Every added, non-archived provider-backed event in the configured organization is eligible from **6 p.m. on its first event day**, using its own timezone. The event does not need to be active or marked attending. The job attempts acquisition every ten minutes until a complete, nonempty provider response with usable match participants is saved. Empty, invalid, partial and failed responses do not stop polling. Events added after their start time are eligible on the next run. Attempts continue until acquisition or archival.
+
+Automatic acquisition requests event metadata and schedules only. FIRST is primary; a linked TBA event is the fallback when FIRST fails or has no schedule. Qualification schedules are preferred; finals-only championship parents can use playoff schedules. Rosters and results remain available through explicit reference imports.
+
+A durable receipt stops all future automatic provider calls for that event, including after restarts. A later playoff schedule or rescheduling is **not** fetched automatically after this first save; use the explicit sync command when an update is needed. Explicit full imports that save a usable schedule also set the receipt. Previously cached data without a receipt is verified once by the new job.
+
+The saved schedule, receipt and notification recipients commit together. Enrolled Telegram admins receive a private message after commit. Scouts and strategists do not receive it; admin membership is rechecked before delivery. Telegram rate limits/explicit server rejections are retried independently of schedule polling. Permanent rejections are recorded as failed. Timeout/interrupted delivery is recorded as uncertain for operator review instead of blindly sending a duplicate. `/event reference <event-id>` reports polling and notification state. This message is separate from future match briefing/coverage notifications.
+
+### Railway schedule service
+
+1. Apply all three reference/schedule migrations through Production readiness. The workflow runs regression tests against disposable Postgres before production migration. Keep **Wait for CI** enabled for deployments.
+2. Create a **separate Railway service** from the same repository/revision, retaining the repository workspace root. Use the normal dependency installation/build configuration.
+3. Set its start command to `pnpm --filter @ai-scouting/backend schedule:sync` and its **Cron Schedule** to `*/10 * * * *`. Do not replace the Telegram backend's HTTP start command or configure an HTTP healthcheck for this run-and-exit service.
+4. Set the cron service's `DATABASE_URL` to the same restricted runtime connection used by the backend, `TELEGRAM_ORGANIZATION_ID`, `TELEGRAM_BOT_TOKEN`, `FRC_EVENTS_USERNAME`, `FRC_EVENTS_AUTHORIZATION_KEY`, and optional `TBA_AUTH_KEY`. It does not need Mastra configuration, extraction enabled, or an admin user ID.
+5. Deploy both backend and cron service after migrations, then inspect cron output and `/event reference <event-id>` on the dev bot before production rollout. Cron output reports attempt/save/notification counts. Add future events using `/event add <season> <code>`; selecting an active event is only needed for scouting intake.
+
+The old `REFERENCE_SYNC_ENABLED` and `REFERENCE_SYNC_ADMIN_USER_ID` settings are no longer used. There is no sync timer in the web server. The cron command closes database connections and exits after one pass, including when no schedules are due; its job state survives between runs. Railway schedules are UTC, but the application evaluates each event's local 6 p.m. eligibility. Actual launch time can vary, so the first attempt is the cron run at or after that boundary. See [Railway cron jobs](https://docs.railway.com/cron-jobs).

@@ -40,6 +40,7 @@ export interface Event {
   id: Generated<string>;
   name: string;
   organization_id: string;
+  provider_facts: Generated<Json>;
   season: number;
   source: Generated<string>;
   specification_version: string;
@@ -55,6 +56,28 @@ export interface EventCommand {
   organization_id: string;
   result: Json;
   source_update_id: string;
+}
+
+export interface EventMatch {
+  event_id: string;
+  facts: Generated<Json>;
+  id: Generated<string>;
+  identity: string;
+  manual_override: Generated<Json>;
+  match_number: number;
+  organization_id: string;
+  round: string;
+  set_number: number;
+  stage: string;
+}
+
+export interface EventTeam {
+  event_id: string;
+  facts: Generated<Json>;
+  id: Generated<string>;
+  manual_override: Generated<Json>;
+  organization_id: string;
+  team_number: number;
 }
 
 export interface IntakeRejection {
@@ -75,6 +98,15 @@ export interface Invitation {
   source_update_id: string;
   token_hash: string;
   uses: Generated<number>;
+}
+
+export interface MatchParticipant {
+  match_id: string;
+  organization_id: string;
+  source: string;
+  station: string;
+  surrogate: boolean;
+  team_number: number;
 }
 
 export interface Member {
@@ -115,6 +147,41 @@ export interface RawEntry {
   text: string;
 }
 
+export interface ReferenceSync {
+  attempted_at: Generated<Timestamp>;
+  complete: Generated<boolean>;
+  error: string | null;
+  event_id: string;
+  organization_id: string;
+  source: string;
+  status: string;
+  succeeded_at: Timestamp | null;
+}
+
+export interface ScheduleNotification {
+  attempt_id: string | null;
+  attempted_at: Timestamp | null;
+  error: string | null;
+  event_id: string;
+  next_attempt_at: Generated<Timestamp>;
+  organization_id: string;
+  sent_at: Timestamp | null;
+  status: Generated<string>;
+  telegram_user_id: string;
+  text: string;
+}
+
+export interface SchedulePoll {
+  attempt_id: string | null;
+  attempted_at: Timestamp | null;
+  error: string | null;
+  event_id: string;
+  organization_id: string;
+  received_at: Timestamp | null;
+  source: string | null;
+  status: Generated<string>;
+}
+
 export interface ScoutingSession {
   completed_at: Timestamp | null;
   created_at: Generated<Timestamp>;
@@ -132,11 +199,17 @@ export interface DB {
   channel_identity: ChannelIdentity;
   event: Event;
   event_command: EventCommand;
+  event_match: EventMatch;
+  event_team: EventTeam;
   intake_rejection: IntakeRejection;
   invitation: Invitation;
+  match_participant: MatchParticipant;
   member: Member;
   organization: Organization;
   organization_event_setting: OrganizationEventSetting;
   raw_entry: RawEntry;
+  reference_sync: ReferenceSync;
+  schedule_notification: ScheduleNotification;
+  schedule_poll: SchedulePoll;
   scouting_session: ScoutingSession;
 }
