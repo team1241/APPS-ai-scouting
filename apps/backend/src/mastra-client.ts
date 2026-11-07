@@ -14,7 +14,7 @@ export async function extractSessionTurn(
       "content-type": "application/json",
       ...(serviceToken ? { Authorization: `Bearer ${serviceToken}` } : {}),
     },
-    body: JSON.stringify({ turnId, text }),
+    body: JSON.stringify({ turnId, text, deferFinalization: true }),
     signal: AbortSignal.timeout(90000),
   });
   if (!response.ok) throw Error(`Mastra session request failed (HTTP ${response.status})`);

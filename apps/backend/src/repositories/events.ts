@@ -4,6 +4,7 @@ import type { DB } from "../db.generated.ts";
 import { type EventConfig, parseEventConfig } from "../event-config.ts";
 import { discoverTbaEventKey } from "../tba-event-link.ts";
 import { memberInTransaction } from "./membership.ts";
+import { scheduleInTransaction } from "./participation.ts";
 import { withTenant } from "./tenant.ts";
 
 // Share this lock with intake so activation and event assignment have a definite order.
@@ -24,9 +25,31 @@ export async function activeEvent(tx: Transaction<DB>, organizationId: string) {
 }
 export function readEvents(organizationId: string, userId: string) {
   return withTenant(organizationId, async (tx) => {
-    if (!(await memberInTransaction(tx, organizationId, userId))) return null;
+    const member = await memberInTransaction(tx, organizationId, userId);
+    if (!member) return null;
+    const active = await activeEvent(tx, organizationId);
+    const sessions = await tx
+      .selectFrom("scouting_session")
+      .innerJoin("event", "event.id", "scouting_session.event_id")
+      .select([
+        "scouting_session.id",
+        "event.name",
+        "scouting_session.event_id",
+        "scouting_session.match_label",
+        "scouting_session.team_number",
+        "scouting_session.validation_result",
+      ])
+      .where("scouting_session.organization_id", "=", organizationId)
+      .where("event.organization_id", "=", organizationId)
+      .where("scouting_session.member_id", "=", member.id)
+      .where("scouting_session.status", "=", "collecting")
+      .orderBy("scouting_session.created_at", "desc")
+      .limit(5)
+      .execute();
     return {
-      active: await activeEvent(tx, organizationId),
+      active,
+      schedule: active ? await scheduleInTransaction(tx, organizationId, active.id) : null,
+      sessions,
       events: await tx
         .selectFrom("event")
         .selectAll()
@@ -41,6 +64,7 @@ export function readEvents(organizationId: string, userId: string) {
 export type EventAction =
   | { kind: "activate-frc" | "import-frc" | "refresh-frc"; config: EventConfig }
   | { kind: "activate"; eventId: string | null }
+  | { kind: "validation"; eventId: string; mode: "off" | "warn" | "strict" }
   | { kind: "archive" | "restore"; eventId: string };
 interface MutationResult {
   status: "ok" | "forbidden" | "missing" | "active_event" | "unsupported" | "ambiguous";
@@ -185,6 +209,15 @@ async function mutate(
     return { status: "ok", ...(event ? { eventId: event.id, eventName: event.name } : {}) };
   }
   if (!event) return { status: "missing" };
+  if (action.kind === "validation") {
+    await tx
+      .updateTable("event")
+      .set({ validation_mode: action.mode })
+      .where("organization_id", "=", organizationId)
+      .where("id", "=", event.id)
+      .execute();
+    return { status: "ok", eventId: event.id };
+  }
   if (action.kind === "archive" || action.kind === "restore") {
     if (action.kind === "archive" && (await activeEvent(tx, organizationId))?.id === event.id)
       return { status: "active_event" };

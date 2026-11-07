@@ -16,7 +16,11 @@ test("session client uses the stable session and turn IDs and validates results"
     assert.equal(req.headers.authorization, "Bearer secret");
     let body = "";
     for await (const chunk of req) body += chunk;
-    assert.deepEqual(JSON.parse(body), { turnId: "turn-id", text: "note" });
+    assert.deepEqual(JSON.parse(body), {
+      turnId: "turn-id",
+      text: "note",
+      deferFinalization: true,
+    });
     res.setHeader("content-type", "application/json");
     res.end(JSON.stringify(result));
   });

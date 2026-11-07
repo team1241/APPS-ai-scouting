@@ -44,7 +44,7 @@ Use the dev bot and development Neon branch with the local backend, Mastra, and 
 
 In local Mastra Studio (`http://localhost:4111/studio`), inspect Workflows → scouting-session → Runs and Traces. Rejected submissions never reach Mastra. The accepted note and its follow-up share a run ID; extraction/model spans appear in the trace.
 
-The backend owns membership/admin checks, active-event admission, FIRST lookups, delivery deduplication, persistence and Telegram replies. Mastra owns extraction, specification completeness and workflow suspension/resumption. Neon enforces tenant isolation and relational constraints. Schedule and match/team participation verification are future tickets #2 and #3; this checklist verifies event context rather than real schedule correctness.
+The backend owns membership/admin checks, active-event admission, FIRST lookups, delivery deduplication, persistence and Telegram replies. Mastra owns extraction, specification completeness and workflow suspension/resumption. Neon enforces tenant isolation and relational constraints. Reference acquisition and participation validation are implemented in #2 and #3; this checklist verifies event context. Use the validation tests below for schedule correctness.
 
 ## Database development
 
@@ -131,3 +131,11 @@ Schedule polling tests: `node --test apps/backend/src/schedule-policy.test.ts ap
 Automatic TBA event matching: `node --test apps/backend/src/tba-event-link.test.ts`. Covers district events, championship parents/divisions, Worlds code differences, ambiguous/no matches, provider failures and manual-link preservation. Event integration tests verify persistence, replay deduplication and refresh retry.
 
 Run one acquisition/delivery pass locally with `pnpm --filter @ai-scouting/backend schedule:sync` using the dev database and bot. This is the same command used by the Railway cron service; it closes the pool and exits. Unlike the read-only provider smoke, this command can deliver schedule-received messages to the configured organization's admins. No schedule polling runs in the HTTP backend.
+
+## Participation validation verification
+
+Run `node --test apps/backend/src/participation.test.ts` for the label/participation and snapshot policy. Against disposable Postgres, run `node --test apps/backend/src/participation.integration.test.ts` with `DATABASE_URL` set after applying migrations. These tests cover six alliance positions, invalid pairs, playoffs, missing/stale schedules, warn acknowledgment, strict raw persistence, off/admin settings, independent provisional notes, open-session conflicts, separate scouts, multiple teams per scout and switching events between question and reply. Existing event integration tests also cover clearing the active event during a follow-up. CI runs these with the reference/schedule regression gate.
+
+The backend commits validation/extraction before sending questions while retaining its lease until delivery metadata is recorded; a failed question delivery remains retryable. Telegram send/commit ambiguity still applies. Backend turns defer Mastra finalization, so run status can remain suspended after backend session completion. Backend session status is authoritative; do not resume a completed session manually as a correction.
+
+For a dev-bot smoke test, acquire a schedule and set the event to strict. Submit an invalid pair, confirm the raw note exists and the bot asks for clarification, switch active events, then reply with the correct pair from the original event. Confirm the same session resolves under the original event. Switch to warn and try a missing playoff: verify the clarification and explicit “save unverified” path. Send a second note against an open session and verify “keep separate”; no automatic merge should occur. Restore the intended mode/event afterward. No automatic schedule polling should resume.

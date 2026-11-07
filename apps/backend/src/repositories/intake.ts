@@ -11,7 +11,7 @@ interface IncomingNote {
   replyToMessageId?: string;
   eventId?: string;
 }
-type Rejection = "no_active_event" | "invalid_event" | "legacy_session";
+type Rejection = "no_active_event" | "invalid_event" | "legacy_session" | "completed_session";
 // Context validation, deduplication and persistence share one transaction.
 export function saveIncomingNote(
   note: IncomingNote,
@@ -60,15 +60,15 @@ export function saveIncomingNote(
     const parent = note.replyToMessageId
       ? await tx
           .selectFrom("raw_entry")
-          .select("id")
+          .select(["id", "status"])
           .where("organization_id", "=", note.organizationId)
           .where("member_id", "=", identity.member_id)
           .where("follow_up_message_id", "=", note.replyToMessageId)
-          .where("status", "=", "needs_review")
           .where("parent_entry_id", "is", null)
           .forUpdate()
           .executeTakeFirst()
       : undefined;
+    if (parent?.status === "done") return reject("completed_session");
     let eventId: string, eventName: string, specificationVersion: string;
     if (parent) {
       const context = await tx
@@ -119,7 +119,12 @@ export function saveIncomingNote(
     if (parent)
       await tx
         .updateTable("raw_entry")
-        .set({ status: "pending", processing_attempts: 0, next_attempt_at: new Date() })
+        .set({
+          status: "pending",
+          processing_started_at: null,
+          processing_attempts: 0,
+          next_attempt_at: new Date(),
+        })
         .where("organization_id", "=", note.organizationId)
         .where("id", "=", parent.id)
         .execute();

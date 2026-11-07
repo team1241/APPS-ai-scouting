@@ -4,6 +4,7 @@ import { createStep, createWorkflow, createWorkflowStateReader } from "@mastra/c
 import { z } from "zod";
 
 export const sessionTurnSchema = extractionInputSchema.extend({
+  deferFinalization: z.boolean().optional(),
   turnId: z.string().regex(/^[a-f0-9]{64}$/),
 });
 const suspensionSchema = z.object({
@@ -34,7 +35,7 @@ export function createSessionWorkflow(extract: Extract) {
         return await suspend({ turnId: turn.turnId, result: null });
       }
       const output = { turnId: turn.turnId, result };
-      if (result.status !== "complete") return await suspend(output);
+      if (turn.deferFinalization || result.status !== "complete") return await suspend(output);
       return output;
     },
   });

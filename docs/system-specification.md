@@ -44,24 +44,24 @@ Admins can create, list, and revoke reusable Telegram invitations. Joining enrol
 
 ## 3. Current implementation status
 
-| Capability                                                           | Status                                                                    |
-| -------------------------------------------------------------------- | ------------------------------------------------------------------------- |
-| Hono backend and Mastra app in a pnpm monorepo                       | Implemented                                                               |
-| Neon intake tables, tenant isolation, repositories, migrations/types | Implemented                                                               |
-| Telegram webhook, enrollment checks, deduplication                   | Implemented and previously tested locally/hosted                          |
-| Reusable admin invitation commands                                   | Implemented; production command routing previously verified               |
-| Specification-driven Anthropic extraction and linked follow-ups      | Implemented with starter specification                                    |
-| Separate development bot and Neon branch                             | Configured                                                                |
-| Mastra Platform deployment and restricted backend credential         | Configured and previously smoke-tested                                    |
-| Railway production backend                                           | Deployed                                                                  |
-| GitHub production readiness and migration workflow                   | Implemented; user confirmed successful run                                |
-| Automatic Render deployment after readiness                          | Configured, but one successful run did not trigger rollout; unresolved    |
-| API-backed event configuration and session context                   | Implemented for issue #1                                                  |
-| Reference imports and schedule validation                            | Reference import implementation in progress (#2); validation planned (#3) |
-| Final observations, corrections, review queue                        | Planned; not implemented                                                  |
-| Admin web app and web authentication                                 | Proposed; not implemented                                                 |
-| Strategist agent, statistics, summaries                              | Planned; not implemented                                                  |
-| Automatic/manual event mode                                          | Planned; not implemented                                                  |
+| Capability                                                           | Status                                                                   |
+| -------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| Hono backend and Mastra app in a pnpm monorepo                       | Implemented                                                              |
+| Neon intake tables, tenant isolation, repositories, migrations/types | Implemented                                                              |
+| Telegram webhook, enrollment checks, deduplication                   | Implemented and previously tested locally/hosted                         |
+| Reusable admin invitation commands                                   | Implemented; production command routing previously verified              |
+| Specification-driven Anthropic extraction and linked follow-ups      | Implemented with starter specification                                   |
+| Separate development bot and Neon branch                             | Configured                                                               |
+| Mastra Platform deployment and restricted backend credential         | Configured and previously smoke-tested                                   |
+| Railway production backend                                           | Deployed                                                                 |
+| GitHub production readiness and migration workflow                   | Implemented; user confirmed successful run                               |
+| Automatic Render deployment after readiness                          | Configured, but one successful run did not trigger rollout; unresolved   |
+| API-backed event configuration and session context                   | Implemented for issue #1                                                 |
+| Reference imports and schedule validation                            | Implemented reference acquisition (#2) and participation validation (#3) |
+| Final observations, corrections, review queue                        | Planned; not implemented                                                 |
+| Admin web app and web authentication                                 | Proposed; not implemented                                                |
+| Strategist agent, statistics, summaries                              | Planned; not implemented                                                 |
+| Automatic/manual event mode                                          | Planned; not implemented                                                 |
 
 ## 4. Architecture and ownership
 
@@ -134,11 +134,11 @@ Secrets remain in ignored local environment files or provider/GitHub secret stor
 
 ### Durable scouting sessions
 
-Each initial scouting submission creates a tenant/member-owned `scouting_session` in the intake transaction, using its root raw-entry ID as the stable Mastra run ID. It snapshots the active event and supported specification. New submissions require a valid active event; otherwise no note/session is created, and the scout must resend after event selection. Only rejected-delivery metadata is retained to prevent retries adopting a later event. Linked Telegram answers resume that run rather than starting another extraction workflow. The run suspends with the current requirements result while waiting and completes when required data is present. The backend stores match/team identity as it becomes available and tracks completion separately from immutable raw messages.
+Each initial scouting submission creates a tenant/member-owned `scouting_session` in the intake transaction, using its root raw-entry ID as the stable Mastra run ID. It snapshots the active event and supported specification. New submissions require a valid active event; otherwise no note/session is created, and the scout must resend after event selection. Only rejected-delivery metadata is retained to prevent retries adopting a later event. Linked Telegram answers resume that run rather than starting another extraction workflow. The run suspends with the current requirements result. Backend requests defer workflow finalization so schedule clarification can resume the same run even after extraction has all required fields; the backend owns session completion. The backend stores match/team identity as it becomes available and tracks completion separately from immutable raw messages.
 
-A session's turn ID is a hash of its original note and ordered replies. Replaying a persisted turn returns the cached result; concurrent identical requests in one Mastra process share execution. Provider errors suspend without a result so retry can resume the same run. A crashed execution left in a running/failed state needs operator recovery rather than silently starting another run. Snapshot storage must be configured. Completed sessions reject new turns; corrections start separate submissions pending the finalized observation/history feature.
+A session's turn ID is a hash of its original note and ordered replies. Replaying a persisted turn returns the cached result; concurrent identical requests in one Mastra process share execution. Provider errors suspend without a result so retry can resume the same run. A crashed execution left in a running/failed state needs operator recovery rather than silently starting another run. Snapshot storage must be configured. The backend rejects replies to completed sessions; completed-session corrections remain deferred to #4. Legacy workflow clients without deferred finalization still complete their run and reject new turns.
 
-Sessions pin the current specification version. Processing refuses a version mismatch rather than silently changing an open session's requirements. Full multi-version schema support remains planned. Event context is pinned at intake. Automatic association of independent notes to the same scout/match/team remains future work; the current session boundary is one initial submission and its explicitly linked replies. Different submissions remain independent, including notes by different scouts about the same match.
+Sessions pin the current specification version. Processing refuses a version mismatch rather than silently changing an open session's requirements. Full multi-version schema support remains planned. Event context is pinned at intake. The session boundary is one initial submission and its explicitly linked replies. Provisional submissions remain independent. Once event/match/scout/team resolve, a newer note targeting an earlier open session requires an explicit “keep separate” reply; notes are never silently merged. Separate scouts and different scouted teams remain independent.
 
 The session endpoint is `POST /scouting/sessions/:runId/turn`, authenticated with the backend service token. The stateless extraction workflow has been removed; the worker uses sessions exclusively. Run the database migration, deploy Mastra with the new endpoint, then deploy the backend. Do not switch the worker before the endpoint is available. Telegram outbound delivery still has the documented non-atomic send/commit limitation.
 
@@ -152,7 +152,7 @@ Future specifications should be published immutable versions associated with sea
 
 ## 7. Event configuration and external data
 
-API-backed event configuration, active-event selection, intake-time session binding and explicit delayed-note event selection are implemented for issue #1. FIRST event-detail lookup and selection by season/code are implemented. Roster/schedule imports, per-source caches, TBA supplementation, sync status and one-time scheduled acquisition with admin Telegram notifications are implemented for issue #2; paired regular-season, Ontario championship and Worlds fixtures and live checks cover verified 2026 playoff formats. Schedule validation remains planned for #3. Command syntax and setup live in the [operations guide](operations.md#events).
+API-backed event configuration, active-event selection, intake-time session binding and explicit delayed-note event selection are implemented for issue #1. FIRST event-detail lookup and selection by season/code are implemented. Roster/schedule imports, per-source caches, TBA supplementation, sync status and one-time scheduled acquisition with admin Telegram notifications are implemented for issue #2; paired regular-season, Ontario championship and Worlds fixtures and live checks cover verified 2026 playoff formats. Event-scoped match/team validation and Telegram context are implemented for #3. Command syntax and setup live in the [operations guide](operations.md#events).
 
 ### Source policy
 
@@ -181,6 +181,16 @@ Active event is an organization setting. Attach it when a note is received and p
 Automatic schedule acquisition runs in a separate ten-minute cron job for every added, non-archived provider-backed event, beginning at 6 p.m. event-local time on its first day. It stops permanently for that event after saving the first usable schedule and complete team roster and queues a private confirmation for enrolled Telegram admins. Qualification schedules are preferred; finals-only parents use playoff schedules. Existing schedule-only imports receive a one-time roster backfill without re-fetching matches or re-notifying admins. Later playoffs, rescheduling, roster refresh and results require an explicit import. Failed/empty/partial responses keep polling; notification delivery state is independent of acquisition. The HTTP backend has no polling timer.
 
 Cache teams and schedules locally, including qualification and full playoff round/set/match identity. Validate that a team participates in a referenced match. Missing schedules must allow intake when an event is active; warn mode flags inconsistencies for clarification/review. Strict mode must preserve the raw note even when it prevents finalization. Failed syncs retain the last usable schedule. Historical matches and existing observation links must survive schedule updates.
+
+### Participation validation (#3)
+
+The backend resolves explicit match labels within the session's original event against stable stored match IDs and participant records. All six alliance stations, including surrogate participants, are eligible. FIRST participant records take precedence over TBA on linked matches. Existing manual time overrides do not change participation. Missing or malformed participant sets are unverified. Qualification labels accept Q42, QM42 or qualification match 42. FIRST playoffs accept P14 or first:playoff:14; TBA round/set/match keys such as sf1m1 and full event-prefixed keys are supported through stored aliases. Bare numbers, round-only playoff labels and aliases identifying multiple stored matches require clarification. Arrival time and team membership never disambiguate a match.
+
+Events default to warn. Off bypasses participation checks. Warn asks for corrected details and permits the scout to reply “save unverified” to finalize with the persisted warning once required extraction fields are complete. Strict requires successful participation validation before finalization and cannot be bypassed by that reply. Raw notes and each linked answer are committed before either extraction or validation, including missing schedules, invalid pairs and strict failures. A warning acknowledgment applies to the same extracted match/team; a changed identity requires another decision.
+
+A durably acquired schedule is a snapshot, not a continuously refreshed feed: age alone never makes it stale. Cached matches without an acquisition receipt are unverified/stale; a later failed or partial explicit reference import marks the snapshot uncertain until that source has a successful complete import. Missing match participants or a playoff absent from the snapshot require explicit admin sync. This never restarts automatic polling after the first usable schedule receipt. Reference-source freshness remains separate diagnostic information; schedule validation uses this snapshot policy.
+
+Resolved sessions persist match ID, extracted team number and validation details. A composite foreign key prevents linking to a match from another event or tenant. New submissions never inherit another session's identity. Additional notes resolving to an existing earlier open session remain independent and ask for “keep separate”; to append to the earlier session the scout must explicitly reply to that session's latest question. Replies preserve the session event even if the active event changes, is cleared or is archived. Completed-session corrections are outside this feature.
 
 ### First event acceptance checks
 

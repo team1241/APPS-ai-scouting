@@ -68,7 +68,7 @@ Event metadata is created and refreshed only through FIRST. Raw JSON creation/ed
 
 Codes are case-insensitive. Refresh updates name, dates, type, and timezone from FIRST, preserving the event ID, linked sessions, attendance setting, specification version, validation mode, and archive state. It does not change the active event. Cached selection uses stored metadata; use refresh explicitly to retrieve changes. Missing/invalid provider data leaves existing records and selection unchanged. Archived events may be refreshed but must be restored before selection.
 
-New events use the supported `starter-match-v1` specification and default warning validation mode. Schedule validation itself follows in issue #3. Attendance is an organization setting, not inferred from FIRST event metadata. There is no generic metadata update endpoint or JSON command.
+New events use the supported `starter-match-v1` specification and default warning validation mode. Schedule validation is implemented as described below. Attendance is an organization setting, not inferred from FIRST event metadata. There is no generic metadata update endpoint or JSON command.
 
 Changing the active event applies only to new notes. Existing sessions and replies keep their original event and specification, even after that event is archived. Switch or clear the active event before archiving it. Changes are tenant-scoped and repeated Telegram command deliveries reuse their original result.
 
@@ -129,3 +129,15 @@ The saved roster, schedule, receipts and notification recipients commit together
 5. Deploy both backend and cron service after migrations, then inspect cron output and `/event reference <event-id>` on the dev bot before production rollout. Cron output reports attempt/save/notification counts. Add future events using `/event add <season> <code>`; selecting an active event is only needed for scouting intake.
 
 The old `REFERENCE_SYNC_ENABLED` and `REFERENCE_SYNC_ADMIN_USER_ID` settings are no longer used. There is no sync timer in the web server. The cron command closes database connections and exits after one pass, including when no schedules are due; its job state survives between runs. Railway schedules are UTC, but the application evaluates each event's local 6 p.m. eligibility. Actual launch time can vary, so the first attempt is the cron run at or after that boundary. See [Railway cron jobs](https://docs.railway.com/cron-jobs).
+
+## Participation validation (#3)
+
+Apply `20261107210000_session_participation` through the migration pipeline. Deploy Mastra first: backend turns now send `deferFinalization: true`, keeping extraction resumable while the backend validates and finalizes. Existing suspended runs can resume; completed sessions remain complete. Then deploy the backend. No new credentials or polling service are required.
+
+Admins configure an event with `/event validation <event-id> off|warn|strict`. New events default to warn; refresh preserves the mode. Changes apply to open sessions on their next processing turn, using their original event. `/event` shows the active event, validation mode, snapshot state/acquisition time, and the caller's five most recent open sessions with their event, match/team and validation status, even when scouting is paused. `/event reference <event-id>` retains detailed provider/import diagnostics.
+
+Warn asks for clarification and offers “save unverified” once required fields are present. Strict blocks finalization until the exact match/team participates in the saved schedule; it always retains raw intake and replies. Off bypasses participation checks. A later note identifying the same event/match/scout/team as an earlier open session prompts “keep separate”; it is already saved independently. To append to the earlier session, explicitly reply to its latest question. Provisional notes, separate scouts and different scouted teams remain independent. Replies to completed sessions are rejected with a correction-not-supported response (#4).
+
+Use Q42 for qualifications, P14 for FIRST playoff number 14, or an exact cached match key such as sf1m1. Bare numbers and round-only playoff labels are ambiguous. A missing match may require an explicit sync, especially for playoffs acquired after qualification schedules.
+
+A saved schedule does not expire by age. Cached data without an acquisition receipt, or data with a later failed/partial import, is unverified/stale. Explicitly sync the affected provider to recover. Automatic acquisition remains permanently stopped after its first usable save; validation never re-enables it. Source freshness shown by reference diagnostics is distinct from schedule snapshot usability.
