@@ -4,6 +4,7 @@ import { test } from "node:test";
 import { finalizeExtraction } from "@ai-scouting/scouting";
 import { sql } from "kysely";
 import { db } from "./db.ts";
+import { cleanupPublished } from "./published-test-cleanup.ts";
 import { claimExtraction, finishExtraction } from "./repositories/extraction.ts";
 import { saveIncomingNote } from "./repositories/intake.ts";
 import { enrollMember } from "./repositories/members.ts";
@@ -155,6 +156,7 @@ test("authenticated Telegram intake persists and deduplicates notes", async () =
     );
   } finally {
     await tenant(async (tx) => {
+      await cleanupPublished(tx, id);
       for (const table of [
         "raw_entry",
         "intake_rejection",

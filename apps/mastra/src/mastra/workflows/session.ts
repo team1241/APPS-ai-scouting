@@ -1,9 +1,15 @@
-import { extractionInputSchema, extractionResultSchema } from "@ai-scouting/scouting";
+import {
+  extractionInputSchema,
+  extractionResultSchema,
+  type Specification,
+  specificationSchema,
+} from "@ai-scouting/scouting";
 import type { TracingContext } from "@mastra/core/observability";
 import { createStep, createWorkflow, createWorkflowStateReader } from "@mastra/core/workflows";
 import { z } from "zod";
 
 export const sessionTurnSchema = extractionInputSchema.extend({
+  specification: specificationSchema.optional(),
   deferFinalization: z.boolean().optional(),
   turnId: z.string().regex(/^[a-f0-9]{64}$/),
 });
@@ -15,6 +21,7 @@ const turnResultSchema = z.object({ turnId: z.string(), result: extractionResult
 type Extract = (
   text: string,
   tracingContext?: TracingContext,
+  specification?: Specification,
 ) => Promise<z.infer<typeof extractionResultSchema>>;
 
 // Inject the extractor so persistence/resumption can be tested without model calls.
@@ -29,7 +36,7 @@ export function createSessionWorkflow(extract: Extract) {
       const turn = resumeData ?? inputData;
       let result: z.infer<typeof extractionResultSchema>;
       try {
-        result = await extract(turn.text, tracingContext);
+        result = await extract(turn.text, tracingContext, turn.specification);
       } catch {
         // Preserve the run on provider failure so the backend can retry this turn.
         return await suspend({ turnId: turn.turnId, result: null });

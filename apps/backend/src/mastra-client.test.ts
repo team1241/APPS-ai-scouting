@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { test } from "node:test";
-import { finalizeExtraction } from "@ai-scouting/scouting";
+import { finalizeExtraction, requirements } from "@ai-scouting/scouting";
 import { extractSessionTurn } from "./mastra-client.ts";
 
 test("session client uses the stable session and turn IDs and validates results", async () => {
@@ -20,6 +20,7 @@ test("session client uses the stable session and turn IDs and validates results"
       turnId: "turn-id",
       text: "note",
       deferFinalization: true,
+      specification: requirements,
     });
     res.setHeader("content-type", "application/json");
     res.end(JSON.stringify(result));

@@ -117,6 +117,38 @@ export interface Member {
   role: Generated<string>;
 }
 
+export interface ObservationFlag {
+  command_text: string;
+  created_at: Generated<Timestamp>;
+  external_update_id: string;
+  id: Generated<string>;
+  member_id: string;
+  note: string | null;
+  organization_id: string;
+  requested_match_label: string | null;
+  revision_id: string;
+  team_number: number;
+}
+
+export interface ObservationRevision {
+  created_at: Generated<Timestamp>;
+  event_id: string;
+  id: Generated<string>;
+  kind: Generated<string>;
+  match_id: string | null;
+  member_id: string;
+  organization_id: string;
+  outcome: string;
+  provenance: Json;
+  replaces_revision_id: string | null;
+  season: number;
+  session_id: string;
+  specification_version: string;
+  team_number: number;
+  validation: Json;
+  values: Json;
+}
+
 export interface Organization {
   created_at: Generated<Timestamp>;
   frc_team_number: number;
@@ -128,6 +160,15 @@ export interface OrganizationEventSetting {
   active_event_archived: Generated<boolean>;
   active_event_id: string | null;
   organization_id: string;
+}
+
+export interface PublishedSpecification {
+  document: Json;
+  kind: string;
+  organization_id: string;
+  published_at: Generated<Timestamp>;
+  season: number;
+  version: string;
 }
 
 export interface RawEntry {
@@ -192,6 +233,8 @@ export interface ScoutingSession {
   match_label: string | null;
   member_id: string;
   organization_id: string;
+  reextraction: Generated<boolean>;
+  replaces_revision_id: string | null;
   specification_version: string;
   status: Generated<string>;
   team_number: number | null;
@@ -208,8 +251,11 @@ export interface DB {
   invitation: Invitation;
   match_participant: MatchParticipant;
   member: Member;
+  observation_flag: ObservationFlag;
+  observation_revision: ObservationRevision;
   organization: Organization;
   organization_event_setting: OrganizationEventSetting;
+  published_specification: PublishedSpecification;
   raw_entry: RawEntry;
   reference_sync: ReferenceSync;
   schedule_notification: ScheduleNotification;

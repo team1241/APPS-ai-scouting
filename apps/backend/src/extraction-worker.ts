@@ -27,6 +27,7 @@ export function startExtractionWorker(
         entry.turnId,
         entry.text,
         serviceToken,
+        entry.specification,
       );
       const saved = await finishExtraction(organizationId, entry.id, entry.lease, extracted, null);
       if (saved.numUpdatedRows !== 1n) throw Error("Extraction lease expired before save");
