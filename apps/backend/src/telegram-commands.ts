@@ -1,4 +1,7 @@
 import { eventCommand } from "./event-commands.ts";
+import { uuidPattern } from "./event-config.ts";
+import { flagUsage } from "./flag-command.ts";
+import { readObservationFlags, submitObservationFlag } from "./repositories/flags.ts";
 import {
   createInvitation,
   joinInvitation,
@@ -22,6 +25,39 @@ export async function telegramCommand(input: {
   const command = rawCommand?.split("@")[0]?.toLowerCase();
   const argument = rest.join(" ");
   const { organizationId, userId } = input;
+  if (command === "/correct")
+    return "To request an investigation, use /flag <team-number> [match-number] [note]. You do not need to rewrite your scouting note.";
+  if (command === "/reextract")
+    return "Use /reextract <current revision-id> from your completion confirmation. To request an investigation, use /flag <team-number> [match-number] [note].";
+  if (command === "/flag") {
+    const result = await submitObservationFlag({
+      ...input,
+      argument: input.text.replace(/^\/flag(?:@\w+)?\s*/i, ""),
+      commandText: input.text,
+    });
+    if (result.status === "forbidden") return "Enroll with your team before flagging observations.";
+    if (result.status === "invalid") return flagUsage;
+    if (result.status === "missing")
+      return "No finalized submission of yours matches that team/match. Check the numbers. An omitted match selects your latest finalized submission for that team, across events.";
+    if (result.status === "ambiguous")
+      return "Multiple submissions match that team and match, so no flag was created. Omit the match to flag your latest submission for this team, or ask an admin to investigate the specific submission.";
+    const target = (await readObservationFlags(organizationId, userId, result.flag.id))?.[0];
+    return `Flag ${result.duplicate ? "already recorded" : "recorded"} for team ${result.flag.team_number}${target ? ` · ${target.match_label ?? "unknown match"} · ${target.event_name.slice(0, 100)}` : ""}. Your submitted data is preserved. Everyone enrolled on your team can investigate it with /flags ${result.flag.id}.`;
+  }
+  if (command === "/flags") {
+    if (argument && !uuidPattern.test(argument))
+      return "Use /flags to list recent requests, or /flags <flag-id> to inspect one.";
+    const flags = await readObservationFlags(organizationId, userId, argument || undefined);
+    if (flags === null) return "Enroll with your team to view flag requests.";
+    if (!flags.length) return argument ? "Flag request not found." : "No flag requests yet.";
+    if (argument) {
+      const flag = flags[0];
+      if (!flag) return "Flag request not found.";
+      return `Flag ${flag.id}\nTeam ${flag.team_number} · ${flag.match_label?.slice(0, 50) ?? "unknown match"} · ${flag.event_name.slice(0, 100)}\nScout: ${flag.scout_name.slice(0, 100)}\nSubmitted: ${flag.created_at.toISOString()}\nNote: ${flag.note ?? "No note supplied"}\nRevision: ${flag.revision_id} (${flag.revision_current ? "current" : "replaced"})\nSpecification: ${flag.specification_version.slice(0, 100)}\nOutcome: ${flag.outcome}\nRecorded data: ${JSON.stringify(flag.values).slice(0, 900)}\nThis request refers to that saved revision, even if it is later replaced.`;
+    }
+    // Keep Telegram replies below its message length limit. Details remain available by ID.
+    return `Recent team flag requests (up to 20):\n${flags.map((flag) => `Team ${flag.team_number} · ${flag.match_label?.slice(0, 20) ?? "unknown match"} · ${flag.event_name.slice(0, 30)} · ${flag.scout_name.slice(0, 25)}\n/flags ${flag.id}`).join("\n\n")}`;
+  }
   if (command === "/start" && argument.startsWith("join_")) {
     const token = argument.slice(5);
     if (!/^[A-Za-z0-9_-]{32}$/.test(token))
@@ -71,6 +107,6 @@ export async function telegramCommand(input: {
   }
   const membership = await memberRole(organizationId, userId);
   return membership
-    ? `Send a scouting note with match and team number. Use /event to check context, /events to list events, or /scout <event-id> <note> for a delayed note. An active event is required for new notes.${membership.role === "admin" ? "\nAdmin commands: /invite [label], /invites, /revokeinvite <id>, /event set <season> <FRC code>, /event off" : ""}`
+    ? `Send a scouting note with match and team number. Use /flag <team-number> [match-number] [note] to request a review, /flags to see team requests, /event to check context, /events to list events, or /scout <event-id> <note> for a delayed note. An active event is required for new notes.${membership.role === "admin" ? "\nAdmin commands: /invite [label], /invites, /revokeinvite <id>, /event set <season> <FRC code>, /event off" : ""}`
     : "Open your team's invitation link to enroll, then send a scouting note.";
 }

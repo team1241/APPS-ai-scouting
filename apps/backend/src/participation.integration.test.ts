@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { after, test } from "node:test";
 import { finalizeExtraction } from "@ai-scouting/scouting";
+import { sql } from "kysely";
 import { db } from "./db.ts";
 import { eventCommand } from "./event-commands.ts";
 import { parseEventConfig } from "./event-config.ts";
@@ -644,4 +645,148 @@ test("ambiguous question receipts never select an arbitrary session", async () =
       }),
       "completed_session",
     );
+  }));
+
+test("flag requests preserve observations, deduplicate concurrent retries, and are visible to enrolled teammates only", async () =>
+  fixture(async (org, event) => {
+    const { submitObservationFlag, readObservationFlags } = await import("./repositories/flags.ts");
+    const { readObservationHistory } = await import("./repositories/observations.ts");
+    const { telegramCommand } = await import("./telegram-commands.ts");
+    await mode(org, event, "off");
+    const flag = (argument: string, updateId = next(), userId = "1") =>
+      submitObservationFlag({
+        organizationId: org,
+        userId,
+        updateId,
+        argument,
+        commandText: `/flag ${argument}`,
+      });
+    assert.equal((await flag("1241")).status, "missing");
+    assert.equal((await flag("1241", next(), "unknown")).status, "forbidden");
+    await note(org);
+    await finish(org);
+    const before = await readObservationHistory(org, "1");
+    assert.ok(before[0]);
+    const updateId = next();
+    const results = await Promise.all([
+      flag("1241 1 Wrong climb", updateId),
+      flag("1241 1 Wrong climb", updateId),
+    ]);
+    assert.ok(results.every((r) => r.status === "saved"));
+    assert.equal(results.filter((r) => r.status === "saved" && !r.duplicate).length, 1);
+    const first = await readObservationFlags(org, "2");
+    assert.ok(first);
+    assert.equal(first.length, 1);
+    assert.equal(first[0]?.revision_id, before[0].id);
+    assert.equal(first[0]?.note, "Wrong climb");
+    assert.equal(first[0]?.command_text, "/flag 1241 1 Wrong climb");
+    assert.deepEqual(await readObservationHistory(org, "1"), before);
+    await assert.rejects(
+      withTenant(org, (tx) =>
+        tx
+          .updateTable("observation_flag")
+          .set({ note: "overwrite" })
+          .where("organization_id", "=", org)
+          .execute(),
+      ),
+      /immutable/,
+    );
+
+    assert.equal(
+      (await flag("1241", next(), "2")).status,
+      "missing",
+      "a teammate may investigate, but cannot silently flag another scout’s latest submission",
+    );
+    assert.equal(await readObservationFlags(org, "unknown"), null);
+    await fixture(async (other) => {
+      assert.deepEqual(await readObservationFlags(other, "1"), []);
+      assert.deepEqual(await readObservationFlags(other, "1", first[0]?.id), []);
+      await assert.rejects(
+        withTenant(other, async (tx) => {
+          const role = `flag_test_${randomUUID().replaceAll("-", "")}`;
+          await sql`CREATE ROLE ${sql.id(role)} NOLOGIN`.execute(tx);
+          await sql`GRANT USAGE ON SCHEMA public TO ${sql.id(role)}`.execute(tx);
+          await sql`GRANT SELECT,INSERT ON observation_flag TO ${sql.id(role)}`.execute(tx);
+          await sql`GRANT ${sql.id(role)} TO CURRENT_USER`.execute(tx);
+          await sql`SET LOCAL ROLE ${sql.id(role)}`.execute(tx);
+          assert.deepEqual(await tx.selectFrom("observation_flag").selectAll().execute(), []);
+          assert.ok(first[0]);
+          await tx
+            .insertInto("observation_flag")
+            .values({
+              organization_id: org,
+              revision_id: first[0].revision_id,
+              member_id: first[0].member_id,
+              external_update_id: next(),
+              team_number: 1241,
+              command_text: "forbidden",
+            })
+            .execute();
+        }),
+        /row-level security/,
+      );
+    });
+    const command = (text: string, userId = "1") =>
+      telegramCommand({ organizationId: org, userId, updateId: next(), text, name: "Scout" });
+    assert.match((await command("/flags", "2")) ?? "", /Team 1241/);
+    assert.match((await command(`/flags ${first[0]?.id}`, "2")) ?? "", /Wrong climb/);
+    assert.match((await command("/correct ignored")) ?? "", /\/flag/);
+    assert.match((await command("/flag")) ?? "", /Use \/flag/);
+    // Clearing the event does not retarget flags; new submissions require explicit activation.
+    await changeEvent(org, "1", next(), { kind: "activate", eventId: null });
+    const noActive = await flag("1241");
+    assert.equal(noActive.status, "saved");
+    if (noActive.status === "saved") assert.equal(noActive.flag.revision_id, before[0].id);
+    await changeEvent(org, "1", next(), { kind: "activate", eventId: event });
+    await note(org);
+    await finish(org);
+    assert.equal(
+      (await flag("1241 1")).status,
+      "ambiguous",
+      "independent finalized notes must not be silently selected by explicit match",
+    );
+    const latest = await flag("1241 Need review");
+    assert.equal(latest.status, "saved");
+    if (latest.status === "saved") assert.notEqual(latest.flag.revision_id, before[0].id);
+    const replay = await flag("1241 1 Changed retry text", updateId);
+    assert.equal(replay.status, "saved");
+    if (replay.status === "saved") {
+      assert.equal(replay.flag.revision_id, before[0].id);
+      assert.equal(replay.flag.note, "Wrong climb");
+    }
+    assert.equal((await flag("9999")).status, "missing");
+    assert.equal((await flag("1241 999")).status, "missing");
+    const routed = await (await import("./telegram.ts"))
+      .telegramRoutes(org, "secret")
+      .request("/", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "X-Telegram-Bot-Api-Secret-Token": "secret",
+        },
+        body: JSON.stringify({
+          update_id: Number(next()),
+          message: {
+            chat: { id: 1, type: "private" },
+            from: { id: 1 },
+            text: "/flag 1241 Routing test",
+          },
+        }),
+      });
+    assert.match(((await routed.json()) as { text: string }).text, /Flag recorded/);
+    const replacement = await saveIncomingNote({
+      organizationId: org,
+      channel: "telegram",
+      externalUserId: "1",
+      externalUpdateId: next(),
+      text: "/reextract",
+      correctionRevisionId: before[0].id,
+      reextract: true,
+    });
+    assert.equal(typeof replacement, "object");
+    await finish(org);
+    const retained = await readObservationFlags(org, "2", first[0]?.id);
+    assert.equal(retained?.[0]?.revision_id, before[0].id);
+    assert.equal(retained?.[0]?.revision_current, false);
+    assert.equal(await claimExtraction(org), null, "flagging never queues extraction work");
   }));

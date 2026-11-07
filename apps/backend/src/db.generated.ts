@@ -117,6 +117,19 @@ export interface Member {
   role: Generated<string>;
 }
 
+export interface ObservationFlag {
+  command_text: string;
+  created_at: Generated<Timestamp>;
+  external_update_id: string;
+  id: Generated<string>;
+  member_id: string;
+  note: string | null;
+  organization_id: string;
+  requested_match_label: string | null;
+  revision_id: string;
+  team_number: number;
+}
+
 export interface ObservationRevision {
   created_at: Generated<Timestamp>;
   event_id: string;
@@ -238,6 +251,7 @@ export interface DB {
   invitation: Invitation;
   match_participant: MatchParticipant;
   member: Member;
+  observation_flag: ObservationFlag;
   observation_revision: ObservationRevision;
   organization: Organization;
   organization_event_setting: OrganizationEventSetting;

@@ -42,19 +42,14 @@ export function telegramRoutes(organizationId: string, secret: string) {
           chat_id: chat.id,
           text: "Use /scout <event-id> <note>. Find event IDs with /events.",
         });
-      const correction =
-        /^\/(correct|reextract)(?:@\w+)?\s+([0-9a-f-]{36})(?:\s+([\s\S]+))?$/i.exec(
-          message.text.trim(),
-        );
-      if (
-        correction &&
-        (!uuidPattern.test(correction[2] ?? "") ||
-          (correction[1]?.toLowerCase() === "correct" && !correction[3]?.trim()))
-      )
+      const correction = /^\/(reextract)(?:@\w+)?\s+([0-9a-f-]{36})(?:\s+([\s\S]+))?$/i.exec(
+        message.text.trim(),
+      );
+      if (correction && (!uuidPattern.test(correction[2] ?? "") || !!correction[3]?.trim()))
         return c.json({
           method: "sendMessage",
           chat_id: chat.id,
-          text: "Use /correct <revision-id> <complete replacement note> or /reextract <revision-id>.",
+          text: "Use /reextract <revision-id>. To request an investigation, use /flag <team-number> [match-number] [note].",
         });
       const commandReply =
         override || correction
@@ -101,7 +96,7 @@ export function telegramRoutes(organizationId: string, secret: string) {
               : result === "invalid_event"
                 ? "Your note was not submitted because the selected event is unavailable. Check /events and resend it with a valid event."
                 : result === "completed_session"
-                  ? "Correction target unavailable. Use /correct <current revision-id> <complete replacement note> from your own completion confirmation. This reply was not submitted."
+                  ? "That completed submission cannot accept this reply. Use /flag <team-number> [match-number] [note] to request an investigation, or /reextract <current revision-id> to explicitly extract it again."
                   : result === "legacy_session"
                     ? "This older session has no event. Your reply was not submitted. Check /event, then resend the complete note as a new message."
                     : `Received your scouting note. Processing it now…\nEvent: ${result.eventName}`,

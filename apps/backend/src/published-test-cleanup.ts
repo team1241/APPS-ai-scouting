@@ -6,6 +6,9 @@ export async function cleanupPublished(tx: Transaction<DB>, org: string) {
     tx,
   );
   await sql`ALTER TABLE observation_revision DISABLE TRIGGER immutable_observation`.execute(tx);
+  await sql`ALTER TABLE observation_flag DISABLE TRIGGER immutable_flag`.execute(tx);
+  await tx.deleteFrom("observation_flag").where("organization_id", "=", org).execute();
+  await sql`ALTER TABLE observation_flag ENABLE TRIGGER immutable_flag`.execute(tx);
   await tx
     .updateTable("scouting_session")
     .set({ replaces_revision_id: null })

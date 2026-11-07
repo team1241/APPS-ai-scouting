@@ -44,24 +44,24 @@ Admins can create, list, and revoke reusable Telegram invitations. Joining enrol
 
 ## 3. Current implementation status
 
-| Capability                                                           | Status                                                                   |
-| -------------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| Hono backend and Mastra app in a pnpm monorepo                       | Implemented                                                              |
-| Neon intake tables, tenant isolation, repositories, migrations/types | Implemented                                                              |
-| Telegram webhook, enrollment checks, deduplication                   | Implemented and previously tested locally/hosted                         |
-| Reusable admin invitation commands                                   | Implemented; production command routing previously verified              |
-| Specification-driven Anthropic extraction and linked follow-ups      | Implemented with starter specification                                   |
-| Separate development bot and Neon branch                             | Configured                                                               |
-| Mastra Platform deployment and restricted backend credential         | Configured and previously smoke-tested                                   |
-| Railway production backend                                           | Deployed                                                                 |
-| GitHub production readiness and migration workflow                   | Implemented; user confirmed successful run                               |
-| Automatic Render deployment after readiness                          | Configured, but one successful run did not trigger rollout; unresolved   |
-| API-backed event configuration and session context                   | Implemented for issue #1                                                 |
-| Reference imports and schedule validation                            | Implemented reference acquisition (#2) and participation validation (#3) |
-| Final observations, corrections, review queue                        | Planned; not implemented                                                 |
-| Admin web app and web authentication                                 | Proposed; not implemented                                                |
-| Strategist agent, statistics, summaries                              | Planned; not implemented                                                 |
-| Automatic/manual event mode                                          | Planned; not implemented                                                 |
+| Capability                                                           | Status                                                                                   |
+| -------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| Hono backend and Mastra app in a pnpm monorepo                       | Implemented                                                                              |
+| Neon intake tables, tenant isolation, repositories, migrations/types | Implemented                                                                              |
+| Telegram webhook, enrollment checks, deduplication                   | Implemented and previously tested locally/hosted                                         |
+| Reusable admin invitation commands                                   | Implemented; production command routing previously verified                              |
+| Specification-driven Anthropic extraction and linked follow-ups      | Implemented with starter specification                                                   |
+| Separate development bot and Neon branch                             | Configured                                                                               |
+| Mastra Platform deployment and restricted backend credential         | Configured and previously smoke-tested                                                   |
+| Railway production backend                                           | Deployed                                                                                 |
+| GitHub production readiness and migration workflow                   | Implemented; user confirmed successful run                                               |
+| Automatic Render deployment after readiness                          | Configured, but one successful run did not trigger rollout; unresolved                   |
+| API-backed event configuration and session context                   | Implemented for issue #1                                                                 |
+| Reference imports and schedule validation                            | Implemented reference acquisition (#2) and participation validation (#3)                 |
+| Final observations and review requests                               | Versioned finalized revisions, explicit re-extraction, and shared Telegram flag requests |
+| Admin web app and web authentication                                 | Proposed; not implemented                                                                |
+| Strategist agent, statistics, summaries                              | Planned; not implemented                                                                 |
+| Automatic/manual event mode                                          | Planned; not implemented                                                                 |
 
 ## 4. Architecture and ownership
 
@@ -136,7 +136,7 @@ Secrets remain in ignored local environment files or provider/GitHub secret stor
 
 Each initial scouting submission creates a tenant/member-owned `scouting_session` in the intake transaction, using its root raw-entry ID as the stable Mastra run ID. It snapshots the active event and supported specification. New submissions require a valid active event; otherwise no note/session is created, and the scout must resend after event selection. Only rejected-delivery metadata is retained to prevent retries adopting a later event. Linked Telegram answers resume that run rather than starting another extraction workflow. The run suspends with the current requirements result. Backend requests defer workflow finalization so schedule clarification can resume the same run even after extraction has all required fields; the backend owns session completion. The backend stores match/team identity as it becomes available and tracks completion separately from immutable raw messages.
 
-A session's turn ID is a hash of its original note and ordered replies. Replaying a persisted turn returns the cached result; concurrent identical requests in one Mastra process share execution. Provider errors suspend without a result so retry can resume the same run. A crashed execution left in a running/failed state needs operator recovery rather than silently starting another run. Snapshot storage must be configured. The backend rejects replies to completed sessions; completed-session corrections remain deferred to #4. Legacy workflow clients without deferred finalization still complete their run and reject new turns.
+A session's turn ID is a hash of its original note and ordered replies. Replaying a persisted turn returns the cached result; concurrent identical requests in one Mastra process share execution. Provider errors suspend without a result so retry can resume the same run. A crashed execution left in a running/failed state needs operator recovery rather than silently starting another run. Snapshot storage must be configured. The backend rejects replies to completed sessions; scouts use /flag for investigation requests or /reextract for explicit re-extraction. Legacy workflow clients without deferred finalization still complete their run and reject new turns.
 
 Sessions pin the current specification version. Processing refuses a version mismatch rather than silently changing an open session's requirements. Full multi-version schema support remains planned. Event context is pinned at intake. The session boundary is one initial submission and its explicitly linked replies. Provisional submissions remain independent. Once event/match/scout/team resolve, a newer note targeting an earlier open session requires an explicit “keep separate” reply; notes are never silently merged. Separate scouts and different scouted teams remain independent.
 
@@ -330,4 +330,4 @@ A web app is the recommended administration surface because schedules, configura
 
 ## Implemented #4 contract
 
-Versioned tenant/season/kind publications and append-only finalized observations are implemented. See [operations](operations.md#published-specifications-and-corrections-4) for Telegram correction commands, authorization, identity policy and deployment order, and [development](development.md#versioned-observation-contract) for backend/Mastra contracts. This supersedes roadmap statements describing finalized observations and correction policy as pending. Administration UI remains #5. Pit/general are publication boundaries only; this release collects match observations and introduces no official game-specific schema. Coverage queries must exclude warning-acknowledged and unchecked revisions and must use only the current revision.
+Versioned tenant/season/kind publications and append-only finalized observations are implemented. See [operations](operations.md#published-specifications-and-corrections-4) for Telegram flag/re-extraction commands, authorization, identity policy and deployment order, and [development](development.md#versioned-observation-contract) for backend/Mastra contracts. This supersedes roadmap statements describing finalized observations and correction policy as pending. Administration UI remains #5. Pit/general are publication boundaries only; this release collects match observations and introduces no official game-specific schema. Coverage queries must exclude warning-acknowledged and unchecked revisions and must use only the current revision.
