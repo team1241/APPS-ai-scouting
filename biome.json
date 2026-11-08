@@ -30,6 +30,14 @@
           }
         }
       }
+    },
+    {
+      "includes": ["apps/web/**/*.css"],
+      "css": {
+        "parser": {
+          "tailwindDirectives": true
+        }
+      }
     }
   ]
 }

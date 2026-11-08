@@ -4,7 +4,7 @@ Issue #19. Reviewed 2026-11-07. This policy covers Canadian teams, high-school-a
 
 ## Implementation status
 
-The backend currently exposes Telegram intake and health checks, not Clerk enrollment, Unkey key management, or a data export API. No Telegram interaction provisions a Clerk account. The requirements below are mandatory contracts for those future surfaces; their implementation must be verified before enabling them. Mastra observability retains content-free, allowlisted traces locally and, when configured, in Mastra Platform. Durable workflow snapshots still contain notes and results for recovery, and are private operational data.
+The backend exposes Telegram intake, health checks and Clerk-session-authenticated organization discovery. The Next.js app provides sign-in and approved-admin organization selection. Operators record adult approval before issuing an invite-only Clerk invitation, then explicitly link the verified subject to the approved existing member. No Telegram interaction provisions a Clerk account. Unkey management and data exports remain future surfaces; the requirements below are mandatory contracts for them. Mastra observability retains content-free, allowlisted traces locally and, when configured, in Mastra Platform. Durable workflow snapshots still contain notes and results for recovery, and are private operational data.
 
 ## Adult administration
 

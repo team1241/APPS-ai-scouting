@@ -6,10 +6,17 @@ import { startExtractionWorker } from "./extraction-worker.ts";
 import { startOutboundWorker } from "./outbound-worker.ts";
 import { checkDatabase, closeDatabase } from "./repositories/database.ts";
 import { workerEvents } from "./repositories/operations.ts";
+import { adminOrganizations } from "./repositories/web-admin.ts";
 import { telegramRoutes } from "./telegram.ts";
+import { webAdminRoutes } from "./web-admin.ts";
+import { webSessionVerifier } from "./web-auth.ts";
 
 const extraction = extractionConfig(process.env);
 const app = new Hono();
+app.route(
+  "/web",
+  webAdminRoutes({ verify: webSessionVerifier(process.env), organizations: adminOrganizations }),
+);
 const org = process.env.TELEGRAM_ORGANIZATION_ID;
 const control = createWorkerControl(eventMode(process.env), () =>
   org ? workerEvents(org) : Promise.resolve([]),

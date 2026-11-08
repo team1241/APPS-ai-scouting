@@ -162,3 +162,7 @@ Durable delivery tests: run `DATABASE_URL=<disposable-postgres-url> node --test 
 ## Reliability verification (#10)
 
 Run `node --test apps/backend/src/event-mode.test.ts` for timezone/DST, idle/override and worker shutdown behavior. Existing outbound tests include tenant-authorized operational reporting and restore quarantine checks. The [reliability guide](event-day-reliability.md) describes local-only synthetic event and full database/Mastra restore drills. CI runs these on dedicated disposable databases and uploads summary evidence. No new migration/types are needed; verify committed types normally. Actual Railway sleep/Wait for CI and Neon recovery policy require authorized hosted verification.
+
+## Local administration login
+
+Follow the [web app setup and provisioning guide](web-app.md#local-development) to use the existing Neon development branch with local backend/frontend services and Clerk development. It includes env separation, migration commands, adult approval, invitations, account linking, expected results and troubleshooting.
