@@ -34,6 +34,8 @@ jobs:
           --health-retries 10
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/scouting_test
+      NEXT_TELEMETRY_DISABLED: "1"
+      CLERK_TELEMETRY_DISABLED: "1"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -45,14 +47,15 @@ jobs:
           npx --yes pnpm@12.3.4 check
           npx --yes pnpm@12.3.4 typecheck
           npx --yes pnpm@12.3.4 test:build-compat
-          node --test apps/backend/src/flag-command.test.ts apps/backend/src/frc-events.test.ts apps/backend/src/event-config.test.ts apps/mastra/src/mastra/observability.test.ts apps/mastra/src/mastra/workflows/session.test.ts packages/scouting/src/extraction.test.ts apps/backend/src/extraction-config.test.ts apps/backend/src/mastra-client.test.ts apps/backend/src/extraction-reply.test.ts
+          npx --yes pnpm@12.3.4 --filter @ai-scouting/web build
+          node --test apps/backend/src/web-auth.test.ts apps/backend/src/web-admin.test.ts apps/backend/src/flag-command.test.ts apps/backend/src/frc-events.test.ts apps/backend/src/event-config.test.ts apps/mastra/src/mastra/observability.test.ts apps/mastra/src/mastra/workflows/session.test.ts packages/scouting/src/extraction.test.ts apps/backend/src/extraction-config.test.ts apps/backend/src/mastra-client.test.ts apps/backend/src/extraction-reply.test.ts
       - name: Migrate disposable test database
         run: |
           touch apps/backend/.env
           npx --yes pnpm@12.3.4 db:migrate
           npx --yes pnpm@12.3.4 db:types:check
       - name: Verify reference imports and schedule delivery
-        run: node --test --test-concurrency=1 apps/backend/src/outbound.test.ts apps/backend/src/telegram.test.ts apps/backend/src/invitations.test.ts apps/backend/src/participation.test.ts apps/backend/src/participation.integration.test.ts apps/backend/src/reference.test.ts apps/backend/src/events.test.ts apps/backend/src/schedule-job.test.ts apps/backend/src/reference-provider.test.ts apps/backend/src/tba-event-link.test.ts apps/backend/src/schedule-policy.test.ts apps/backend/src/schedule-provider.test.ts
+        run: node --test --test-concurrency=1 apps/backend/src/web-admin.integration.test.ts apps/backend/src/outbound.test.ts apps/backend/src/telegram.test.ts apps/backend/src/invitations.test.ts apps/backend/src/participation.test.ts apps/backend/src/participation.integration.test.ts apps/backend/src/reference.test.ts apps/backend/src/events.test.ts apps/backend/src/schedule-job.test.ts apps/backend/src/reference-provider.test.ts apps/backend/src/tba-event-link.test.ts apps/backend/src/schedule-policy.test.ts apps/backend/src/schedule-provider.test.ts
 
   migrate:
     if: github.event_name != 'pull_request'

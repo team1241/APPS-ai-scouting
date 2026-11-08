@@ -279,6 +279,15 @@ export interface ScoutingSession {
   validation_result: Json | null;
 }
 
+export interface WebAdminAccess {
+  approved_at: Generated<Timestamp>;
+  approved_by: string;
+  clerk_user_id: string | null;
+  member_id: string;
+  organization_id: string;
+  policy_version: Generated<string>;
+}
+
 export interface DB {
   channel_identity: ChannelIdentity;
   event: Event;
@@ -301,4 +310,5 @@ export interface DB {
   schedule_notification: ScheduleNotification;
   schedule_poll: SchedulePoll;
   scouting_session: ScoutingSession;
+  web_admin_access: WebAdminAccess;
 }

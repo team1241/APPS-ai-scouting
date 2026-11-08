@@ -1,0 +1,25 @@
+{
+  "auth_access_control": { "sign_up_mode": "restricted" },
+  "auth_password": { "enabled": false, "required": false },
+  "auth_phone": {
+    "used_for_sign_up": false,
+    "required_for_sign_up": false,
+    "used_for_sign_in": false
+  },
+  "auth_username": {
+    "used_for_sign_up": false,
+    "required_for_sign_up": false,
+    "used_for_sign_in": false
+  },
+  "user_model": {
+    "first_name": { "enabled": false, "required": false },
+    "last_name": { "enabled": false, "required": false }
+  },
+  "organization_settings": { "enabled": false },
+  "connection_oauth_google": {
+    "enabled": true,
+    "authenticatable": true,
+    "block_email_subaddresses": true
+  },
+  "paths": { "sign_in": "/sign-in", "home": "/admin", "after_sign_out_all": "/" }
+}

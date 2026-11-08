@@ -18,7 +18,8 @@
     "hono": "^4.13.14",
     "kysely": "^0.29.7",
     "pg": "^8.23.1",
-    "windows-iana": "5.1.0"
+    "windows-iana": "5.1.0",
+    "@clerk/backend": "^3.27.0"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",
