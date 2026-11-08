@@ -1,4 +1,5 @@
 import { claimDelivery, type DeliveryOutcome, settleDelivery } from "./repositories/outbound.ts";
+import { startWorkerLoop } from "./worker-loop.ts";
 
 export async function sendTelegram(
   token: string,
@@ -52,9 +53,16 @@ export async function sendTelegram(
   }
   return { status: "ambiguous", error: "Telegram acceptance unknown" };
 }
-export async function drainOutbound(org: string, token: string, fetcher = fetch, now?: Date) {
+export async function drainOutbound(
+  org: string,
+  token: string,
+  fetcher = fetch,
+  now?: Date,
+  active: () => boolean = () => true,
+  limit = 100,
+) {
   let sent = 0;
-  for (let i = 0; i < 100; i++) {
+  for (let i = 0; i < limit && active(); i++) {
     const row = await claimDelivery(org, now ?? new Date());
     if (!row) break;
     if (row.cancelled) continue;
@@ -72,20 +80,18 @@ export async function drainOutbound(org: string, token: string, fetcher = fetch,
   }
   return sent;
 }
-export function startOutboundWorker(org: string, token: string) {
-  let running = false;
-  const tick = async () => {
-    if (running) return;
-    running = true;
-    try {
-      await drainOutbound(org, token);
-    } catch {
-      console.error("Outbound pass failed; durable state retained");
-    } finally {
-      running = false;
-    }
+export function startOutboundWorker(
+  org: string,
+  token: string,
+  active: () => boolean = () => true,
+) {
+  let stopped = false;
+  const stop = startWorkerLoop(
+    () => drainOutbound(org, token, fetch, undefined, () => !stopped && active()),
+    active,
+  );
+  return async () => {
+    stopped = true;
+    await stop();
   };
-  const timer = setInterval(() => void tick(), 5000);
-  void tick();
-  return () => clearInterval(timer);
 }

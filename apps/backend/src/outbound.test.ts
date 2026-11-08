@@ -4,6 +4,7 @@ import { after, test } from "node:test";
 import { db } from "./db.ts";
 import { sendTelegram } from "./outbound-worker.ts";
 import { enrollMember } from "./repositories/members.ts";
+import { operationSnapshot, quarantineRestoredDeliveries } from "./repositories/operations.ts";
 import {
   claimDelivery,
   enqueueDelivery,
@@ -46,6 +47,11 @@ test("durable deduplication, exclusive claims, stale lease ambiguity and authori
       ),
     );
     assert.equal((await inspectDeliveries(org, "1")).length, 1);
+    assert.equal((await operationSnapshot(org, "1")).outbound[0]?.count, 1);
+    await assert.rejects(operationSnapshot(org, "2"), /Admin/);
+    assert.equal((await operationSnapshot(other, "1")).outbound.length, 0);
+    await assert.rejects(quarantineRestoredDeliveries(org, "2", "test restore"), /Admin/);
+    assert.equal((await quarantineRestoredDeliveries(other, "1", "test restore")).quarantined, 0);
     await assert.rejects(inspectDeliveries(org, "2"), /Admin/);
     assert.equal((await inspectDeliveries(other, "1")).length, 0);
     const claims = await Promise.all(Array.from({ length: 8 }, () => claimDelivery(org)));
@@ -76,6 +82,38 @@ test("durable deduplication, exclusive claims, stale lease ambiguity and authori
     }
     assert.equal((await inspectDeliveries(org, "1"))[0]?.status, "exhausted");
     assert.equal((await inspectDeliveries(org, "1"))[0]?.attempts, 7);
+    for (const key of ["restore-pending", "restore-sending"])
+      await withTenant(org, (tx) =>
+        enqueueDelivery(tx, {
+          organization_id: org,
+          logical_key: key,
+          recipient: "2",
+          text: "Restored",
+          next_attempt_at: new Date(0),
+        }),
+      );
+    const restoredClaim = await claimDelivery(org);
+    assert.ok(restoredClaim && !restoredClaim.cancelled);
+    assert.equal(
+      (await quarantineRestoredDeliveries(org, "1", "Restore test snapshot")).quarantined,
+      2,
+    );
+    assert.equal(await claimDelivery(org), null);
+    await assert.rejects(
+      settleDelivery(org, restoredClaim.id, restoredClaim.lease_token, {
+        status: "sent",
+        messageId: "late",
+      }),
+    );
+    const interventions = await withTenant(org, (tx) =>
+      tx
+        .selectFrom("outbound_intervention")
+        .select("id")
+        .where("organization_id", "=", org)
+        .where("reason", "=", "Restore test snapshot")
+        .execute(),
+    );
+    assert.equal(interventions.length, 2);
   } finally {
     for (const tenant of [org, other])
       await withTenant(tenant, async (tx) => {
