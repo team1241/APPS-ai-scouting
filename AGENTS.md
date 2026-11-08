@@ -7,3 +7,7 @@ These instructions apply only to `team1241/APPS-ai-scouting`. Use GitHub issue n
 - Start every new pull request title with the same prefix, for example `GH-42: Add event configuration`.
 - Include `Closes #<issue-number>` in the pull request description when merging completes the issue; use `Refs #<issue-number>` for partial work.
 - Before opening the pull request, verify its head branch and title use the matching issue prefix.
+
+## Frontend design
+
+For frontend design, critique or refinement, use the project [Impeccable skill](.agents/skills/impeccable/SKILL.md) with `PRODUCT.md` and `DESIGN.md`. Setup, supported agents and upgrades are documented in [development](docs/development.md#shared-agent-skills).
