@@ -192,6 +192,11 @@ For #10, `created_at`/`next_attempt_at` measure queue age/due lag; `attempted_at
 
 Webhook-response inventory: intake accepted/rejected/enrollment acknowledgments, `/scout` syntax errors and every command response (including `/start`, invitations, events, `/flag`, `/flags` and retired-command guidance) remain synchronous Telegram webhook responses. Telegram provides no send result/message ID for these responses. They are best effort, outside the durable outbox, and may be lost or repeated independently of committed command/intake state; duplicate intake intentionally returns no second acknowledgment. The asynchronous follow-up questions, saved confirmations and schedule/roster receipt notifications use the durable outbox. No scout-facing `/correct` or `/reextract` is restored.
 
+
+## Event-day controls and recovery (#10)
+
+Use [event-day reliability](event-day-reliability.md) for EVENT_MODE, the independent bounded recovery cron, authorized queue-health snapshots, restore quarantine and production release gates. Existing installations retain continuous mode unless explicitly configured. No new database migration or Mastra contract is introduced; #6 must already be deployed. Configure HTTP and cron overrides together. Simulation/restore evidence is disposable and does not establish production uptime, billing or RTO/RPO.
+
 ## Privacy release gate
 
 Follow [Privacy boundaries](privacy.md) before enabling web enrollment or data exports. Publish the [notice](privacy-notice.md) with the responsible adult lead’s contact, and verify retention and vendor settings. Trace exports use a strict content-free allowlist; retain them for at most 30 days and restrict access. Workflow snapshots remain private content-bearing operational records.

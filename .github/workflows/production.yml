@@ -48,14 +48,41 @@ jobs:
           npx --yes pnpm@12.3.4 typecheck
           npx --yes pnpm@12.3.4 test:build-compat
           npx --yes pnpm@12.3.4 --filter @ai-scouting/web build
-          node --test apps/backend/src/web-auth.test.ts apps/backend/src/web-admin.test.ts apps/backend/src/flag-command.test.ts apps/backend/src/frc-events.test.ts apps/backend/src/event-config.test.ts apps/mastra/src/mastra/observability.test.ts apps/mastra/src/mastra/workflows/session.test.ts packages/scouting/src/extraction.test.ts apps/backend/src/extraction-config.test.ts apps/backend/src/mastra-client.test.ts apps/backend/src/extraction-reply.test.ts
+          node --test apps/backend/src/web-auth.test.ts apps/backend/src/web-admin.test.ts apps/backend/src/event-mode.test.ts apps/backend/src/flag-command.test.ts apps/backend/src/frc-events.test.ts apps/backend/src/event-config.test.ts apps/mastra/src/mastra/observability.test.ts apps/mastra/src/mastra/workflows/session.test.ts packages/scouting/src/extraction.test.ts apps/backend/src/extraction-config.test.ts apps/backend/src/mastra-client.test.ts apps/backend/src/extraction-reply.test.ts
       - name: Migrate disposable test database
         run: |
           touch apps/backend/.env
           npx --yes pnpm@12.3.4 db:migrate
           npx --yes pnpm@12.3.4 db:types:check
       - name: Verify reference imports and schedule delivery
-        run: node --test --test-concurrency=1 apps/backend/src/web-admin.integration.test.ts apps/backend/src/outbound.test.ts apps/backend/src/telegram.test.ts apps/backend/src/invitations.test.ts apps/backend/src/participation.test.ts apps/backend/src/participation.integration.test.ts apps/backend/src/reference.test.ts apps/backend/src/events.test.ts apps/backend/src/schedule-job.test.ts apps/backend/src/reference-provider.test.ts apps/backend/src/tba-event-link.test.ts apps/backend/src/schedule-policy.test.ts apps/backend/src/schedule-provider.test.ts
+        run: node --test --test-concurrency=1 apps/backend/src/web-admin.integration.test.ts apps/backend/src/worker-runtime.test.ts apps/backend/src/outbound.test.ts apps/backend/src/telegram.test.ts apps/backend/src/invitations.test.ts apps/backend/src/participation.test.ts apps/backend/src/participation.integration.test.ts apps/backend/src/reference.test.ts apps/backend/src/events.test.ts apps/backend/src/schedule-job.test.ts apps/backend/src/reference-provider.test.ts apps/backend/src/tba-event-link.test.ts apps/backend/src/schedule-policy.test.ts apps/backend/src/schedule-provider.test.ts
+
+      - name: Simulate event and verify full database restore
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/scouting_gh10_event
+          RESTORE_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/scouting_gh10_event_restore
+          PGHOST: localhost
+          PGPORT: "5432"
+          PGUSER: postgres
+          PGPASSWORD: postgres
+        run: |
+          sudo bash scripts/install-postgres-client.sh
+          export PATH="/usr/lib/postgresql/17/bin:$PATH"
+          createdb scouting_gh10_event
+          createdb scouting_gh10_event_restore
+          npx --yes pnpm@12.3.4 db:migrate
+          node apps/backend/src/reliability-simulation.ts "$RUNNER_TEMP/event-simulation.json"
+          node apps/mastra/src/recovery-drill.ts seed
+          node scripts/restore-drill.mjs "$RUNNER_TEMP/restore-drill.json"
+          DATABASE_URL="$RESTORE_DATABASE_URL" node apps/mastra/src/recovery-drill.ts verify
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: reliability-drill
+          path: |
+            ${{ runner.temp }}/event-simulation.json
+            ${{ runner.temp }}/restore-drill.json
+          if-no-files-found: ignore
 
   migrate:
     if: github.event_name != 'pull_request'

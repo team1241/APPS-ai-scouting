@@ -157,3 +157,8 @@ A correction that loses the finalization race becomes `superseded`, retains its 
 Apply the additional `20261108000000_observation_flags` migration before deploying the updated backend. Regenerate types with `pnpm db:sync`. CI includes the flag command parser and participation integration cases covering authorization, ambiguous targets, no-active-event requests, concurrent retries and team visibility.
 
 Durable delivery tests: run `DATABASE_URL=<disposable-postgres-url> node --test --test-concurrency=1 apps/backend/src/outbound.test.ts apps/backend/src/participation.integration.test.ts apps/backend/src/schedule-job.test.ts` after migration. CI includes these plus intake, invitations and existing reference/event regressions. Outbound contracts and operator/cutover instructions are in operations. Mastra snapshot caching/suspension is unchanged; delivery retries do not advance its workflow.
+
+
+## Reliability verification (#10)
+
+Run `node --test apps/backend/src/event-mode.test.ts` for timezone/DST, idle/override and worker shutdown behavior. Existing outbound tests include tenant-authorized operational reporting and restore quarantine checks. The [reliability guide](event-day-reliability.md) describes local-only synthetic event and full database/Mastra restore drills. CI runs these on dedicated disposable databases and uploads summary evidence. No new migration/types are needed; verify committed types normally. Actual Railway sleep/Wait for CI and Neon recovery policy require authorized hosted verification.

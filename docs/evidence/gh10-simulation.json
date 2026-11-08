@@ -1,0 +1,84 @@
+{
+  "kind": "disposable simulated event",
+  "measuredAt": "2026-11-07T23:39:17.877Z",
+  "notes": 120,
+  "recipients": 4,
+  "finalizedRevisions": 120,
+  "wallElapsedMs": 810,
+  "localMaxRssMiB": 181,
+  "localCpuMs": 757,
+  "databaseComputeCuHours": null,
+  "actualInputTokens": null,
+  "actualOutputTokens": null,
+  "platformBilledUsage": null,
+  "simulatedModelCalls": 120,
+  "realModelCalls": 0,
+  "telegramRequestsMocked": 149,
+  "queueBefore": {
+    "measuredAt": "2026-11-07T23:39:17.222Z",
+    "outbound": [],
+    "extraction": [
+      {
+        "status": "pending",
+        "count": 120,
+        "exhausted": 0,
+        "staleLeases": 0,
+        "oldestQueuedAt": "2026-11-07T23:39:17.100Z",
+        "attempts": 0
+      }
+    ],
+    "schedules": []
+  },
+  "queueAfter": {
+    "measuredAt": "2026-11-08T07:41:17.706Z",
+    "outbound": [
+      {
+        "status": "ambiguous",
+        "count": 1,
+        "attempts": 1,
+        "due": 0,
+        "staleLeases": 0,
+        "oldestQueuedAt": null,
+        "oldestDueAt": null,
+        "maxDeliveryLatencyMs": null
+      },
+      {
+        "status": "failed",
+        "count": 30,
+        "attempts": 30,
+        "due": 0,
+        "staleLeases": 0,
+        "oldestQueuedAt": null,
+        "oldestDueAt": null,
+        "maxDeliveryLatencyMs": null
+      },
+      {
+        "status": "sent",
+        "count": 89,
+        "attempts": 119,
+        "due": 0,
+        "staleLeases": 0,
+        "oldestQueuedAt": null,
+        "oldestDueAt": null,
+        "maxDeliveryLatencyMs": 14520057.569
+      }
+    ],
+    "extraction": [
+      {
+        "status": "done",
+        "count": 120,
+        "exhausted": 0,
+        "staleLeases": 0,
+        "oldestQueuedAt": null,
+        "attempts": 120
+      }
+    ],
+    "schedules": []
+  },
+  "outcomes": {
+    "ambiguous": 1,
+    "failed": 30,
+    "sent": 89
+  },
+  "limitations": "Local Postgres wall time; virtual +2min crash expiry/+2h per recovery pass clock. Delivery latencies include virtual time. No real tokens, CU-hours, hosting availability or vendor charges measured."
+}

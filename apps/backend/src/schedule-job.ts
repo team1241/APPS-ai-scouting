@@ -17,6 +17,7 @@ export async function runScheduleJob(
   botToken: string,
   options?: {
     now?: Date;
+    deliver?: boolean;
     fetcher?: typeof fetch;
     providers?: { first: ReferenceProvider; tba: ReferenceProvider };
   },
@@ -68,6 +69,7 @@ export async function runScheduleJob(
     )
       received++;
   }
-  notified = await drainOutbound(organizationId, botToken, fetcher, options?.now);
+  if (options?.deliver !== false)
+    notified = await drainOutbound(organizationId, botToken, fetcher, options?.now);
   return { attempted, received, notified };
 }

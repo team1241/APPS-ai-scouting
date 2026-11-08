@@ -1,0 +1,15 @@
+{
+  "measuredAt": "2026-11-07T23:44:54.722Z",
+  "kind": "local full-database restore drill",
+  "elapsedMs": 369,
+  "tables": 62,
+  "rows": 511,
+  "verified": [
+    "all row fingerprints",
+    "public RLS flags",
+    "tenant policy definitions",
+    "immutable/outbox triggers",
+    "Mastra schema included"
+  ],
+  "limitations": "No role grants/ownership, Neon PITR, remote backup storage or production RTO/RPO verified. Target remains isolated; no workers started."
+}
