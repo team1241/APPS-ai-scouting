@@ -9,3 +9,12 @@ dist/
 .next/
 .vercel/
 *.tsbuildinfo
+.impeccable/mocks/
+.impeccable/questions/
+.impeccable/review/
+.impeccable/critique/*__*.md
+**/.impeccable/config.local.json
+**/.impeccable/live/sessions/
+**/.impeccable/live/roots.json
+**/.impeccable/live/inject-journal.json
+**/.agents/skills/impeccable/scripts/bin/

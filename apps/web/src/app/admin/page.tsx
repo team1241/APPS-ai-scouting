@@ -1,4 +1,3 @@
-import { SignOutButton } from "@clerk/nextjs";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,9 +14,6 @@ export default async function OrganizationsPage() {
             Your current team permissions determine access.
           </p>
         </div>
-        <SignOutButton redirectUrl="/">
-          <Button variant="outline">Sign out</Button>
-        </SignOutButton>
       </div>
       {organizations === null ? (
         <Card>
@@ -44,20 +40,22 @@ export default async function OrganizationsPage() {
           </CardHeader>
         </Card>
       ) : (
-        <ul className="divide-y rounded-lg border bg-card">
+        <ul className="divide-y overflow-hidden rounded-lg border bg-card">
           {organizations.map((org) => (
             <li key={org.id}>
               <Link
                 href={`/admin/${org.id}`}
-                className="flex items-center justify-between gap-4 p-6 hover:bg-accent"
+                className="flex items-center justify-between gap-4 p-6 hover:bg-accent focus-visible:-outline-offset-4"
               >
-                <span>
+                <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">
                   <span className="block font-semibold">{org.name}</span>
                   <span className="text-sm text-muted-foreground">
                     Team {org.teamNumber} · Administrator
                   </span>
                 </span>
-                <span aria-hidden="true">→</span>
+                <span aria-hidden="true" className="shrink-0">
+                  →
+                </span>
               </Link>
             </li>
           ))}

@@ -13,5 +13,14 @@
     "skills": [
       "mastra"
     ]
+  },
+  {
+    "repository": "pbakaus/impeccable",
+    "revision": "414603bf14c7a344edb466bb1f85690c77ce8b7d",
+    "version": "4.8.0",
+    "release": "skill-v4.8.0",
+    "archive": "https://github.com/pbakaus/impeccable/releases/download/skill-v4.8.0/universal.zip",
+    "sha256": "82e6f6ff3a2b18f46f0f2fc388c1ab7abf3ccc52bbfc522456396d13011d6706",
+    "skills": ["impeccable"]
   }
 ]

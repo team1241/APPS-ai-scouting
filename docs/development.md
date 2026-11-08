@@ -98,7 +98,26 @@ After dependency upgrades, run `pnpm test:build-compat` and `pnpm --filter @ai-s
 
 ## Shared agent skills
 
-Neon and Mastra skills live in `.agents/skills`; Claude Code uses relative symlinks from `.claude/skills`. Upstream sources and pinned revisions are in `.agents/skills-sources.json`. Update selected skill directories from a reviewed upstream commit, update the recorded revision together, and preserve the symlinks. These are shared repository tooling, not application packages.
+Neon, Mastra and Impeccable skills live in `.agents/skills`; Claude Code uses relative symlinks from `.claude/skills`. Codex discovers the `.agents/skills` installation directly. Upstream sources and pinned revisions are in `.agents/skills-sources.json`. Update selected skill directories from a reviewed upstream commit, update the recorded revision together, and preserve the symlinks. These are shared repository tooling, not application packages.
+
+### Impeccable
+
+The committed skill is the `.agents/skills/impeccable` directory from the upstream `skill-v4.8.0` universal release, pinned by commit and archive SHA-256 in the sources manifest. A clone/worktree already contains the installation; no global install or npm dependency is needed. Use the project copy rather than installing duplicate command skills. Codex and Claude Code are the supported repository integrations; upstream bundles for other agents are deliberately not installed.
+
+For administration UI work, run the project helper from the web app directory:
+
+```bash
+cd apps/web
+../../.agents/skills/impeccable/scripts/impeccable context
+```
+
+Then follow the skill's workflow: `critique` for design review, `layout` for structure, `typeset` for typography, and `polish` for finishing. Product scope and implemented design decisions live in root `PRODUCT.md` and `DESIGN.md`; the shared default is code-first. Preserve the light interface and backend-authoritative access. Live-mode configuration targets `src/app/layout.tsx`; live mode is optional, not started automatically. Local credentials and running backend/frontend services must be configured separately in each worktree as described in the web-app guide.
+
+The executable launcher uses the pinned engine version in `scripts/VERSION`, downloading a platform binary on first use when needed and checking its SHA-256 against the committed manifest. Internet access is required for that first download. Fonts are self-hosted by Next.js; building the web app may download Archivo at build time.
+
+To reproduce or upgrade the vendored skill, download the manifest's release archive to a temporary directory, verify its SHA-256, and extract only `.agents/skills/impeccable/`. Replace that directory, include the upstream `LICENSE` and `NOTICE.md` from the same pinned commit, and update the sources manifest in the same change. Keep the existing Claude symlink. Do not extract the entire universal archive into this repository: it includes duplicate integrations and hooks. Confirm the new helper runs before committing; inspect workflow changes before adopting them.
+
+Commit shared config and design records, including `.impeccable/config.json` and `apps/web/.impeccable/live/config.json`. Generated mocks, questions, review runs, timestamped critique snapshots and local configuration remain ignored. See [the issue #28 review record](design/issue-28-review.md) for the initial critique and validation limits.
 
 
 ## Mastra privacy and recovery
