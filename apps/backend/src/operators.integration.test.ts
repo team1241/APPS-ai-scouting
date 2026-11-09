@@ -8,15 +8,21 @@ import {
   addOperator,
   approveApplication,
   claimApplication,
+  claimOperatorInvitation,
+  createOperatorInvitation,
   grantOperator,
   invitableApplication,
+  listOperatorInvitations,
   listOperators,
+  openOperatorInvitation,
   operatorProfile,
   recordInvitation,
+  recordOperatorInvitation,
   rejectApplication,
   removeOperator,
   reviewApplications,
   revokeOperator,
+  revokeOperatorInvitation,
 } from "./repositories/operators.ts";
 import { adminOrganizations } from "./repositories/web-admin.ts";
 
@@ -276,6 +282,74 @@ test("operators add and remove other operators, never themselves", async () => {
     await db
       .deleteFrom("platform_operator")
       .where("clerk_user_id", "in", [first, second, outsider])
+      .execute();
+  }
+});
+
+test("operator invitations: create, resend, cancel, expire and claim by verified email", async () => {
+  const inviter = subject();
+  const invitee = subject();
+  const stranger = subject();
+  const email = `${randomUUID()}@example.com`;
+  const other = `${randomUUID()}@example.com`;
+  try {
+    await addOperator(inviter, "Inviter");
+    assert.equal((await createOperatorInvitation(stranger, email, "X")).outcome, "forbidden");
+    assert.equal((await createOperatorInvitation(inviter, "bad", "X")).outcome, "invalid");
+    assert.equal((await createOperatorInvitation(inviter, email, " ")).outcome, "invalid");
+    const created = await createOperatorInvitation(inviter, ` ${email.toUpperCase()} `, " Riley ");
+    assert.equal(created.outcome, "created");
+    assert.ok(created.outcome === "created");
+    assert.equal((await createOperatorInvitation(inviter, email, "Again")).outcome, "exists");
+    assert.equal(await recordOperatorInvitation(stranger, created.id, "inv_x"), false);
+    assert.equal(await recordOperatorInvitation(inviter, created.id, "inv_1"), true);
+    assert.deepEqual(await openOperatorInvitation(stranger, created.id), undefined);
+    assert.deepEqual(await openOperatorInvitation(inviter, created.id), {
+      email,
+      clerkInvitationId: "inv_1",
+    });
+    const listed = (await listOperatorInvitations(inviter)).find((i) => i.id === created.id);
+    assert.equal(listed?.name, "Riley");
+    assert.equal(listed?.invitedByName, "Inviter");
+    assert.equal(listed?.sent, true);
+    assert.deepEqual(await listOperatorInvitations(stranger), []);
+
+    // Claim needs a matching verified email and adds the operator once.
+    assert.equal(await claimOperatorInvitation(invitee, created.id, [other]), false);
+    assert.equal(await claimOperatorInvitation(invitee, created.id, [email]), true);
+    assert.equal(await claimOperatorInvitation(invitee, created.id, [email]), true);
+    assert.equal(await claimOperatorInvitation(stranger, created.id, [email]), false);
+    const operators = await listOperators(invitee);
+    assert.equal(operators.find((o) => o.clerkUserId === invitee)?.addedByName, "Inviter");
+    const row = await db
+      .selectFrom("operator_invitation")
+      .selectAll()
+      .where("id", "=", created.id)
+      .executeTakeFirstOrThrow();
+    assert.equal(row.email, null);
+    assert.equal(row.accepted_by, invitee);
+    assert.equal((await revokeOperatorInvitation(inviter, created.id)).outcome, "not_found");
+
+    // Cancelled and expired invitations cannot be claimed, and free the email.
+    const second = await createOperatorInvitation(inviter, other, "Second");
+    assert.ok(second.outcome === "created");
+    assert.equal((await revokeOperatorInvitation(stranger, second.id)).outcome, "forbidden");
+    assert.equal((await revokeOperatorInvitation(inviter, second.id)).outcome, "revoked");
+    assert.equal(await claimOperatorInvitation(stranger, second.id, [other]), false);
+    const third = await createOperatorInvitation(inviter, other, "Third");
+    assert.ok(third.outcome === "created");
+    await db
+      .updateTable("operator_invitation")
+      .set({ expires_at: new Date(Date.now() - 1000) })
+      .where("id", "=", third.id)
+      .execute();
+    assert.equal(await claimOperatorInvitation(stranger, third.id, [other]), false);
+    assert.equal((await createOperatorInvitation(inviter, other, "Fourth")).outcome, "created");
+  } finally {
+    await db.deleteFrom("operator_invitation").where("invited_by", "=", inviter).execute();
+    await db
+      .deleteFrom("platform_operator")
+      .where("clerk_user_id", "in", [inviter, invitee, stranger])
       .execute();
   }
 });

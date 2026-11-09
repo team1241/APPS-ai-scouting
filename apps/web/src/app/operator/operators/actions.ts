@@ -39,6 +39,15 @@ export async function addOperator(
     body: JSON.stringify(values),
   });
   if (!response) return { status: "error", message: unavailable, errors: {}, values };
+  if (response.status === 202) {
+    revalidatePath("/operator/operators");
+    return {
+      status: "done",
+      message: `Invitation sent to ${values.email}. ${values.name} becomes an operator when they first sign in.`,
+      errors: {},
+      values: { name: "", email: "" },
+    };
+  }
   if (response.status === 201) {
     revalidatePath("/operator/operators");
     return {
@@ -84,4 +93,41 @@ export async function removeOperator(
   }
   revalidatePath("/operator/operators");
   return { status: "idle" };
+}
+
+export interface InvitationState {
+  status: "idle" | "error" | "done";
+  message?: string;
+}
+
+async function invitationAction(formData: FormData, method: "POST" | "DELETE") {
+  const id = formData.get("invitationId");
+  if (typeof id !== "string" || !/^[0-9a-f-]{36}$/i.test(id))
+    return { status: "error", message: unavailable } as InvitationState;
+  const path =
+    method === "POST"
+      ? `/web/operator/operator-invitations/${id}/resend`
+      : `/web/operator/operator-invitations/${id}`;
+  const response = await backendRequest(path, { method });
+  if (!response) return { status: "error", message: unavailable } as InvitationState;
+  if (!response.ok) {
+    const data = await readError(response);
+    return {
+      status: "error",
+      message: typeof data.error === "string" ? data.error : unavailable,
+    } as InvitationState;
+  }
+  revalidatePath("/operator/operators");
+  return {
+    status: "done",
+    message: method === "POST" ? "Invitation sent again." : "Invitation cancelled.",
+  } as InvitationState;
+}
+
+export async function resendOperatorInvitation(_previous: InvitationState, formData: FormData) {
+  return invitationAction(formData, "POST");
+}
+
+export async function cancelOperatorInvitation(_previous: InvitationState, formData: FormData) {
+  return invitationAction(formData, "DELETE");
 }

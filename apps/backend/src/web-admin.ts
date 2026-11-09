@@ -5,8 +5,8 @@ import type { AdminOrganization } from "./repositories/web-admin.ts";
 export function webAdminRoutes(deps: {
   verify: ((request: Request) => Promise<string | null>) | null;
   organizations: (subject: string) => Promise<AdminOrganization[]>;
-  // Links an account invited through an approved access application.
-  claim: ((subject: string) => Promise<string | null>) | null;
+  // Links an account invited through an approved application or operator invitation.
+  claim: ((subject: string) => Promise<boolean>) | null;
 }) {
   const app = new Hono<{ Variables: { subject: string } }>();
   app.use("*", async (c, next) => {
@@ -26,7 +26,7 @@ export function webAdminRoutes(deps: {
       try {
         if (await deps.claim(subject)) organizations = await deps.organizations(subject);
       } catch {
-        console.error("Access application claim failed");
+        console.error("Invitation claim failed");
       }
     }
     return c.json({ organizations });

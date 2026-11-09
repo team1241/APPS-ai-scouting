@@ -211,3 +211,86 @@ export async function revokeOperator(actor: string, subject: string) {
   }>`select remove_platform_operator(${actor}, ${subject}) as outcome`.execute(db);
   return rows[0]?.outcome ?? "not_found";
 }
+
+export interface OperatorInvitation {
+  id: string;
+  email: string;
+  name: string;
+  invitedByName: string | null;
+  createdAt: string;
+  expiresAt: string;
+  sent: boolean;
+}
+
+export async function createOperatorInvitation(
+  actor: string,
+  email: string,
+  name: string,
+): Promise<{ outcome: "created"; id: string } | { outcome: "forbidden" | "invalid" | "exists" }> {
+  const { rows } = await sql<{
+    outcome: "forbidden" | "invalid" | "exists" | "created";
+    invitation_id: string | null;
+  }>`select * from create_operator_invitation(${actor}, ${email}, ${name})`.execute(db);
+  const row = rows[0];
+  if (row?.outcome === "created" && row.invitation_id)
+    return { outcome: "created", id: row.invitation_id };
+  return { outcome: row && row.outcome !== "created" ? row.outcome : "invalid" };
+}
+
+export async function recordOperatorInvitation(actor: string, id: string, clerkId: string) {
+  const { rows } = await sql<{
+    recorded: boolean;
+  }>`select record_operator_invitation(${actor}, ${id}::uuid, ${clerkId}) as recorded`.execute(db);
+  return rows[0]?.recorded === true;
+}
+
+export async function openOperatorInvitation(actor: string, id: string) {
+  const { rows } = await sql<{
+    email: string;
+    clerk_invitation_id: string | null;
+  }>`select * from open_operator_invitation(${actor}, ${id}::uuid)`.execute(db);
+  const row = rows[0];
+  return row ? { email: row.email, clerkInvitationId: row.clerk_invitation_id } : undefined;
+}
+
+export async function revokeOperatorInvitation(actor: string, id: string) {
+  const { rows } = await sql<{
+    outcome: "forbidden" | "not_found" | "revoked";
+    clerk_invitation_id: string | null;
+  }>`select * from revoke_operator_invitation(${actor}, ${id}::uuid)`.execute(db);
+  const row = rows[0];
+  return {
+    outcome: row?.outcome ?? "not_found",
+    clerkInvitationId: row?.clerk_invitation_id ?? null,
+  };
+}
+
+export async function listOperatorInvitations(actor: string): Promise<OperatorInvitation[]> {
+  const { rows } = await sql<{
+    id: string;
+    email: string;
+    name: string;
+    invited_by_name: string | null;
+    created_at: Date | string;
+    expires_at: Date | string;
+    sent: boolean;
+  }>`select * from list_operator_invitations(${actor})`.execute(db);
+  return rows.map((row) => ({
+    id: row.id,
+    email: row.email,
+    name: row.name,
+    invitedByName: row.invited_by_name,
+    createdAt: new Date(row.created_at).toISOString(),
+    expiresAt: new Date(row.expires_at).toISOString(),
+    sent: row.sent,
+  }));
+}
+
+export async function claimOperatorInvitation(subject: string, id: string, emails: string[]) {
+  const { rows } = await sql<{
+    claimed: boolean;
+  }>`select claim_operator_invitation(${id}::uuid, ${subject}, ${emails}::text[]) as claimed`.execute(
+    db,
+  );
+  return rows[0]?.claimed === true;
+}

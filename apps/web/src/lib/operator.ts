@@ -51,3 +51,20 @@ export async function platformOperators(): Promise<PlatformOperator[] | null> {
   const data = (await response.json()) as { operators: PlatformOperator[] };
   return data.operators;
 }
+
+export interface OperatorInvitation {
+  id: string;
+  email: string;
+  name: string;
+  invitedByName: string | null;
+  createdAt: string;
+  expiresAt: string;
+  sent: boolean;
+}
+
+export async function operatorInvitations(): Promise<OperatorInvitation[] | null> {
+  const response = await backendRequest("/web/operator/operator-invitations");
+  if (!response?.ok) return null;
+  const data = (await response.json()) as { invitations: OperatorInvitation[] };
+  return data.invitations;
+}

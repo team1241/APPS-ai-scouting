@@ -1,8 +1,18 @@
+import { ListSkeleton, LoadingPage } from "@/components/loading-skeletons";
+import { Skeleton } from "@/components/ui/skeleton";
+
 export default function Loading() {
   return (
-    <main id="main" className="mx-auto max-w-3xl px-6 py-12" aria-busy="true">
-      <p role="status">Checking your team access…</p>
-      <div className="mt-6 h-28 rounded-lg bg-muted motion-safe:animate-pulse" />
-    </main>
+    <LoadingPage label="Checking your team access…">
+      <ListSkeleton rows={2}>
+        <div className="flex items-center justify-between gap-4">
+          <div className="space-y-2.5">
+            <Skeleton className="h-5 w-40" />
+            <Skeleton className="h-4 w-36" />
+          </div>
+          <Skeleton className="size-5 rounded-full" />
+        </div>
+      </ListSkeleton>
+    </LoadingPage>
   );
 }

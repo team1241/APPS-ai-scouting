@@ -1,12 +1,16 @@
 "use client";
 
-import { useActionState, useEffect, useRef, useState } from "react";
+import { useActionState, useEffect, useRef } from "react";
 import {
   addOperator,
+  cancelOperatorInvitation,
+  type InvitationState,
   type OperatorFormState,
   type RemoveState,
   removeOperator,
+  resendOperatorInvitation,
 } from "@/app/operator/operators/actions";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -62,11 +66,16 @@ export function AddOperatorForm() {
     <form ref={form} action={submit} className="space-y-4 rounded-lg border bg-card p-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
         {field("name", "Name", "text")}
-        {field("email", "Email", "email", "Must match their verified sign-in email.")}
+        {field(
+          "email",
+          "Email",
+          "email",
+          "If they have no account yet, we email them an invitation.",
+        )}
       </div>
       <div className="flex flex-wrap items-center gap-3">
         <Button type="submit" disabled={pending} className="h-11 px-5">
-          {pending ? "Adding…" : "Add operator"}
+          {pending ? "Adding…" : "Add or invite"}
         </Button>
         {state.message ? (
           <p
@@ -85,46 +94,84 @@ export function AddOperatorForm() {
   );
 }
 
-// Removal is confirmed in place; there is no modal.
+// Removal is confirmed in a dialog.
 export function RemoveOperator({ clerkUserId, name }: { clerkUserId: string; name: string }) {
   const [state, remove, removing] = useActionState<RemoveState, FormData>(removeOperator, {
     status: "idle",
   });
-  const [confirming, setConfirming] = useState(false);
   return (
-    <form action={remove} className="flex flex-wrap items-center gap-2 sm:justify-end">
-      <input type="hidden" name="clerkUserId" value={clerkUserId} />
-      {confirming ? (
-        <>
-          <span className="text-sm">Remove {name}?</span>
-          <Button type="submit" variant="destructive" disabled={removing} className="h-11">
-            {removing ? "Removing…" : "Confirm remove"}
+    <div className="sm:text-right">
+      <ConfirmDialog
+        trigger="Remove"
+        title={`Remove ${name} as an operator?`}
+        description="They lose access to application review and operator management on their next request. Any team access they have is not affected. You can add them again later."
+        confirmLabel="Remove operator"
+        pendingLabel="Removing…"
+        cancelLabel="Keep operator"
+        action={remove}
+        pending={removing}
+        error={state.status === "error" ? state.message : undefined}
+        fields={{ clerkUserId }}
+      />
+    </div>
+  );
+}
+
+// Resend and cancel for an open operator invitation. Cancel is confirmed in a dialog.
+export function InvitationActions({
+  invitationId,
+  email,
+}: {
+  invitationId: string;
+  email: string;
+}) {
+  const [resent, resend, resending] = useActionState<InvitationState, FormData>(
+    resendOperatorInvitation,
+    { status: "idle" },
+  );
+  const [cancelled, cancel, cancelling] = useActionState<InvitationState, FormData>(
+    cancelOperatorInvitation,
+    { status: "idle" },
+  );
+  const busy = resending || cancelling;
+  return (
+    <div className="flex flex-col gap-2 sm:items-end">
+      <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+        <form action={resend}>
+          <input type="hidden" name="invitationId" value={invitationId} />
+          <Button type="submit" variant="outline" disabled={busy} className="h-11">
+            {resending ? "Sending…" : "Resend"}
           </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            disabled={removing}
-            className="h-11"
-            onClick={() => setConfirming(false)}
-          >
-            Cancel
-          </Button>
-        </>
-      ) : (
-        <Button
-          type="button"
-          variant="ghost"
-          className="h-11 text-destructive hover:text-destructive"
-          onClick={() => setConfirming(true)}
+        </form>
+        <ConfirmDialog
+          trigger="Cancel invitation"
+          title="Cancel this invitation?"
+          description={
+            <>
+              The link sent to <span className="font-medium text-foreground">{email}</span> stops
+              working. You can invite them again later.
+            </>
+          }
+          confirmLabel="Cancel invitation"
+          pendingLabel="Cancelling…"
+          cancelLabel="Keep invitation"
+          action={cancel}
+          pending={cancelling}
+          error={cancelled.status === "error" ? cancelled.message : undefined}
+          disabled={busy}
+          fields={{ invitationId }}
+        />
+      </div>
+      {resent.status !== "idle" && resent.message ? (
+        <p
+          role={resent.status === "error" ? "alert" : "status"}
+          className={
+            resent.status === "error" ? "text-sm text-destructive" : "text-sm text-muted-foreground"
+          }
         >
-          Remove
-        </Button>
-      )}
-      {state.status === "error" ? (
-        <p role="alert" className="w-full text-sm text-destructive sm:text-right">
-          {state.message}
+          {resent.message}
         </p>
       ) : null}
-    </form>
+    </div>
   );
 }

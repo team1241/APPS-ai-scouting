@@ -1,12 +1,13 @@
 "use client";
 
-import { useActionState, useId, useState } from "react";
+import { useActionState, useId } from "react";
 import {
   approveApplication,
   type ReviewState,
   rejectApplication,
   resendInvitation,
 } from "@/app/operator/actions";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,7 +28,7 @@ function Feedback({ state }: { state: ReviewState }) {
   );
 }
 
-// Approve needs a team name; reject asks for confirmation in place.
+// Approve needs a team name; reject is confirmed in a dialog.
 export function PendingReview({
   applicationId,
   teamNumber,
@@ -37,7 +38,6 @@ export function PendingReview({
 }) {
   const [approval, approve, approving] = useActionState(approveApplication, idle);
   const [rejection, reject, rejecting] = useActionState(rejectApplication, idle);
-  const [confirmReject, setConfirmReject] = useState(false);
   const nameId = useId();
   const busy = approving || rejecting;
   return (
@@ -68,37 +68,21 @@ export function PendingReview({
         </p>
       ) : null}
       <Feedback state={approval} />
-      <form action={reject} className="flex flex-wrap items-center gap-2">
-        <input type="hidden" name="applicationId" value={applicationId} />
-        {confirmReject ? (
-          <>
-            <span className="text-sm">Reject this application? The team cannot apply again.</span>
-            <Button type="submit" variant="destructive" disabled={busy} className="h-11">
-              {rejecting ? "Rejecting…" : "Confirm reject"}
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              disabled={busy}
-              className="h-11"
-              onClick={() => setConfirmReject(false)}
-            >
-              Cancel
-            </Button>
-          </>
-        ) : (
-          <Button
-            type="button"
-            variant="ghost"
-            disabled={busy}
-            className="-ml-3 h-11 text-destructive hover:text-destructive"
-            onClick={() => setConfirmReject(true)}
-          >
-            Reject
-          </Button>
-        )}
-      </form>
-      <Feedback state={rejection} />
+      <div className="-ml-3">
+        <ConfirmDialog
+          trigger="Reject"
+          title={`Reject the application for Team ${teamNumber}?`}
+          description="The team cannot apply again, and the applicant is not notified. This cannot be undone here."
+          confirmLabel="Reject application"
+          pendingLabel="Rejecting…"
+          cancelLabel="Keep reviewing"
+          action={reject}
+          pending={rejecting}
+          error={rejection.status === "error" ? rejection.message : undefined}
+          disabled={busy}
+          fields={{ applicationId }}
+        />
+      </div>
     </div>
   );
 }

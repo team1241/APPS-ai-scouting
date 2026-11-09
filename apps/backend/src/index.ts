@@ -13,14 +13,20 @@ import { workerEvents } from "./repositories/operations.ts";
 import {
   approveApplication,
   claimApplication,
+  claimOperatorInvitation,
+  createOperatorInvitation,
   grantOperator,
   invitableApplication,
+  listOperatorInvitations,
   listOperators,
+  openOperatorInvitation,
   operatorProfile,
   recordInvitation,
+  recordOperatorInvitation,
   rejectApplication,
   reviewApplications,
   revokeOperator,
+  revokeOperatorInvitation,
 } from "./repositories/operators.ts";
 import { adminOrganizations } from "./repositories/web-admin.ts";
 import { telegramRoutes } from "./telegram.ts";
@@ -45,6 +51,11 @@ app.route(
     operators: listOperators,
     grantOperator,
     revokeOperator,
+    invitations: listOperatorInvitations,
+    createInvitation: createOperatorInvitation,
+    recordOperatorInvitation,
+    openInvitation: openOperatorInvitation,
+    revokeInvitation: revokeOperatorInvitation,
     accounts,
   }),
 );
@@ -56,7 +67,14 @@ app.route(
     claim: accounts
       ? async (subject) => {
           const pending = await accounts.pendingClaim(subject);
-          return pending ? claimApplication(subject, pending.applicationId, pending.emails) : null;
+          if (!pending) return false;
+          const operator = pending.operatorInvitationId
+            ? await claimOperatorInvitation(subject, pending.operatorInvitationId, pending.emails)
+            : false;
+          const organization = pending.applicationId
+            ? await claimApplication(subject, pending.applicationId, pending.emails)
+            : null;
+          return operator || organization !== null;
         }
       : null,
   }),

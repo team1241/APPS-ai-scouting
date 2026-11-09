@@ -2,19 +2,41 @@ import { createClerkClient } from "@clerk/backend";
 
 export interface ClerkAccounts {
   invite(input: { email: string; applicationId: string; resend: boolean }): Promise<string>;
+  inviteOperator(input: { email: string; invitationId: string }): Promise<string>;
+  revokeInvitation(clerkInvitationId: string): Promise<void>;
   // Reads only server-controlled public metadata and Clerk-verified emails.
-  pendingClaim(subject: string): Promise<{ applicationId: string; emails: string[] } | null>;
+  pendingClaim(subject: string): Promise<{
+    applicationId: string | null;
+    operatorInvitationId: string | null;
+    emails: string[];
+  } | null>;
   // Returns the account only when the email is verified on exactly one user.
   findVerifiedUser(email: string): Promise<string | null>;
 }
 
 const metadataKey = "accessApplicationId";
+const operatorMetadataKey = "operatorInvitationId";
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// Invitations land on the web app's /sign-up page, which accepts the Clerk
+// ticket. Without it, Clerk's hosted portal ends on a generic redirect page.
+export function invitationRedirectUrl(env: NodeJS.ProcessEnv) {
+  const explicit = env.WEB_INVITATION_REDIRECT_URL?.trim();
+  const origin = env.WEB_ORIGINS?.split(",")
+    .map((value) => value.trim())
+    .find(Boolean);
+  try {
+    if (explicit) return new URL(explicit).toString();
+    return origin ? new URL("/sign-up", origin).toString() : undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 export function clerkAccounts(env: NodeJS.ProcessEnv): ClerkAccounts | null {
   if (!env.CLERK_SECRET_KEY) return null;
   const clerk = createClerkClient({ secretKey: env.CLERK_SECRET_KEY });
-  const redirectUrl = env.WEB_INVITATION_REDIRECT_URL || undefined;
+  const redirectUrl = invitationRedirectUrl(env);
   return {
     async invite({ email, applicationId, resend }) {
       const invitation = await clerk.invitations.createInvitation({
@@ -27,14 +49,32 @@ export function clerkAccounts(env: NodeJS.ProcessEnv): ClerkAccounts | null {
       });
       return invitation.id;
     },
+    async inviteOperator({ email, invitationId }) {
+      const invitation = await clerk.invitations.createInvitation({
+        emailAddress: email,
+        publicMetadata: { [operatorMetadataKey]: invitationId },
+        notify: true,
+        expiresInDays: 7,
+        redirectUrl,
+      });
+      return invitation.id;
+    },
+    async revokeInvitation(clerkInvitationId) {
+      await clerk.invitations.revokeInvitation(clerkInvitationId);
+    },
     async pendingClaim(subject) {
       const user = await clerk.users.getUser(subject);
-      const applicationId = user.publicMetadata?.[metadataKey];
-      if (typeof applicationId !== "string" || !uuid.test(applicationId)) return null;
+      const id = (key: string) => {
+        const value = user.publicMetadata?.[key];
+        return typeof value === "string" && uuid.test(value) ? value : null;
+      };
+      const applicationId = id(metadataKey);
+      const operatorInvitationId = id(operatorMetadataKey);
+      if (!applicationId && !operatorInvitationId) return null;
       const emails = user.emailAddresses
         .filter((address) => address.verification?.status === "verified")
         .map((address) => address.emailAddress.trim().toLowerCase());
-      return emails.length ? { applicationId, emails } : null;
+      return emails.length ? { applicationId, operatorInvitationId, emails } : null;
     },
     async findVerifiedUser(email) {
       const wanted = email.trim().toLowerCase();
