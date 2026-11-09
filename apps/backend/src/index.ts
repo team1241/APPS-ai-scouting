@@ -1,13 +1,24 @@
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { accessApplicationRoutes } from "./access-applications.ts";
+import { clerkAccounts } from "./clerk-accounts.ts";
 import { createWorkerControl, eventMode } from "./event-mode.ts";
 import { extractionConfig } from "./extraction-config.ts";
 import { startExtractionWorker } from "./extraction-worker.ts";
+import { operatorRoutes } from "./operator-review.ts";
 import { startOutboundWorker } from "./outbound-worker.ts";
 import { saveAccessApplication } from "./repositories/access-applications.ts";
 import { checkDatabase, closeDatabase } from "./repositories/database.ts";
 import { workerEvents } from "./repositories/operations.ts";
+import {
+  approveApplication,
+  claimApplication,
+  invitableApplication,
+  operatorProfile,
+  recordInvitation,
+  rejectApplication,
+  reviewApplications,
+} from "./repositories/operators.ts";
 import { adminOrganizations } from "./repositories/web-admin.ts";
 import { telegramRoutes } from "./telegram.ts";
 import { webAdminRoutes } from "./web-admin.ts";
@@ -16,9 +27,33 @@ import { webSessionVerifier } from "./web-auth.ts";
 const extraction = extractionConfig(process.env);
 const app = new Hono();
 app.route("/web/access-applications", accessApplicationRoutes({ save: saveAccessApplication }));
+const verifyWebSession = webSessionVerifier(process.env);
+const accounts = clerkAccounts(process.env);
+app.route(
+  "/web/operator",
+  operatorRoutes({
+    verify: verifyWebSession,
+    profile: operatorProfile,
+    applications: reviewApplications,
+    approve: approveApplication,
+    reject: rejectApplication,
+    invitable: invitableApplication,
+    recordInvitation,
+    accounts,
+  }),
+);
 app.route(
   "/web",
-  webAdminRoutes({ verify: webSessionVerifier(process.env), organizations: adminOrganizations }),
+  webAdminRoutes({
+    verify: verifyWebSession,
+    organizations: adminOrganizations,
+    claim: accounts
+      ? async (subject) => {
+          const pending = await accounts.pendingClaim(subject);
+          return pending ? claimApplication(subject, pending.applicationId, pending.emails) : null;
+        }
+      : null,
+  }),
 );
 const org = process.env.TELEGRAM_ORGANIZATION_ID;
 const control = createWorkerControl(eventMode(process.env), () =>

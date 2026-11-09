@@ -29,6 +29,7 @@ test("public applications validate and normalize before saving, without granting
         email: "avery@example.com",
         teamNumber: 1241,
       });
+      return "received";
     },
   });
   const response = await app.request("/", post(input));
@@ -63,7 +64,7 @@ test("every requested field is validated, including strict adult attestation and
 });
 
 test("all four roles are accepted; oversized, malformed and failing requests return safe errors", async () => {
-  const good = accessApplicationRoutes({ save: async () => {} });
+  const good = accessApplicationRoutes({ save: async () => "received" });
   for (const role of ["mentor", "lead_mentor", "teacher", "other"])
     assert.equal((await good.request("/", post({ ...valid(), role }))).status, 202);
   assert.equal((await good.request("/", { method: "POST", body: "{" })).status, 400);
@@ -76,4 +77,13 @@ test("all four roles are accepted; oversized, malformed and failing requests ret
   const response = await failing.request("/", post(valid()));
   assert.equal(response.status, 503);
   assert.deepEqual(await response.json(), { error: "Applications are temporarily unavailable." });
+});
+
+test("a team with an earlier application or organization gets an explicit team-number error", async () => {
+  const app = accessApplicationRoutes({ save: async () => "team_exists" });
+  const response = await app.request("/", post(valid()));
+  assert.equal(response.status, 409);
+  const body = await response.json();
+  assert.match(body.errors.teamNumber, /already has an application/);
+  assert.equal(body.received, undefined);
 });

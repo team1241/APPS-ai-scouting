@@ -30,6 +30,12 @@ Inside a workspace, a secondary navigation row displays the current backend-auth
 
 Team-selection lists clip hover backgrounds to their rounded container. Row focus outlines sit inside the row so keyboard focus remains visible within that clipping.
 
+## Operator review
+
+`/operator` is an admin surface in the light register. It is reached from a "Review applications" outline button on the team selection page, shown only to platform operators. The page has two bordered lists: "Waiting for review" (oldest first) and "Recently reviewed". Each row leads with the tabular team number and applicant name, then role, email and date in muted text.
+
+A pending row has a team name field prefilled with "Team <number>" and a primary "Approve and invite" action on the same line on wider screens. Reject is a quiet destructive text button that expands in place into a one-line warning with "Confirm reject" and "Cancel"; there is no modal. Reviewed rows show their state in text: Invited, Signed in, Rejected, or "Invitation not sent" in the destructive colour with "Resend invitation". Controls keep 44px hit areas and stack to full width on phones. The destructive button variant uses `--color-destructive-foreground` for its label.
+
 ## Public entrance
 
 The signed-out home page, `/sign-in` and `/request-access` share a navy entrance band (`PublicBand`, `apps/web/src/components/public-band.tsx`). Its character comes from the Theory6 Apps badge: navy (`--navy`), sky blue (`--sky`, `--sky-soft`), circuit-trace linework and the mascot badge. The admin pages keep the light interface.

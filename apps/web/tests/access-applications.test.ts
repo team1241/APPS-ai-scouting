@@ -67,3 +67,17 @@ test("missing backend, insecure remote URL and unexpected acceptance response ne
   process.env.BACKEND_URL = "https://backend.example.com";
   assert.equal((await submitApplication(initial, form())).status, "error");
 });
+test("a team with an existing application shows the team-number error and keeps the details", async () => {
+  process.env.BACKEND_URL = "https://backend.example.com";
+  mock.method(globalThis, "fetch", async () =>
+    Response.json(
+      { errors: { teamNumber: "This team already has an application or account." } },
+      { status: 409 },
+    ),
+  );
+  const result = await submitApplication(initial, form());
+  assert.equal(result.status, "error");
+  assert.match(result.errors.teamNumber ?? "", /already has an application/);
+  assert.match(result.message ?? "", /another application for this team/);
+  assert.equal(result.values.teamNumber, "1241");
+});

@@ -25,10 +25,17 @@ export type Timestamp = ColumnType<Date, Date | string, Date | string>;
 
 export interface AccessApplication {
   adult_attested: boolean;
+  claimed_at: Timestamp | null;
   created_at: Generated<Timestamp>;
   email: string;
   id: string;
+  invitation_id: string | null;
+  invited_at: Timestamp | null;
+  member_id: string | null;
   name: string;
+  organization_id: string | null;
+  reviewed_at: Timestamp | null;
+  reviewed_by: string | null;
   status: Generated<string>;
   team_number: number;
   team_role: string;
@@ -211,6 +218,12 @@ export interface OutboundIntervention {
   reason: string;
 }
 
+export interface PlatformOperator {
+  clerk_user_id: string;
+  created_at: Generated<Timestamp>;
+  name: string;
+}
+
 export interface PublishedSpecification {
   document: Json;
   kind: string;
@@ -316,6 +329,7 @@ export interface DB {
   organization_event_setting: OrganizationEventSetting;
   outbound_delivery: OutboundDelivery;
   outbound_intervention: OutboundIntervention;
+  platform_operator: PlatformOperator;
   published_specification: PublishedSpecification;
   raw_entry: RawEntry;
   reference_sync: ReferenceSync;
