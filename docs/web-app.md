@@ -206,3 +206,41 @@ Every operator request rechecks the record, so removal takes effect on the next 
 **Database access.** The runtime role reads `access_application` and `platform_operator` only through row-level security on `app.clerk_user_id`, and has no INSERT, UPDATE or DELETE on either table. All state changes go through the `SECURITY DEFINER` functions in `20261109010000_platform_operators.ts`, `20261109020000_operator_management.ts` and `20261109030000_operator_invitations.ts`. The runtime has no table privileges on `operator_invitation`. Those functions must be owned by the migration role, which bypasses row-level security, as the existing operator commands already require.
 
 Validation covers route authorization and errors, duplicate-team rules under concurrency, provisioning, claim email matching, operator removal and runtime-role privileges against disposable Postgres. The review page was checked at desktop and phone widths with fixture data. A live Clerk invitation and claim were not tested end to end.
+
+## Team administrator invitations
+
+Issue #40 lets an approved team admin invite another adult to administer the same team, from the **Administrators** section of `/admin/<organization>`. It replaces the setup commands above for existing teams. New-team creation stays with operator approval (#31) and operator management stays at `/operator/operators`.
+
+**Inviting.** The admin enters the person's name and email and confirms: "I confirm this person is at least 18 and the age of majority where they live, and is authorized to administer this team." The backend rechecks that the session account is a linked, approved admin of that team (`team_admin_actor`) on every operation. A request for another team, or a forged team ID, gets the same 404 as a missing team. The backend then looks the email up in Clerk:
+
+- **No account:** `create_team_admin_invitation` records a `team_admin_invitation`, and Clerk sends an invitation with `publicMetadata.teamAdminInvitationId`. It expires in 7 days and lands on `/sign-up`, like other invitations. If Clerk cannot send it, the record is cancelled and the admin sees an error. The invitation is never shown as sent.
+- **Existing account:** the email is verified on exactly one Clerk account. The invitation is bound to that account and no email is sent. The person sees it under "Invitations" on `/admin` the next time they open it, with "Accept and open team". This covers admins of other teams and platform operators.
+
+An email that already has a pending invitation for the team, or an account that is already an admin of the team, is refused.
+
+**Accepting.** `accept_team_admin_invitation` runs in one transaction. It requires a pending, unexpired invitation, a Clerk-verified email that matches it, and an inviter who is still a linked admin of the team. An email invitation is accepted only with the ID from Clerk metadata, when the new account first loads `/web/organizations`. An existing-account invitation is accepted only by the bound account. Acceptance creates a new `admin` member with the invitation name and a linked `web_admin_access` row (`approved_by` = the inviter's member, `policy_version = admin-invited-v1`). If the account is already linked to the team, it adds nothing and records the existing member. It never relinks another Clerk identity or merges with an existing Telegram member, even with the same name. An admin who also scouts through Telegram keeps the scout member; to connect Telegram to the admin member, that Telegram account must not already belong to another member of the team. Repeated or concurrent acceptance by the same account returns the same result.
+
+**Pending invitations** show "Email sent", "Waiting to accept" or "Email not sent", with the expiry and inviter. Resend (email invitations only) closes the invitation as `superseded`, creates a new one with a new ID and 7 days, revokes the old Clerk invitation and sends a new one. The earlier link and ID stop working. The original inviter and attestation carry over. If the resend email fails, the new invitation shows "Email not sent". Cancel closes the record first, then revokes the Clerk invitation. Expired invitations close when the team's list loads or when someone tries to accept them. Cancelled, expired, superseded and accepted invitations cannot grant access. Revoking or demoting the inviter blocks their pending invitations.
+
+**Privacy.** The email is kept only while the invitation is pending. Accepted, cancelled, superseded and expired invitations keep the name, team, inviter and dates as the approval record.
+
+**Database access.** The runtime role has no table privileges on `team_admin_invitation`. It calls only the `SECURITY DEFINER` functions in `20261109060000_team_admin_invitations.ts`, which the migration grants to `ai_scouting_backend`. The functions must be owned by the migration role, which bypasses row-level security.
+
+### Deployment
+
+1. Merge to `main`. The `Production readiness` workflow applies migration `20261109060000_team_admin_invitations` with the owner connection and checks generated types. Railway deploys the backend after CI. The migration only adds a table and functions, so the previous backend keeps working during rollout.
+2. Deploy the web app on Vercel.
+3. No new environment variables. Invitations need `CLERK_SECRET_KEY` on the backend, and `WEB_ORIGINS` or `WEB_INVITATION_REDIRECT_URL` for the `/sign-up` redirect. Without Clerk, the invite, resend and accept routes return 503.
+
+### Production smoke test
+
+Use team 1241 and two test addresses you control.
+
+1. As a team 1241 admin, open the workspace. The Administrators section lists you with "You".
+2. Invite a person with no account. Confirm "Invitation email sent", an "Email sent" row and the Clerk email. Accept it in a private window. The new account lands on team 1241 and the section lists the new admin. The new account has no Operator item.
+3. Invite an address that already has an account, for example an admin of another test team. Confirm "Waiting to accept" and that no email arrives. Sign in as that account: `/admin` shows the invitation; "Accept and open team" opens team 1241, and team selection now lists both teams.
+4. Invite a third address, then Resend: the first email's link no longer works. Cancel it: the second link no longer works.
+5. Try to invite an existing admin of the team: the dialog says they are already an administrator.
+6. Remove the test admins with the revoke command above, and delete the test Clerk accounts.
+
+Validation covers route authorization, input validation, Clerk delivery failure, resend and cancel ordering, and, against disposable Postgres, tenant isolation, forged team IDs, new and existing accounts, other teams' admins, operators, existing links, Telegram members, concurrent acceptance, expiry, cancellation, resend and inviter revocation. The UI was checked with fixture data at desktop and phone widths, with keyboard focus in the invite dialog. A live Clerk invitation was not tested end to end.
