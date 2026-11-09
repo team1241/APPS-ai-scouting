@@ -41,6 +41,20 @@ export interface AccessApplication {
   team_role: string;
 }
 
+export interface ApiKey {
+  created_at: Generated<Timestamp>;
+  created_by: string | null;
+  id: Generated<string>;
+  name: string;
+  organization_id: string;
+  provider_key_id: string;
+  rate_limit_per_minute: number;
+  revoked_at: Timestamp | null;
+  revoked_by: string | null;
+  secret_ciphertext: string | null;
+  start: string;
+}
+
 export interface ChannelIdentity {
   channel: string;
   created_at: Generated<Timestamp>;
@@ -349,6 +363,7 @@ export interface WebAdminAccess {
 
 export interface DB {
   access_application: AccessApplication;
+  api_key: ApiKey;
   channel_identity: ChannelIdentity;
   event: Event;
   event_command: EventCommand;

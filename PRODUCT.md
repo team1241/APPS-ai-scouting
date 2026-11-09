@@ -29,7 +29,8 @@ Administrators use laptops and phones during busy events. They sign in through C
 - Current surfaces include the app shell, sign-in, organization selection, organization workspace and privacy notice, with loading, error, empty and denied-access states.
 - Access requires explicit adult-admin approval and account linking. Clerk authentication does not grant membership; the backend determines current memberships and permissions.
 - Preserve tenant isolation and privacy boundaries. Do not add product analytics or session replay.
-- Issue #28 refines the existing Next.js and shadcn/ui administration app. It does not add API-key management, scouting-data browsing or editing, authentication-provider migration, or backend features. API-key management remains future work.
+- Team admins manage read-only organization API keys in the team workspace (#21): create named keys, view and copy any key at any time, and revoke keys. Keys belong to the team, not the admin who created them.
+- Do not add scouting-data browsing or editing.
 
 ## Brand Personality
 

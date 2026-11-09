@@ -2,6 +2,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { sql } from "kysely";
 import { db } from "../db.ts";
 import { withTenant } from "./tenant.ts";
+import { webAdminMember } from "./web-admin.ts";
 
 const hash = (token: string) => createHash("sha256").update(token).digest("hex");
 export async function organizationIds() {
@@ -17,19 +18,7 @@ export async function telegramAdmin(
   { token: string; expiresAt: string } | { connected: boolean; connectedAt: string | null } | null
 > {
   return withTenant(org, async (tx) => {
-    await sql`select set_config('app.clerk_user_id', ${subject}, true)`.execute(tx);
-    const admin = await tx
-      .selectFrom("web_admin_access")
-      .innerJoin("member", (join) =>
-        join
-          .onRef("member.id", "=", "web_admin_access.member_id")
-          .onRef("member.organization_id", "=", "web_admin_access.organization_id"),
-      )
-      .select("member.id")
-      .where("web_admin_access.clerk_user_id", "=", subject)
-      .where("member.organization_id", "=", org)
-      .where("member.role", "=", "admin")
-      .executeTakeFirst();
+    const admin = await webAdminMember(tx, org, subject);
     if (!admin) return null;
     await sql`select pg_advisory_xact_lock(hashtextextended(${`${org}:${admin.id}:telegram`}, 0))`.execute(
       tx,

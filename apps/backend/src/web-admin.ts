@@ -1,5 +1,7 @@
 import { Hono } from "hono";
+import { ProviderUnavailable } from "./api-keys.ts";
 import { uuidPattern } from "./event-config.ts";
+import type { ApiKeySummary } from "./repositories/api-keys.ts";
 import { telegramAdmin } from "./repositories/telegram-connect.ts";
 import type { AdminOrganization } from "./repositories/web-admin.ts";
 
@@ -8,6 +10,12 @@ export function webAdminRoutes(deps: {
   organizations: (subject: string) => Promise<AdminOrganization[]>;
   // Links an account invited through an approved application or operator invitation.
   claim: ((subject: string) => Promise<boolean>) | null;
+  // Null when Unkey or the encryption key is not configured.
+  apiKeys?: {
+    list(org: string, subject: string): Promise<ApiKeySummary[] | null>;
+    create(org: string, subject: string, name: string): Promise<ApiKeySummary | "limit" | null>;
+    revoke(org: string, subject: string, id: string): Promise<boolean | null>;
+  } | null;
 }) {
   const app = new Hono<{ Variables: { subject: string } }>();
   app.use("*", async (c, next) => {
@@ -18,7 +26,17 @@ export function webAdminRoutes(deps: {
     c.set("subject", subject);
     await next();
   });
-  app.onError((_error, c) => c.json({ error: "Administration unavailable" }, 503));
+  app.onError((error, c) =>
+    c.json(
+      {
+        error:
+          error instanceof ProviderUnavailable
+            ? "The API key service is unavailable"
+            : "Administration unavailable",
+      },
+      503,
+    ),
+  );
   app.get("/organizations", async (c) => {
     const subject = c.get("subject");
     let organizations = await deps.organizations(subject);
@@ -63,5 +81,34 @@ export function webAdminRoutes(deps: {
       },
     );
   }
+  const keys = deps.apiKeys;
+  const keysPath = "/organizations/:id/api-keys";
+  // The wildcard also matches the list path itself.
+  app.use(`${keysPath}/*`, async (c, next) => {
+    if (!uuidPattern.test(c.req.param("id") ?? ""))
+      return c.json({ error: "Organization unavailable" }, 404);
+    if (!keys) return c.json({ error: "API keys are not configured" }, 503);
+    await next();
+  });
+  app.get(keysPath, async (c) => {
+    const list = await keys?.list(c.req.param("id"), c.get("subject"));
+    return list ? c.json({ keys: list }) : c.json({ error: "Organization unavailable" }, 404);
+  });
+  app.post(keysPath, async (c) => {
+    const body = (await c.req.json().catch(() => null)) as { name?: unknown } | null;
+    const name = typeof body?.name === "string" ? body.name.trim() : "";
+    if (!name || name.length > 60)
+      return c.json({ error: "Enter a name of 1 to 60 characters" }, 400);
+    const key = await keys?.create(c.req.param("id"), c.get("subject"), name);
+    if (key === "limit") return c.json({ error: "Revoke a key before you create another" }, 409);
+    return key ? c.json({ key }, 201) : c.json({ error: "Organization unavailable" }, 404);
+  });
+  app.post(`${keysPath}/:keyId/revoke`, async (c) => {
+    const keyId = c.req.param("keyId");
+    if (!uuidPattern.test(keyId)) return c.json({ error: "Key not found" }, 404);
+    const result = await keys?.revoke(c.req.param("id"), c.get("subject"), keyId);
+    if (result === null) return c.json({ error: "Organization unavailable" }, 404);
+    return result ? c.json({ revoked: true }) : c.json({ error: "Key not found" }, 404);
+  });
   return app;
 }
