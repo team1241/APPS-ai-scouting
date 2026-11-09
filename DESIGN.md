@@ -51,6 +51,6 @@ Home: the band fills the space between header and footer. “Team administration
 
 Sign in: the band holds “Welcome back” and the one-line approval note. The Clerk SignIn card overlaps the band edge like the request form, themed through `appearance` (hex copies of navy and foreground, Archivo, navy flat primary button, 44px controls). Clerk's own header is hidden because the band carries the heading. The site header omits its Sign in button on this page.
 
-Accept invitation (`/sign-up`): the same layout as sign-in, with "Accept your *invitation*" and one line asking for the invited email. The Clerk SignUp card shares the sign-in theme (`authCardAppearance`).
+Accept invitation (`/sign-up`): the same layout as sign-in, with "Accept your invitation" (with "invitation" in sky blue) and one line asking for the invited email. The Clerk SignUp card shares the sign-in theme (`authCardAppearance`).
 
 Request access: the band holds only the heading. The form sits in a white card (12px radius, soft navy shadow, no border) that overlaps the band edge. The submit action is navy. The receipt replaces the form inside the same card with a sky check mark; do not nest a second card.
