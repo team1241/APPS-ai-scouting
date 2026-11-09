@@ -4,8 +4,9 @@ import { UserButton, useAuth } from "@clerk/nextjs";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { ReactNode } from "react";
+import { type ReactNode, useRef } from "react";
 import logo from "@/assets/apps-logo.png";
+import { useStickyHeight } from "@/lib/use-sticky-height";
 
 const quietAction =
   "inline-flex min-h-11 items-center justify-center rounded-md px-3 text-sm font-medium text-sky-soft hover:bg-white/10 hover:text-white";
@@ -49,8 +50,13 @@ function HeaderContent({
   operatorEntry?: ReactNode;
 }) {
   const pathname = usePathname();
+  const header = useRef<HTMLElement>(null);
+  useStickyHeight(header, "--site-header-height");
   return (
-    <header className="public-band sticky top-0 z-40 border-b border-sky/15 bg-navy text-white">
+    <header
+      ref={header}
+      className="public-band sticky top-0 z-40 border-b border-sky/15 bg-navy text-white"
+    >
       <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3 sm:gap-x-6 sm:px-6">
         <Link
           href={signedIn ? "/admin" : "/"}

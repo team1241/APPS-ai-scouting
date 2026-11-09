@@ -55,7 +55,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     </>
   );
   return (
-    <html lang="en" className={`${archivo.variable} scroll-pt-24`}>
+    <html lang="en" className={archivo.variable}>
       <body className="flex min-h-svh flex-col">
         {authConfigured() ? (
           <ClerkProvider

@@ -37,6 +37,10 @@
 }
 
 :root {
+  /* Sticky bar heights, updated from the rendered bars. Defaults match one row. */
+  --site-header-height: 69px;
+  --sub-header-height: 0px;
+  scroll-padding-top: calc(var(--site-header-height) + var(--sub-header-height) + 1.5rem);
   --background: oklch(0.985 0 0);
   --foreground: oklch(0.23 0.015 260);
   --card: oklch(1 0 0);
