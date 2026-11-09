@@ -10,6 +10,7 @@ import {
   removeOperator,
   resendOperatorInvitation,
 } from "@/app/operator/operators/actions";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -137,7 +138,7 @@ export function RemoveOperator({ clerkUserId, name }: { clerkUserId: string; nam
   );
 }
 
-// Resend and cancel for an open operator invitation. Cancel is confirmed in place.
+// Resend and cancel for an open operator invitation. Cancel is confirmed in a dialog.
 export function InvitationActions({
   invitationId,
   email,
@@ -153,59 +154,43 @@ export function InvitationActions({
     cancelOperatorInvitation,
     { status: "idle" },
   );
-  const [confirming, setConfirming] = useState(false);
   const busy = resending || cancelling;
-  const feedback = [resent, cancelled].find((state) => state.status !== "idle" && state.message);
   return (
     <div className="flex flex-col gap-2 sm:items-end">
       <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-        {confirming ? (
-          <form action={cancel} className="flex flex-wrap items-center gap-2">
-            <input type="hidden" name="invitationId" value={invitationId} />
-            <span className="text-sm">Cancel the invitation to {email}?</span>
-            <Button type="submit" variant="destructive" disabled={busy} className="h-11">
-              {cancelling ? "Cancelling…" : "Confirm cancel"}
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              disabled={busy}
-              className="h-11"
-              onClick={() => setConfirming(false)}
-            >
-              Keep
-            </Button>
-          </form>
-        ) : (
-          <>
-            <form action={resend}>
-              <input type="hidden" name="invitationId" value={invitationId} />
-              <Button type="submit" variant="outline" disabled={busy} className="h-11">
-                {resending ? "Sending…" : "Resend"}
-              </Button>
-            </form>
-            <Button
-              type="button"
-              variant="ghost"
-              disabled={busy}
-              className="h-11 text-destructive hover:text-destructive"
-              onClick={() => setConfirming(true)}
-            >
-              Cancel invitation
-            </Button>
-          </>
-        )}
+        <form action={resend}>
+          <input type="hidden" name="invitationId" value={invitationId} />
+          <Button type="submit" variant="outline" disabled={busy} className="h-11">
+            {resending ? "Sending…" : "Resend"}
+          </Button>
+        </form>
+        <ConfirmDialog
+          trigger="Cancel invitation"
+          title="Cancel this invitation?"
+          description={
+            <>
+              The link sent to <span className="font-medium text-foreground">{email}</span> stops
+              working. You can invite them again later.
+            </>
+          }
+          confirmLabel="Cancel invitation"
+          pendingLabel="Cancelling…"
+          cancelLabel="Keep invitation"
+          action={cancel}
+          pending={cancelling}
+          error={cancelled.status === "error" ? cancelled.message : undefined}
+          disabled={busy}
+          fields={{ invitationId }}
+        />
       </div>
-      {feedback ? (
+      {resent.status !== "idle" && resent.message ? (
         <p
-          role={feedback.status === "error" ? "alert" : "status"}
+          role={resent.status === "error" ? "alert" : "status"}
           className={
-            feedback.status === "error"
-              ? "text-sm text-destructive"
-              : "text-sm text-muted-foreground"
+            resent.status === "error" ? "text-sm text-destructive" : "text-sm text-muted-foreground"
           }
         >
-          {feedback.message}
+          {resent.message}
         </p>
       ) : null}
     </div>

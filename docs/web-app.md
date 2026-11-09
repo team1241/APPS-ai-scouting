@@ -201,7 +201,7 @@ Every operator request rechecks the record, so removal takes effect on the next 
 
 **Linking.** When a signed-in account has no linked teams, `GET /web/organizations` reads the user from the Clerk Backend API. If the server-set public metadata names an approved application and one of the account's verified emails matches the application email, `claim_access_application` links the Clerk subject to the new admin member. Existing admins never trigger this Clerk call. A claimed application cannot be linked to a different account; replace a link with the revoke and approve steps above.
 
-**Rejection.** Reject asks for confirmation in place. The applicant is not notified, and the team cannot apply again. To allow a new application, an owner must delete the rejected row with the owner connection.
+**Rejection.** Reject asks for confirmation in a dialog. The applicant is not notified, and the team cannot apply again. To allow a new application, an owner must delete the rejected row with the owner connection.
 
 **Database access.** The runtime role reads `access_application` and `platform_operator` only through row-level security on `app.clerk_user_id`, and has no INSERT, UPDATE or DELETE on either table. All state changes go through the `SECURITY DEFINER` functions in `20261109010000_platform_operators.ts`, `20261109020000_operator_management.ts` and `20261109030000_operator_invitations.ts`. The runtime has no table privileges on `operator_invitation`. Those functions must be owned by the migration role, which bypasses row-level security, as the existing operator commands already require.
 
