@@ -7,31 +7,37 @@ import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import logo from "@/assets/apps-logo.png";
 
+const quietAction =
+  "inline-flex min-h-11 items-center justify-center rounded-md px-3 text-sm font-medium text-sky-soft hover:bg-white/10 hover:text-white";
+
 function HeaderContent({ signedIn = false, account }: { signedIn?: boolean; account: ReactNode }) {
   const pathname = usePathname();
   const navigationClass =
-    "inline-flex min-h-11 items-center rounded-md px-3 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-foreground aria-[current]:bg-accent aria-[current]:text-primary";
+    "relative inline-flex min-h-11 items-center rounded-md px-3 text-sm font-medium text-sky-soft hover:text-white aria-[current]:text-white aria-[current]:after:absolute aria-[current]:after:inset-x-3 aria-[current]:after:bottom-1.5 aria-[current]:after:h-0.5 aria-[current]:after:rounded-full aria-[current]:after:bg-sky";
   return (
-    <header className="border-b bg-card">
+    <header className="public-band border-b border-sky/15 bg-navy text-white">
       <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3 sm:gap-x-6 sm:px-6">
-        <div className="flex shrink-0 items-center gap-3">
-          <Link
-            href={signedIn ? "/admin" : "/"}
-            aria-label="Theory6 Apps home"
-            className="inline-flex size-11 items-center justify-center rounded-md hover:bg-accent"
-          >
-            <Image
-              src={logo}
-              alt=""
-              width={44}
-              height={43}
-              sizes="44px"
-              className="h-auto w-11"
-              preload
-            />
-          </Link>
-          <span className="hidden text-sm font-semibold sm:block">Administration</span>
-        </div>
+        <Link
+          href={signedIn ? "/admin" : "/"}
+          aria-label="Theory6 Apps home"
+          className="group inline-flex min-h-11 shrink-0 items-center gap-3 rounded-full pr-1"
+        >
+          <Image
+            src={logo}
+            alt=""
+            width={44}
+            height={44}
+            sizes="44px"
+            className="size-11 rounded-full ring-1 ring-sky/40 transition-shadow group-hover:ring-2 group-hover:ring-sky"
+            preload
+          />
+          <span className="hidden flex-col leading-none sm:flex">
+            <span className="font-extrabold text-base font-stretch-125% tracking-[-0.01em]">
+              Theory6
+            </span>
+            <span className="mt-1 text-xs font-medium text-sky">Administration</span>
+          </span>
+        </Link>
         <nav aria-label="Main navigation" className="flex flex-1 items-center gap-1">
           <Link
             href="/"
@@ -56,7 +62,7 @@ function HeaderContent({ signedIn = false, account }: { signedIn?: boolean; acco
             </Link>
           ) : null}
         </nav>
-        <div className="flex shrink-0 items-center">{account}</div>
+        <div className="flex shrink-0 items-center gap-1">{account}</div>
       </div>
     </header>
   );
@@ -64,6 +70,7 @@ function HeaderContent({ signedIn = false, account }: { signedIn?: boolean; acco
 
 function AccountHeader() {
   const { isLoaded, isSignedIn } = useAuth();
+  const pathname = usePathname();
   return (
     <HeaderContent
       signedIn={isSignedIn}
@@ -72,20 +79,30 @@ function AccountHeader() {
           <UserButton
             appearance={{
               elements: {
-                userButtonTrigger: "min-h-11 min-w-11 justify-center rounded-md p-1.5",
-                avatarBox: "size-8",
+                userButtonTrigger:
+                  "min-h-11 min-w-11 justify-center rounded-full p-1.5 focus-visible:outline-2 focus-visible:outline-sky",
+                avatarBox: "size-8 ring-1 ring-sky/50",
               },
             }}
           />
         ) : isLoaded ? (
-          <Link
-            href="/sign-in"
-            className="inline-flex min-h-11 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-          >
-            Sign in
-          </Link>
+          <>
+            {pathname === "/request-access" ? null : (
+              <Link href="/request-access" className={`${quietAction} max-sm:hidden`}>
+                Request access
+              </Link>
+            )}
+            {pathname.startsWith("/sign-in") ? null : (
+              <Link
+                href="/sign-in"
+                className="inline-flex min-h-11 items-center justify-center rounded-md bg-sky px-4 text-sm font-semibold text-navy hover:bg-sky-soft"
+              >
+                Sign in
+              </Link>
+            )}
+          </>
         ) : (
-          <span role="status" className="px-3 text-sm text-muted-foreground">
+          <span role="status" className="px-3 text-sm text-sky-soft">
             Loading account…
           </span>
         )
@@ -100,11 +117,8 @@ export function SiteHeader({ authEnabled }: { authEnabled: boolean }) {
   ) : (
     <HeaderContent
       account={
-        <Link
-          href="/#administrator-access"
-          className="inline-flex min-h-11 items-center justify-center rounded-md border px-3 text-sm font-medium hover:bg-accent"
-        >
-          Get access
+        <Link href="/request-access" className={quietAction}>
+          Request access
         </Link>
       }
     />

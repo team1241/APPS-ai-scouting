@@ -1,9 +1,11 @@
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
+import { accessApplicationRoutes } from "./access-applications.ts";
 import { createWorkerControl, eventMode } from "./event-mode.ts";
 import { extractionConfig } from "./extraction-config.ts";
 import { startExtractionWorker } from "./extraction-worker.ts";
 import { startOutboundWorker } from "./outbound-worker.ts";
+import { saveAccessApplication } from "./repositories/access-applications.ts";
 import { checkDatabase, closeDatabase } from "./repositories/database.ts";
 import { workerEvents } from "./repositories/operations.ts";
 import { adminOrganizations } from "./repositories/web-admin.ts";
@@ -13,6 +15,7 @@ import { webSessionVerifier } from "./web-auth.ts";
 
 const extraction = extractionConfig(process.env);
 const app = new Hono();
+app.route("/web/access-applications", accessApplicationRoutes({ save: saveAccessApplication }));
 app.route(
   "/web",
   webAdminRoutes({ verify: webSessionVerifier(process.env), organizations: adminOrganizations }),

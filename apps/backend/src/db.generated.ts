@@ -23,6 +23,17 @@ export type JsonValue = JsonArray | JsonObject | JsonPrimitive;
 
 export type Timestamp = ColumnType<Date, Date | string, Date | string>;
 
+export interface AccessApplication {
+  adult_attested: boolean;
+  created_at: Generated<Timestamp>;
+  email: string;
+  id: string;
+  name: string;
+  status: Generated<string>;
+  team_number: number;
+  team_role: string;
+}
+
 export interface ChannelIdentity {
   channel: string;
   created_at: Generated<Timestamp>;
@@ -289,6 +300,7 @@ export interface WebAdminAccess {
 }
 
 export interface DB {
+  access_application: AccessApplication;
   channel_identity: ChannelIdentity;
   event: Event;
   event_command: EventCommand;

@@ -24,6 +24,7 @@ Administrators use laptops and phones during busy events. They sign in through C
 
 ## Capabilities and Constraints
 
+- Public adults can request team access through `/request-access`; submissions remain pending owner/admin review and grant no membership or account. Email delivery and the owner review UI are future work.
 - Current surfaces include the app shell, sign-in, organization selection, organization workspace and privacy notice, with loading, error, empty and denied-access states.
 - Access requires explicit adult-admin approval and account linking. Clerk authentication does not grant membership; the backend determines current memberships and permissions.
 - Preserve tenant isolation and privacy boundaries. Do not add product analytics or session replay.
@@ -31,7 +32,7 @@ Administrators use laptops and phones during busy events. They sign in through C
 
 ## Brand Personality
 
-Straightforward, calm, precise. Use a simple light interface with a restrained team accent, as requested by the user.
+Straightforward, calm, precise. Admin pages use a simple light interface with a restrained team accent. The public entrance (home and request access) has more character, taken from the Theory6 Apps badge.
 
 Keep the administration interface focused on administration. Do not include scouting-process explanations or Telegram reminders in the home page, navigation or footer.
 

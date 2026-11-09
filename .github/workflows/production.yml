@@ -48,14 +48,14 @@ jobs:
           npx --yes pnpm@12.3.4 typecheck
           npx --yes pnpm@12.3.4 test:build-compat
           npx --yes pnpm@12.3.4 --filter @ai-scouting/web build
-          node --test apps/backend/src/web-auth.test.ts apps/backend/src/web-admin.test.ts apps/backend/src/event-mode.test.ts apps/backend/src/flag-command.test.ts apps/backend/src/frc-events.test.ts apps/backend/src/event-config.test.ts apps/mastra/src/mastra/observability.test.ts apps/mastra/src/mastra/workflows/session.test.ts packages/scouting/src/extraction.test.ts apps/backend/src/extraction-config.test.ts apps/backend/src/mastra-client.test.ts apps/backend/src/extraction-reply.test.ts
+          node --test apps/backend/src/access-applications.test.ts apps/web/tests/access-applications.test.ts apps/backend/src/web-auth.test.ts apps/backend/src/web-admin.test.ts apps/backend/src/event-mode.test.ts apps/backend/src/flag-command.test.ts apps/backend/src/frc-events.test.ts apps/backend/src/event-config.test.ts apps/mastra/src/mastra/observability.test.ts apps/mastra/src/mastra/workflows/session.test.ts packages/scouting/src/extraction.test.ts apps/backend/src/extraction-config.test.ts apps/backend/src/mastra-client.test.ts apps/backend/src/extraction-reply.test.ts
       - name: Migrate disposable test database
         run: |
           touch apps/backend/.env
           npx --yes pnpm@12.3.4 db:migrate
           npx --yes pnpm@12.3.4 db:types:check
       - name: Verify reference imports and schedule delivery
-        run: node --test --test-concurrency=1 apps/backend/src/web-admin.integration.test.ts apps/backend/src/worker-runtime.test.ts apps/backend/src/outbound.test.ts apps/backend/src/telegram.test.ts apps/backend/src/invitations.test.ts apps/backend/src/participation.test.ts apps/backend/src/participation.integration.test.ts apps/backend/src/reference.test.ts apps/backend/src/events.test.ts apps/backend/src/schedule-job.test.ts apps/backend/src/reference-provider.test.ts apps/backend/src/tba-event-link.test.ts apps/backend/src/schedule-policy.test.ts apps/backend/src/schedule-provider.test.ts
+        run: node --test --test-concurrency=1 apps/backend/src/access-applications.integration.test.ts apps/backend/src/web-admin.integration.test.ts apps/backend/src/worker-runtime.test.ts apps/backend/src/outbound.test.ts apps/backend/src/telegram.test.ts apps/backend/src/invitations.test.ts apps/backend/src/participation.test.ts apps/backend/src/participation.integration.test.ts apps/backend/src/reference.test.ts apps/backend/src/events.test.ts apps/backend/src/schedule-job.test.ts apps/backend/src/reference-provider.test.ts apps/backend/src/tba-event-link.test.ts apps/backend/src/schedule-policy.test.ts apps/backend/src/schedule-provider.test.ts
 
       - name: Simulate event and verify full database restore
         env:
