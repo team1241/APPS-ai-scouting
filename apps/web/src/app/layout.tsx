@@ -52,6 +52,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             telemetry={false}
             signInUrl="/sign-in"
             signInFallbackRedirectUrl="/admin"
+            signUpUrl="/sign-up"
+            signUpFallbackRedirectUrl="/admin"
             afterSignOutUrl="/"
           >
             {content}

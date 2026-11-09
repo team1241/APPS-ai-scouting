@@ -18,10 +18,25 @@ const metadataKey = "accessApplicationId";
 const operatorMetadataKey = "operatorInvitationId";
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+// Invitations land on the web app's /sign-up page, which accepts the Clerk
+// ticket. Without it, Clerk's hosted portal ends on a generic redirect page.
+export function invitationRedirectUrl(env: NodeJS.ProcessEnv) {
+  const explicit = env.WEB_INVITATION_REDIRECT_URL?.trim();
+  const origin = env.WEB_ORIGINS?.split(",")
+    .map((value) => value.trim())
+    .find(Boolean);
+  try {
+    if (explicit) return new URL(explicit).toString();
+    return origin ? new URL("/sign-up", origin).toString() : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export function clerkAccounts(env: NodeJS.ProcessEnv): ClerkAccounts | null {
   if (!env.CLERK_SECRET_KEY) return null;
   const clerk = createClerkClient({ secretKey: env.CLERK_SECRET_KEY });
-  const redirectUrl = env.WEB_INVITATION_REDIRECT_URL || undefined;
+  const redirectUrl = invitationRedirectUrl(env);
   return {
     async invite({ email, applicationId, resend }) {
       const invitation = await clerk.invitations.createInvitation({
