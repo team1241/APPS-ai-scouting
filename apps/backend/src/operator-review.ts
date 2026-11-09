@@ -1,7 +1,15 @@
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
+import { ProviderUnavailable, type SecretCipher } from "./api-keys.ts";
 import type { ClerkAccounts } from "./clerk-accounts.ts";
 import { uuidPattern } from "./event-config.ts";
+import type {
+  DirectoryPage,
+  DirectoryTeamDetail,
+  OperatorRevokeOutcome,
+  RemoveAdminOutcome,
+  RevealOutcome,
+} from "./repositories/operator-teams.ts";
 import type {
   ApproveOutcome,
   OperatorInvitation,
@@ -52,6 +60,20 @@ export interface OperatorDeps {
     clerkInvitationId: string | null;
   }>;
   accounts: ClerkAccounts | null;
+  // Read-only directory of every team (#41).
+  directory: {
+    list: (subject: string, search: string, page: number) => Promise<DirectoryPage>;
+    team: (subject: string, org: string) => Promise<DirectoryTeamDetail | undefined>;
+    reveal: (subject: string, org: string, id: string) => Promise<RevealOutcome>;
+    pageSize: number;
+    // Null when API keys are not configured. Key values then cannot be shown.
+    cipher: SecretCipher | null;
+    // Null when API keys are not configured. Keys then cannot be revoked.
+    revokeKey:
+      | ((subject: string, org: string, id: string) => Promise<OperatorRevokeOutcome>)
+      | null;
+    removeAdmin: (subject: string, org: string, memberId: string) => Promise<RemoveAdminOutcome>;
+  };
 }
 
 const clerkUserPattern = /^user_[A-Za-z0-9]+$/;
@@ -76,7 +98,9 @@ export function operatorRoutes(deps: OperatorDeps) {
     c.set("profile", profile);
     await next();
   });
-  app.onError((_error, c) => c.json({ error: "Application review unavailable" }, 503));
+  app.onError((_error, c) =>
+    c.json({ error: "Operator tools are unavailable. Try again shortly." }, 503),
+  );
 
   // Sends the Clerk invitation after the approval commits. A failure leaves the
   // team provisioned and the operator can retry from the review page.
@@ -267,6 +291,96 @@ export function operatorRoutes(deps: OperatorDeps) {
         .revokeInvitation(result.clerkInvitationId)
         .catch(() => console.error("Clerk invitation revoke failed"));
     return c.json({ cancelled: true });
+  });
+
+  app.get("/teams", async (c) => {
+    const search = (c.req.query("q") ?? "").trim();
+    if (search.length > 120 || /\p{Cc}/u.test(search))
+      return c.json({ error: "Search with 120 characters or fewer." }, 400);
+    const pageText = c.req.query("page") ?? "1";
+    const page = /^[1-9][0-9]{0,4}$/.test(pageText) ? Number(pageText) : 0;
+    if (!page) return c.json({ error: "Page not found." }, 400);
+    const result = await deps.directory.list(c.get("subject"), search, page);
+    return c.json({ ...result, page, pageSize: deps.directory.pageSize });
+  });
+  app.get("/teams/:id", async (c) => {
+    const id = c.req.param("id");
+    if (!uuidPattern.test(id)) return c.json({ error: "Team not found." }, 404);
+    const detail = await deps.directory.team(c.get("subject"), id);
+    if (!detail) return c.json({ error: "Team not found." }, 404);
+    return c.json(detail);
+  });
+  // POST, so the value never sits in a URL, a cache or browser history.
+  app.post("/teams/:id/api-keys/:keyId/reveal", async (c) => {
+    const org = c.req.param("id");
+    const keyId = c.req.param("keyId");
+    if (!uuidPattern.test(org) || !uuidPattern.test(keyId))
+      return c.json({ error: "Key not found." }, 404);
+    const result = await deps.directory.reveal(c.get("subject"), org, keyId);
+    if (result.outcome !== "revealed") {
+      if (result.outcome === "forbidden") return c.json({ error: "Operator access required" }, 403);
+      if (result.outcome === "not_found") return c.json({ error: "Key not found." }, 404);
+      return c.json(
+        { error: "This key was revoked. Its value was erased and can’t be shown." },
+        409,
+      );
+    }
+    if (!deps.directory.cipher)
+      return c.json(
+        { error: "Key values are unavailable because API keys are not configured." },
+        503,
+      );
+    let secret: string;
+    try {
+      secret = deps.directory.cipher.decrypt(result.ciphertext);
+    } catch {
+      // Never log the ciphertext or the error, which can hold key material.
+      console.error("Operator key decryption failed");
+      return c.json({ error: "This key’s stored value can’t be read." }, 503);
+    }
+    return c.json({ secret });
+  });
+  app.post("/teams/:id/api-keys/:keyId/revoke", async (c) => {
+    const org = c.req.param("id");
+    const keyId = c.req.param("keyId");
+    if (!uuidPattern.test(org) || !uuidPattern.test(keyId))
+      return c.json({ error: "Key not found." }, 404);
+    if (!deps.directory.revokeKey)
+      return c.json({ error: "Keys can’t be revoked because API keys are not configured." }, 503);
+    let outcome: OperatorRevokeOutcome;
+    try {
+      outcome = await deps.directory.revokeKey(c.get("subject"), org, keyId);
+    } catch (error) {
+      if (!(error instanceof ProviderUnavailable)) throw error;
+      console.error("Operator key revoke failed at the provider");
+      return c.json(
+        { error: "The key service didn’t respond. The key is still active. Try again." },
+        502,
+      );
+    }
+    if (outcome === "forbidden") return c.json({ error: "Operator access required" }, 403);
+    if (outcome === "not_found") return c.json({ error: "Key not found." }, 404);
+    // Already revoked is the outcome the operator asked for.
+    return c.json({ revoked: true });
+  });
+  app.post("/teams/:id/administrators/:memberId/remove", async (c) => {
+    const org = c.req.param("id");
+    const memberId = c.req.param("memberId");
+    if (!uuidPattern.test(org) || !uuidPattern.test(memberId))
+      return c.json({ error: "Administrator not found." }, 404);
+    const result = await deps.directory.removeAdmin(c.get("subject"), org, memberId);
+    if (result.outcome !== "removed") {
+      if (result.outcome === "forbidden") return c.json({ error: "Operator access required" }, 403);
+      return c.json({ error: "This person is no longer an administrator of the team." }, 404);
+    }
+    // The invitations are already closed in the database, so a failed Clerk
+    // revoke leaves only a link that can't be accepted.
+    if (deps.accounts)
+      for (const id of result.clerkInvitationIds)
+        await deps.accounts
+          .revokeInvitation(id)
+          .catch(() => console.error("Clerk invitation revoke failed"));
+    return c.json({ removed: true });
   });
   return app;
 }

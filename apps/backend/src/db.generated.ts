@@ -51,6 +51,7 @@ export interface ApiKey {
   rate_limit_per_minute: number;
   revoked_at: Timestamp | null;
   revoked_by: string | null;
+  revoked_by_operator: string | null;
   secret_ciphertext: string | null;
   start: string;
 }
@@ -192,6 +193,15 @@ export interface OperatorInvitation {
   invited_by: string;
   name: string;
   revoked_at: Timestamp | null;
+}
+
+export interface OperatorTeamAction {
+  action: string;
+  created_at: Generated<Timestamp>;
+  id: Generated<string>;
+  operator: string;
+  organization_id: string;
+  target_id: string;
 }
 
 export interface Organization {
@@ -395,6 +405,7 @@ export interface DB {
   observation_flag: ObservationFlag;
   observation_revision: ObservationRevision;
   operator_invitation: OperatorInvitation;
+  operator_team_action: OperatorTeamAction;
   organization: Organization;
   organization_event_setting: OrganizationEventSetting;
   outbound_delivery: OutboundDelivery;

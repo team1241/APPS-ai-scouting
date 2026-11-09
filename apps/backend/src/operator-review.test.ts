@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
+import { randomBytes } from "node:crypto";
 import { test } from "node:test";
+import { ProviderUnavailable, secretCipher } from "./api-keys.ts";
 import { type OperatorDeps, operatorRoutes } from "./operator-review.ts";
 
 const id = "00000000-0000-4000-8000-000000000033";
@@ -39,6 +41,15 @@ function deps(overrides: Partial<OperatorDeps> = {}): OperatorDeps {
       inviteOperator: async () => "inv_op",
       revokeInvitation: async () => {},
       findVerifiedUser: async () => "user_new",
+    },
+    directory: {
+      list: async () => ({ teams: [], total: 0 }),
+      team: async () => undefined,
+      reveal: async () => ({ outcome: "not_found" }),
+      pageSize: 25,
+      cipher: null,
+      revokeKey: async () => "revoked",
+      removeAdmin: async () => ({ outcome: "removed", clerkInvitationIds: [] }),
     },
     ...overrides,
   };
@@ -197,7 +208,9 @@ test("review conflicts and invitation failures return safe, specific results", a
   );
   const error = await broken.request("/applications?status=pending", { headers });
   assert.equal(error.status, 503);
-  assert.deepEqual(await error.json(), { error: "Application review unavailable" });
+  assert.deepEqual(await error.json(), {
+    error: "Operator tools are unavailable. Try again shortly.",
+  });
 });
 
 test("operators list, add by verified email and remove others", async () => {
@@ -457,4 +470,189 @@ test("operators list, resend and cancel invitations", async () => {
       .status,
     404,
   );
+});
+
+const org = "00000000-0000-4000-8000-000000000041";
+const keyId = "00000000-0000-4000-8000-000000000042";
+const reveal = (app: ReturnType<typeof operatorRoutes>, path = `/teams/${org}/api-keys/${keyId}`) =>
+  app.request(`${path}/reveal`, { method: "POST", headers });
+
+test("the team directory needs a current operator and validates search and paging", async () => {
+  const calls: string[] = [];
+  const directory = deps().directory;
+  const app = operatorRoutes(
+    deps({
+      directory: {
+        ...directory,
+        list: async (subject, search, page) => {
+          calls.push(`${subject}:${search}:${page}`);
+          return { teams: [], total: 30 };
+        },
+      },
+    }),
+  );
+  assert.equal((await app.request("/teams")).status, 401);
+  const notOperator = operatorRoutes(deps({ profile: async () => undefined }));
+  for (const path of ["/teams", `/teams/${org}`])
+    assert.equal((await notOperator.request(path, { headers })).status, 403);
+  assert.equal((await reveal(notOperator)).status, 403);
+
+  const response = await app.request("/teams?q=%201241%20&page=2", { headers });
+  assert.equal(response.headers.get("cache-control"), "private, no-store");
+  assert.deepEqual(await response.json(), { teams: [], total: 30, page: 2, pageSize: 25 });
+  await app.request("/teams", { headers });
+  for (const query of ["page=0", "page=-1", "page=abc", "page=999999", `q=${"x".repeat(121)}`])
+    assert.equal((await app.request(`/teams?${query}`, { headers })).status, 400);
+  assert.equal((await app.request("/teams?q=%07", { headers })).status, 400);
+  assert.deepEqual(calls, ["user_operator:1241:2", "user_operator::1"]);
+});
+
+test("team detail returns 404 for unknown and malformed teams", async () => {
+  const detail = {
+    team: { id: org, name: "Team 1241", teamNumber: 1241, createdAt: "2026-11-01T00:00:00.000Z" },
+    administrators: [],
+    invitations: [],
+    keys: [],
+  };
+  const app = operatorRoutes(
+    deps({
+      directory: {
+        ...deps().directory,
+        team: async (subject, id) =>
+          subject === "user_operator" && id === org ? detail : undefined,
+      },
+    }),
+  );
+  assert.deepEqual(await (await app.request(`/teams/${org}`, { headers })).json(), detail);
+  assert.equal((await app.request(`/teams/${keyId}`, { headers })).status, 404);
+  assert.equal((await app.request("/teams/not-a-uuid", { headers })).status, 404);
+});
+
+test("key reveal decrypts one active key and never returns erased or unreadable values", async () => {
+  const cipher = secretCipher(randomBytes(32).toString("base64"));
+  let outcome: Awaited<ReturnType<OperatorDeps["directory"]["reveal"]>> = {
+    outcome: "revealed",
+    ciphertext: cipher.encrypt("scout_secret"),
+  };
+  const calls: string[] = [];
+  const directory = {
+    ...deps().directory,
+    cipher,
+    reveal: async (subject: string, team: string, id: string) => {
+      calls.push(`${subject}:${team}:${id}`);
+      return outcome;
+    },
+  };
+  const app = operatorRoutes(deps({ directory }));
+  const response = await reveal(app);
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("cache-control"), "private, no-store");
+  assert.deepEqual(await response.json(), { secret: "scout_secret" });
+  assert.deepEqual(calls, [`user_operator:${org}:${keyId}`]);
+  // GET does not reveal, so values cannot leak through links or prefetching.
+  assert.equal(
+    (await app.request(`/teams/${org}/api-keys/${keyId}/reveal`, { headers })).status,
+    404,
+  );
+  assert.equal((await reveal(app, `/teams/${org}/api-keys/nope`)).status, 404);
+
+  outcome = { outcome: "revoked" };
+  const revoked = await reveal(app);
+  assert.equal(revoked.status, 409);
+  assert.doesNotMatch(await revoked.text(), /scout_/);
+  outcome = { outcome: "not_found" };
+  assert.equal((await reveal(app)).status, 404);
+  outcome = { outcome: "forbidden" };
+  assert.equal((await reveal(app)).status, 403);
+
+  outcome = { outcome: "revealed", ciphertext: "v1:bad:data:here" };
+  const unreadable = await reveal(app);
+  assert.equal(unreadable.status, 503);
+  outcome = { outcome: "revealed", ciphertext: cipher.encrypt("scout_secret") };
+  const unconfigured = operatorRoutes(deps({ directory: { ...directory, cipher: null } }));
+  const missing = await reveal(unconfigured);
+  assert.equal(missing.status, 503);
+  assert.doesNotMatch(await missing.text(), /scout_/);
+});
+
+const memberId = "00000000-0000-4000-8000-000000000043";
+const post = (app: ReturnType<typeof operatorRoutes>, path: string) =>
+  app.request(path, { method: "POST", headers });
+
+test("operators revoke any team's key; provider failures keep it active", async () => {
+  const calls: string[] = [];
+  let outcome: "revoked" | "already_revoked" | "forbidden" | "not_found" | Error = "revoked";
+  const app = operatorRoutes(
+    deps({
+      directory: {
+        ...deps().directory,
+        revokeKey: async (subject, team, id) => {
+          calls.push(`${subject}:${team}:${id}`);
+          if (outcome instanceof Error) throw outcome;
+          return outcome;
+        },
+      },
+    }),
+  );
+  const path = `/teams/${org}/api-keys/${keyId}/revoke`;
+  assert.deepEqual(await (await post(app, path)).json(), { revoked: true });
+  assert.deepEqual(calls, [`user_operator:${org}:${keyId}`]);
+  outcome = "already_revoked";
+  assert.equal((await post(app, path)).status, 200);
+  outcome = "not_found";
+  assert.equal((await post(app, path)).status, 404);
+  outcome = "forbidden";
+  assert.equal((await post(app, path)).status, 403);
+  outcome = new ProviderUnavailable("down");
+  const failed = await post(app, path);
+  assert.equal(failed.status, 502);
+  assert.match((await failed.json()).error, /still active/);
+  assert.equal((await post(app, `/teams/${org}/api-keys/nope/revoke`)).status, 404);
+  assert.equal((await app.request(path, { method: "POST" })).status, 401, "a session is required");
+  const notOperator = operatorRoutes(deps({ profile: async () => undefined }));
+  assert.equal((await post(notOperator, path)).status, 403);
+  const unconfigured = operatorRoutes(
+    deps({ directory: { ...deps().directory, revokeKey: null } }),
+  );
+  assert.equal((await post(unconfigured, path)).status, 503);
+});
+
+test("operators remove any team admin and their open Clerk invitations are revoked", async () => {
+  const revoked: string[] = [];
+  let result: Awaited<ReturnType<OperatorDeps["directory"]["removeAdmin"]>> = {
+    outcome: "removed",
+    clerkInvitationIds: ["inv_a", "inv_b"],
+  };
+  const calls: string[] = [];
+  const base = deps();
+  const app = operatorRoutes(
+    deps({
+      accounts: base.accounts && {
+        ...base.accounts,
+        revokeInvitation: async (id) => {
+          revoked.push(id);
+          if (id === "inv_a") throw Error("clerk down");
+        },
+      },
+      directory: {
+        ...base.directory,
+        removeAdmin: async (subject, team, member) => {
+          calls.push(`${subject}:${team}:${member}`);
+          return result;
+        },
+      },
+    }),
+  );
+  const path = `/teams/${org}/administrators/${memberId}/remove`;
+  // A failed Clerk revoke does not undo the removal.
+  assert.deepEqual(await (await post(app, path)).json(), { removed: true });
+  assert.deepEqual(calls, [`user_operator:${org}:${memberId}`]);
+  assert.deepEqual(revoked, ["inv_a", "inv_b"]);
+  result = { outcome: "not_found" };
+  assert.equal((await post(app, path)).status, 404);
+  result = { outcome: "forbidden" };
+  assert.equal((await post(app, path)).status, 403);
+  assert.equal((await post(app, `/teams/${org}/administrators/x/remove`)).status, 404);
+  const notOperator = operatorRoutes(deps({ profile: async () => undefined }));
+  assert.equal((await post(notOperator, path)).status, 403);
 });

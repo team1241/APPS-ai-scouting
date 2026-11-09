@@ -23,7 +23,7 @@ export default async function OperatorsPage() {
   const now = Date.now();
   return (
     <main id="main" className="mx-auto max-w-3xl space-y-10 px-6 py-12">
-      <PageHeading description="Operators review access applications and manage this list. They don’t get access to any team’s data.">
+      <PageHeading description="Operators review access applications, manage this list, and can remove any team’s administrators and revoke its API keys. They are not members of any team.">
         Operators
       </PageHeading>
       {operators === null || invitations === null ? (

@@ -193,7 +193,7 @@ Use the command for the first operator. After that, operators manage the list at
 - **Remove:** any other operator, after a confirmation dialog. An operator cannot remove themselves, so at least one always remains.
 - Each record shows who added it ("setup command" for CLI additions).
 
-Every operator request rechecks the record, so removal takes effect on the next request. Operators see an Operator item in the main navigation, with a count of waiting applications, and an operator navigation row with Applications and Operators. An operator with no team is sent from team selection to `/operator`.
+Every operator request rechecks the record, so removal takes effect on the next request. Operators see an Operator item in the main navigation, with a count of waiting applications, and an operator navigation row with Applications, All teams (#41) and Operators. An operator with no team is sent from team selection to `/operator`.
 
 **Submission.** `POST /web/access-applications` calls `submit_access_application`. A retry of the same submission ID returns the same receipt. A new application for a team number that already has a pending, rejected or approved application, or an existing organization, gets HTTP 409 and a team-number error on the form. This tells the applicant that the team has a record; this was an explicit product decision.
 
@@ -244,3 +244,43 @@ Use team 1241 and two test addresses you control.
 6. Remove the test admins with the revoke command above, and delete the test Clerk accounts.
 
 Validation covers route authorization, input validation, Clerk delivery failure, resend and cancel ordering, and, against disposable Postgres, tenant isolation, forged team IDs, new and existing accounts, other teams' admins, operators, existing links, Telegram members, concurrent acceptance, expiry, cancellation, resend and inviter revocation. The UI was checked with fixture data at desktop and phone widths, with keyboard focus in the invite dialog. A live Clerk invitation was not tested end to end.
+
+## Operator team directory
+
+Issue #41 gives platform operators a view of every registered team at `/operator/teams` ("All teams" in the operator navigation). From it, operators can revoke any team's API key and remove any team administrator. Operators do not need to be members of a team, and opening a team never adds them to it. Pending and rejected access applications stay on `/operator`; this list shows only organizations.
+
+**List.** Teams are ordered by team number, 25 to a page, with Previous and Next links. Search matches the start of the team number or any part of the name, case-insensitive; `%` and `_` match literally. Each row shows the team number, name, registration date, admin count, signed-in web admin count and active key count. A "No signed-in admin" badge marks teams with no linked web admin, and a badge counts open admin invitations.
+
+**Team detail.** `/operator/teams/<organization>` shows:
+
+- **Administrators:** every `admin` member, with "Signed in" (adult approval linked to an account), "Not signed in yet" (approved, not linked) or "No web access" (an admin member with no web approval). Open, unexpired admin invitations follow with name, inviter, expiry and the same status labels as the team's own list. Operator views never show invitee emails or Clerk account IDs, and reading the list does not close expired invitations.
+- **API keys:** active keys first, then up to 50 revoked keys, with name, start, creation date, rate limit and status. Active values are masked. Show or Copy calls `POST /web/operator/teams/<organization>/api-keys/<key>/reveal` for that one key. Hide drops the value from the page. Revoked keys say their value was erased; there is nothing to recover. Operators cannot create keys.
+
+**Revoking a key.** Revoke opens a confirmation dialog, then calls `POST /web/operator/teams/<organization>/api-keys/<key>/revoke`. In one transaction, `lock_operator_api_key` locks the active key, the backend deletes it in Unkey, and `complete_operator_api_key_revoke` marks it revoked, erases the stored value and records the operator in `revoked_by_operator`. If Unkey fails, the transaction rolls back, the key stays active and the operator sees a 502 with a retry message. Revoking a key that is already revoked succeeds without calling Unkey. The team's admins are not notified.
+
+**Removing an administrator.** Remove opens a confirmation dialog, then calls `POST /web/operator/teams/<organization>/administrators/<member>/remove`. `remove_operator_team_admin` deletes the member's `web_admin_access` row, changes the member's role from `admin` to `scout`, and cancels the pending admin invitations they sent, in one transaction. The member row, Telegram identity and scouting history stay. The backend then revokes the cancelled invitations in Clerk; a failed Clerk call leaves only a link that cannot be accepted. The removed person loses web access and admin rights on their next request. Operators can remove the last administrator, and admins with no web approval. To restore someone, another admin of the team invites them again, or an owner uses the setup commands.
+
+**Audit.** Each revoke and removal adds a row to `operator_team_action` with the operator's Clerk ID, the team, the action and the key or member ID. The runtime role has no privileges on that table.
+
+**Secrets.** The list and detail responses never contain key values or ciphertext. The reveal route is POST only, returns `Cache-Control: private, no-store` like every operator route, and is called from a server action, so the value is not in a URL, page payload, shared cache or browser history. The backend does not log the value, the ciphertext or decryption errors. A revoked key returns 409, an unknown key or a key from another team returns 404. If API keys are not configured, or the stored value cannot be decrypted (for example after `API_KEY_ENCRYPTION_KEY` changed), the route returns 503 with a clear message.
+
+**Authorization.** Every request passes the operator route check (verified Clerk session and a current `platform_operator` row), and each database function rechecks the operator with `is_platform_operator`. Removing an operator blocks their next request. Team admins and other accounts get 403 from the routes, and the functions return no rows or `forbidden`. Team-admin key and administrator endpoints are unchanged and remain tenant-scoped.
+
+**Database access.** Migration `20261109080000_operator_team_changes.ts` adds `lock_operator_api_key`, `complete_operator_api_key_revoke`, `remove_operator_team_admin`, the `operator_team_action` table and the `api_key.revoked_by_operator` column. Migration `20261109070000_operator_team_directory.ts` adds `SECURITY DEFINER` functions (`list_operator_teams`, `operator_team`, `list_operator_team_admins`, `list_operator_team_admin_invitations`, `list_operator_api_keys`, `reveal_operator_api_key`) and grants only those to `ai_scouting_backend`. The runtime role gets no new table privileges, and `is_platform_operator` is not granted. The functions must be owned by the migration role, which bypasses row-level security. Page size is capped at 50 in the database.
+
+### Deployment
+
+1. Merge to `main`. The `Production readiness` workflow applies migrations `20261109070000_operator_team_directory` and `20261109080000_operator_team_changes` and checks generated types. They add functions, one table and one nullable column, so the previous backend keeps working during rollout.
+2. Deploy the web app on Vercel.
+3. No new environment variables. Key reveal uses the existing `API_KEY_ENCRYPTION_KEY`, and revoke uses the existing Unkey settings. Without them, reveal and revoke return 503.
+
+### Production smoke test
+
+1. As an operator, open All teams. Confirm team 1241 is listed with its admin and key counts, and that search by `1241` and by part of the name finds it.
+2. Open team 1241. Confirm admin statuses match the team's own Administrators section, and that no emails appear.
+3. Select Show on an active key and compare its start with the team workspace. Select Hide, then Copy, and paste to confirm. A revoked key has no Show or Copy.
+4. Have a team 1241 admin create a test key. Revoke it from the operator view. Confirm it shows as revoked, it is gone from the team workspace, and a data API request with it fails.
+5. Have a team 1241 admin invite a test administrator who accepts. Remove that administrator from the operator view. Confirm they can no longer open the team, and that the team's other admins are unaffected.
+6. Sign in as a team 1241 admin who is not an operator. `/operator/teams` returns the not-found page.
+
+Validation covers route authorization, search and paging input, reveal outcomes and decryption failure, revoke and remove outcomes including provider and Clerk failures, and, against disposable Postgres, revoke ordering and rollback, admin removal (demotion, kept identity, cancelled invitations, last admin, audit rows), directory completeness, teams with no admins or keys, search, paging bounds, admin web-access status, invitation privacy, active and revoked keys, cross-team key isolation, operator revocation, ordinary-admin denial and runtime-role privileges. The UI was checked with fixture data from the real backend routes at desktop and phone widths. Live Clerk sign-in was not used.
