@@ -40,6 +40,7 @@ import {
   revokeOperator,
   revokeOperatorInvitation,
 } from "./repositories/operators.ts";
+import { scoutingReads } from "./repositories/scouting-data.ts";
 import {
   acceptTeamAdminInvitation,
   accountTeamAdminInvitations,
@@ -152,6 +153,7 @@ app.route(
     verify: apiKeys && ((key) => apiKeys.provider.verify(key)),
     active: activeApiKey,
     organization: organizationProfile,
+    scouting: scoutingReads,
   }),
 );
 

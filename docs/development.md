@@ -10,6 +10,19 @@ Copy each app's `.env.example` to its ignored `.env`, and fill credentials priva
 
 Run `pnpm dev` to start both applications. Backend development startup first applies pending migrations to its configured development database and regenerates types; failure prevents the backend from starting. Restart the dev command after adding a migration. Production `start` intentionally uses the restricted runtime role and does not migrate. For a Telegram test, the backend, Mastra, and a public tunnel must all remain running. Environment changes require restarting the affected process.
 
+## Automated tests
+
+Run `pnpm test` from the repository root to discover and run all test files,
+including TypeScript tests and the Mastra build compatibility tests. Node's test
+runner skips `node_modules`; new tests following the existing `.test.ts` or
+`.test.mjs` naming convention are included automatically. Test files run serially
+because database suites share fixtures and database roles.
+
+Set `DATABASE_URL` to a disposable local PostgreSQL 17 database with an owner
+connection, and apply migrations with `pnpm db:migrate` before running the suite.
+CI provisions and migrates its test database before invoking the same command.
+The event simulation and backup/restore drills remain separate workflow steps.
+
 ## Local Telegram setup
 
 Run these commands from `apps/backend`:

@@ -300,6 +300,7 @@ export function finishExtraction(
       .set({
         status: result.status === "complete" ? "done" : "needs_review",
         extraction_result: JSON.stringify(result),
+        extracted_at: new Date(),
         follow_up_message_id: result.question
           ? (messageId ?? raw.follow_up_message_id)
           : raw.follow_up_message_id,
