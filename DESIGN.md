@@ -2,25 +2,27 @@
 
 ## Visual direction
 
-Adult team leads use laptops in brightly lit event venues and phones between tasks. Use a light, restrained interface with clear grouping and a single blue action accent. The accent is a starting token, not an assertion of official team branding.
+Adult team leads use laptops in brightly lit event venues and phones between tasks. Two registers share one system. A navy frame (header, footer and the public entrance band) carries the character of the Theory6 Apps badge: navy, sky blue and circuit linework. Admin content inside the frame stays light and restrained, with clear grouping and a blue action accent. The colours come from the badge; they do not assert any FRC team's branding.
 
 ## Foundation
 
-Next.js App Router with Tailwind CSS and locally owned shadcn/ui New York components. Archivo is the shared sans-serif for headings, body text, controls and Clerk components. Load the Latin variable font through `next/font/google` with swap display and metric-adjusted fallback; Next.js serves the font from the app rather than making browser requests to Google. Use regular weight for body copy, medium/semibold for controls and bold for the home heading. Semantic HTML and a compact typography scale remain the foundation. Colors use OKLCH CSS variables in `apps/web/src/app/globals.css`.
+Next.js App Router with Tailwind CSS and locally owned shadcn/ui New York components. Archivo is the shared sans-serif for headings, body text, controls and Clerk components. Load the Latin variable font, with its width (`wdth`) axis, through `next/font/google` with swap display and metric-adjusted fallback; Next.js serves the font from the app rather than making browser requests to Google. Use regular weight for body copy and medium/semibold for controls. Display headings and wordmarks use extra-bold at width 125 (`font-stretch-125%`), shared through `displayHeading`. Semantic HTML and a compact typography scale remain the foundation. Colors use OKLCH CSS variables in `apps/web/src/app/globals.css`, including `--navy`, `--navy-raised`, `--sky` and `--sky-soft` for the frame. Text selection uses the sky tint.
 
 ## Components and layout
 
-Buttons and cards live in `apps/web/src/components/ui`. Keep corners at 8–12px, use borders rather than decorative shadows, and reserve the accent for actions and selection. Desktop content is centered; organization rows remain readable and clickable on phones. Error, denied-access, loading and empty states use plain actionable language.
+Buttons and cards live in `apps/web/src/components/ui`. Keep corners at 8–12px and reserve the accent for actions and selection. Admin surfaces use borders, not decorative shadows. The one exception is a public card that overlaps the navy band (request form, Clerk sign-in): it uses a soft navy shadow and no border. Desktop content is centered; organization rows remain readable and clickable on phones. Error, denied-access, loading and empty states use plain actionable language.
+
+The public access application uses TanStack Form with Zod validation and shadcn Field, Input, Select and Checkbox components. The page heading leads directly into the form without introductory paragraphs. Controls have visible labels and focus, with full-width fields and a full-width primary action on phones. Validation uses inline FieldError messages and focuses the first invalid control; server failures add an actionable error summary; service failure preserves entered values. Pending submission disables the controls and names the operation. A successful submission replaces the form, inside the same card, with a receipt that distinguishes pending review from granted access.
 
 ## Accessibility
 
-Visible keyboard focus, a skip link, semantic headings, labeled actions, reduced-motion-aware loading and text status alongside any visual state. Do not add unnecessary motion, profile displays, analytics or session replay.
+Visible keyboard focus, a skip link, semantic headings, labeled actions, reduced-motion-aware loading and text status alongside any visual state. The circuit traces' one-time draw-in is the only decorative motion, and it is off under reduced motion. Do not add other unnecessary motion, profile displays, analytics or session replay.
 
 ## Administration navigation
 
-The supplied Theory6 Apps logo (`apps/web/src/assets/apps-logo.png`) is the header's home link, with an accessible name and visible focus. It returns signed-in users to team selection and signed-out users to the public entrance. Keep the artwork intact within a 44px area, with its natural aspect ratio. A quiet Administration label identifies the product on wider screens.
+The header and footer are navy on every page and frame the light admin content. The header shows the supplied Theory6 Apps logo (`apps/web/src/assets/apps-logo.png`), clipped to its circle at 44px, with a "Theory6" wordmark (Archivo width 125) and a sky "Administration" label on wider screens. Together they are the home link, with an accessible name and visible focus. It returns signed-in users to team selection and signed-out users to the public entrance.
 
-The header must expose labeled navigation: Home, and Teams when signed in, with the current location indicated. Show Sign in when signed out and authentication is available; while account state loads, show a short loading status. Without authentication configuration, Get access links to the visible administrator-access section. Do not leave the logo as the only usable header element. Omit scouting-process explanations and Telegram reminders from the ordinary administration interface.
+The header exposes labeled navigation: Home, and Teams when signed in. The current location has white text and a sky underline. Signed-out users see a quiet Request access link (hidden on phones and on the request page) and a sky Sign in button. While account state loads, show a short loading status. The footer shows the Theory6 Apps wordmark and the Privacy link. Do not leave the logo as the only usable header element. Omit scouting-process explanations and Telegram reminders from the ordinary administration interface.
 
 Signed-in users have the Clerk profile button in the same header position across screens; account settings and sign-out live in its menu. This is the requested account control, not an additional profile display. Privacy remains available in the footer.
 
@@ -28,8 +30,17 @@ Inside a workspace, a secondary navigation row displays the current backend-auth
 
 Team-selection lists clip hover backgrounds to their rounded container. Row focus outlines sit inside the row so keyboard focus remains visible within that clipping.
 
-## Home access layout
+## Public entrance
 
-The home page is a compact product entrance aligned with the header's content edge (`max-w-5xl`, 24px horizontal padding). It has no enclosing card. Use direct product copy: “Team administration”, followed by “Sign in to choose your team.” and a prominent Sign in action linking to Clerk's sign-in route. Set the Archivo heading in bold foreground text, at 36px on phones and 60px on wider screens, with balanced wrapping instead of a forced line break. Reserve the blue accent for the action.
+The signed-out home page, `/sign-in` and `/request-access` share a navy entrance band (`PublicBand`, `apps/web/src/components/public-band.tsx`). Its character comes from the Theory6 Apps badge: navy (`--navy`), sky blue (`--sky`, `--sky-soft`), circuit-trace linework and the mascot badge. The admin pages keep the light interface.
 
-Keep approved-adult eligibility visible in one short line. Put age, Canadian-team and team-lead approval details in a native Access requirements disclosure beneath it. The action and disclosure share a compact measure (`max-w-md`); the action fills that measure on phones and fits its label on larger screens. Preserve one reading path, the existing light palette and typography, and the footer privacy link. Do not add scouting-process copy or promotional feature claims.
+- Headings use Archivo at width 125 and extra-bold weight, with the second word in sky blue. No gradient text.
+- `CircuitTraces` is authored SVG geometry at low opacity. It draws in once on load and is static under reduced motion. On phones a mask keeps the traces away from text and actions.
+- The badge is clipped to its own circle. The home page has no badge in the band; the header logo is enough. The sign-in and request pages show a small badge on wider screens only. The supplied logo has no transparency, so the circle clip trims the edge of the “6”; a transparent export would fix this.
+- On the band, the primary action is sky blue with navy text; the secondary action is outlined in sky. Focus rings are sky blue with a navy offset.
+
+Home: the band fills the space between header and footer. “Team administration” and “Sign in to choose your team.”, then Sign in and Request access, in one left-aligned column. A strip along the bottom of the band holds the approved-adult line and the native Access requirements disclosure. Sign in always shows, so every environment, including local worktrees, needs the Clerk keys in `apps/web/.env.local`. Do not add scouting-process copy or promotional claims.
+
+Sign in: the band holds “Welcome back” and the one-line approval note. The Clerk SignIn card overlaps the band edge like the request form, themed through `appearance` (hex copies of navy and foreground, Archivo, navy flat primary button, 44px controls). Clerk's own header is hidden because the band carries the heading. The site header omits its Sign in button on this page.
+
+Request access: the band holds only the heading. The form sits in a white card (12px radius, soft navy shadow, no border) that overlaps the band edge. The submit action is navy. The receipt replaces the form inside the same card with a sky check mark; do not nest a second card.
