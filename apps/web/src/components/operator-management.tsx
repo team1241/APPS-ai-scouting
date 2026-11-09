@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState, useEffect, useRef } from "react";
+import { UserPlus } from "lucide-react";
+import { useActionState, useCallback, useEffect, useRef, useState } from "react";
 import {
   addOperator,
   cancelOperatorInvitation,
@@ -12,6 +13,16 @@ import {
 } from "@/app/operator/operators/actions";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -21,18 +32,26 @@ const initialForm: OperatorFormState = {
   values: { name: "", email: "" },
 };
 
-export function AddOperatorForm() {
+// Radix unmounts this form when the dialog closes, so each open starts empty.
+function AddOperatorForm({
+  onDone,
+  onPendingChange,
+}: {
+  onDone: (message: string) => void;
+  onPendingChange: (pending: boolean) => void;
+}) {
   const [state, submit, pending] = useActionState(addOperator, initialForm);
   const form = useRef<HTMLFormElement>(null);
+  useEffect(() => onPendingChange(pending), [pending, onPendingChange]);
   useEffect(() => {
-    if (state.status !== "error") return;
-    const first = form.current?.querySelector<HTMLInputElement>("[aria-invalid=true]");
-    first?.focus();
-  }, [state]);
-  const field = (name: "name" | "email", label: string, type: string, hint?: string) => {
+    if (state.status === "done" && state.message) onDone(state.message);
+    if (state.status === "error")
+      form.current?.querySelector<HTMLInputElement>("[aria-invalid=true]")?.focus();
+  }, [state, onDone]);
+  const field = (name: "name" | "email", label: string, type: string) => {
     const error = state.errors[name];
     return (
-      <div className="min-w-0 flex-1 space-y-1.5">
+      <div className="space-y-1.5">
         <Label htmlFor={`operator-${name}`}>{label}</Label>
         <Input
           id={`operator-${name}`}
@@ -45,47 +64,78 @@ export function AddOperatorForm() {
           key={`${name}-${state.status}-${state.values[name]}`}
           disabled={pending}
           aria-invalid={error ? true : undefined}
-          aria-describedby={
-            error ? `operator-${name}-error` : hint ? `operator-${name}-hint` : undefined
-          }
+          aria-describedby={error ? `operator-${name}-error` : undefined}
           className="h-11"
         />
         {error ? (
           <p id={`operator-${name}-error`} className="text-sm text-destructive">
             {error}
           </p>
-        ) : hint ? (
-          <p id={`operator-${name}-hint`} className="text-sm text-muted-foreground">
-            {hint}
-          </p>
         ) : null}
       </div>
     );
   };
   return (
-    <form ref={form} action={submit} className="space-y-4 rounded-lg border bg-card p-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
-        {field("name", "Name", "text")}
-        {field("email", "Email", "email")}
-      </div>
-      <div className="flex flex-wrap items-center gap-3">
+    <form ref={form} action={submit} className="grid gap-5">
+      <DialogHeader>
+        <DialogTitle>Add operator</DialogTitle>
+        <DialogDescription>
+          People with an account become operators right away. Anyone else gets an email invitation
+          that expires in 7 days.
+        </DialogDescription>
+      </DialogHeader>
+      {field("name", "Name", "text")}
+      {field("email", "Email", "email")}
+      {state.status === "error" && state.message ? (
+        <p role="alert" className="text-sm text-destructive">
+          {state.message}
+        </p>
+      ) : null}
+      <DialogFooter>
+        <DialogClose asChild>
+          <Button type="button" variant="outline" disabled={pending} className="h-11">
+            Cancel
+          </Button>
+        </DialogClose>
         <Button type="submit" disabled={pending} className="h-11 px-5">
           {pending ? "Adding…" : "Add or invite"}
         </Button>
-        {state.message ? (
-          <p
-            role={state.status === "error" ? "alert" : "status"}
-            className={
-              state.status === "error"
-                ? "text-sm text-destructive"
-                : "text-sm text-muted-foreground"
-            }
-          >
-            {state.message}
-          </p>
-        ) : null}
-      </div>
+      </DialogFooter>
     </form>
+  );
+}
+
+// The current operators heading with the Add operator dialog and its outcome.
+export function CurrentOperatorsHeading({ count }: { count: number }) {
+  const [open, setOpen] = useState(false);
+  const [pending, setPending] = useState(false);
+  const [notice, setNotice] = useState("");
+  const done = useCallback((message: string) => {
+    setNotice(message);
+    setOpen(false);
+  }, []);
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+        <h2 id="current-heading" className="text-lg font-semibold">
+          Current operators <span className="tabular-nums">({count})</span>
+        </h2>
+        <Dialog open={open} onOpenChange={(next) => (pending ? null : setOpen(next))}>
+          <DialogTrigger asChild>
+            <Button type="button" className="h-11 px-5">
+              <UserPlus aria-hidden="true" />
+              Add operator
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <AddOperatorForm onDone={done} onPendingChange={setPending} />
+          </DialogContent>
+        </Dialog>
+      </div>
+      <p role="status" className="text-sm text-success empty:hidden">
+        {notice}
+      </p>
+    </div>
   );
 }
 
