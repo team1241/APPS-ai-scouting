@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { backendRequest } from "@/lib/backend";
 
 export interface ReviewState {
@@ -18,7 +19,7 @@ const invitationMessage = {
   sent: "Invitation sent.",
   failed:
     "The invitation was not sent. The applicant may already have an account. Try Resend invitation.",
-  unavailable: "Invitations are not configured. Send the invitation from Clerk.",
+  unavailable: "Email invitations are not configured. Send the invitation from Clerk.",
 } as const;
 
 async function errorMessage(response: Response) {
@@ -53,12 +54,9 @@ export async function approveApplication(
   if (response.status === 400)
     return { status: "error", fieldError: "Enter a team name using 120 characters or fewer." };
   if (!response.ok) return { status: "error", message: await errorMessage(response) };
-  const data = (await response.json()) as { invitation: keyof typeof invitationMessage };
   revalidatePath("/operator");
-  return {
-    status: "done",
-    message: `Team created. ${invitationMessage[data.invitation] ?? invitationMessage.failed}`,
-  };
+  // The pending row disappears on success, so the page reports the outcome.
+  redirect(`/operator?approved=${id}`);
 }
 
 export async function rejectApplication(
@@ -73,7 +71,7 @@ export async function rejectApplication(
   if (!response) return unavailable;
   if (!response.ok) return { status: "error", message: await errorMessage(response) };
   revalidatePath("/operator");
-  return { status: "done", message: "Application rejected." };
+  redirect(`/operator?rejected=${id}`);
 }
 
 export async function resendInvitation(

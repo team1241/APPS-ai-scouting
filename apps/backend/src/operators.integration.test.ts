@@ -6,6 +6,7 @@ import { db } from "./db.ts";
 import { saveAccessApplication } from "./repositories/access-applications.ts";
 import {
   addOperator,
+  applicationLists,
   approveApplication,
   claimApplication,
   claimOperatorInvitation,
@@ -70,10 +71,16 @@ test("operators review applications; approval provisions the team and the invite
   const [approvedTeam, rejectedTeam] = teams as [number, number];
   try {
     await addOperator(operator, "Platform operator");
-    assert.deepEqual(await operatorProfile(operator), { name: "Platform operator" });
+    const before = await operatorProfile(operator);
+    assert.equal(before?.name, "Platform operator");
     assert.equal(await operatorProfile(outsider), undefined);
     const approved = await submit(approvedTeam);
     const rejected = await submit(rejectedTeam);
+    // Other tests may share the database, so compare counts, not absolutes.
+    assert.ok(((await operatorProfile(operator))?.waiting ?? 0) >= (before?.waiting ?? 0) + 2);
+    const lists = await applicationLists(operator);
+    assert.ok([approved.id, rejected.id].every((id) => lists.pending.some((a) => a.id === id)));
+    assert.deepEqual(await applicationLists(outsider), { pending: [], reviewed: [] });
 
     // Only operators can read or change applications.
     assert.deepEqual(await reviewApplications(outsider, "pending"), []);

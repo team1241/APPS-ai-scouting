@@ -12,7 +12,7 @@ import { telegramRoutes } from "./telegram.ts";
 
 test("authenticated Telegram intake persists and deduplicates notes", async () => {
   const id = randomUUID();
-  const app = telegramRoutes(id, "test-secret");
+  const app = telegramRoutes("test-secret");
   const update = {
     update_id: 42,
     message: { from: { id: 123 }, chat: { id: 123, type: "private" }, text: "Q42 1241 climbed" },
@@ -38,17 +38,7 @@ test("authenticated Telegram intake persists and deduplicates notes", async () =
         .execute();
     });
     assert.equal((await post("wrong")).status, 401);
-    const unavailable = telegramRoutes("invalid-tenant-uuid", "test-secret");
-    const failed = await unavailable.request("/", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "X-Telegram-Bot-Api-Secret-Token": "test-secret",
-      },
-      body: JSON.stringify(update),
-    });
-    assert.equal(failed.status, 503);
-    assert.match((await (await post("test-secret")).json()).text, /not enrolled/);
+    assert.match((await (await post("test-secret")).json()).text, /invitation or connection link/);
     const enrollment = {
       organizationId: id,
       organizationName: "Intake test",

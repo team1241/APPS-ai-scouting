@@ -5,14 +5,18 @@ import { uuidPattern } from "./event-config.ts";
 import type {
   ApproveOutcome,
   OperatorInvitation,
+  OperatorProfile,
   PlatformOperator,
   ReviewApplication,
 } from "./repositories/operators.ts";
 
 export interface OperatorDeps {
   verify: ((request: Request) => Promise<string | null>) | null;
-  profile: (subject: string) => Promise<{ name: string } | undefined>;
+  profile: (subject: string) => Promise<OperatorProfile | undefined>;
   applications: (subject: string, status: "pending" | "reviewed") => Promise<ReviewApplication[]>;
+  applicationLists: (
+    subject: string,
+  ) => Promise<{ pending: ReviewApplication[]; reviewed: ReviewApplication[] }>;
   approve: (subject: string, id: string, organizationName: string) => Promise<ApproveOutcome>;
   reject: (subject: string, id: string) => Promise<"forbidden" | "rejected" | "not_pending">;
   invitable: (subject: string, id: string) => Promise<{ id: string; email: string } | undefined>;
@@ -59,15 +63,17 @@ const conflict = {
 } as const;
 
 export function operatorRoutes(deps: OperatorDeps) {
-  const app = new Hono<{ Variables: { subject: string } }>();
+  const app = new Hono<{ Variables: { subject: string; profile: OperatorProfile } }>();
   app.use("*", async (c, next) => {
     c.header("Cache-Control", "private, no-store");
     if (!deps.verify) return c.json({ error: "Web authentication unavailable" }, 503);
     const subject = await deps.verify(c.req.raw);
     if (!subject) return c.json({ error: "Sign-in required" }, 401);
     // Every request rechecks the operator record, so removal takes effect at once.
-    if (!(await deps.profile(subject))) return c.json({ error: "Operator access required" }, 403);
+    const profile = await deps.profile(subject);
+    if (!profile) return c.json({ error: "Operator access required" }, 403);
     c.set("subject", subject);
+    c.set("profile", profile);
     await next();
   });
   app.onError((_error, c) => c.json({ error: "Application review unavailable" }, 503));
@@ -86,9 +92,12 @@ export function operatorRoutes(deps: OperatorDeps) {
     }
   }
 
-  app.get("/", async (c) => c.json({ operator: await deps.profile(c.get("subject")) }));
+  app.get("/", (c) => c.json({ operator: c.get("profile") }));
+  // Without a status, both lists come back from one transaction.
   app.get("/applications", async (c) => {
-    const status = c.req.query("status") === "reviewed" ? "reviewed" : "pending";
+    const status = c.req.query("status");
+    if (status !== "pending" && status !== "reviewed")
+      return c.json(await deps.applicationLists(c.get("subject")));
     return c.json({ applications: await deps.applications(c.get("subject"), status) });
   });
   app.post(
@@ -142,14 +151,19 @@ export function operatorRoutes(deps: OperatorDeps) {
     return c.json({ invitation: await invite(subject, id, application.email, true) });
   });
 
+  // The operators page needs both lists, so they load together.
   app.get("/operators", async (c) => {
     const subject = c.get("subject");
-    const operators = await deps.operators(subject);
+    const [operators, invitations] = await Promise.all([
+      deps.operators(subject),
+      deps.invitations(subject),
+    ]);
     return c.json({
       operators: operators.map((operator) => ({
         ...operator,
         isSelf: operator.clerkUserId === subject,
       })),
+      invitations,
     });
   });
   app.post(

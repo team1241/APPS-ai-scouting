@@ -10,7 +10,7 @@ export default async function OperatorLayout({ children }: { children: ReactNode
   if (access === "denied") notFound();
   return (
     <>
-      {access === null ? null : <OperatorNavigation />}
+      {access === null ? null : <OperatorNavigation waiting={access.waiting} />}
       {children}
     </>
   );

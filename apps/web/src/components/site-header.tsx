@@ -10,10 +10,45 @@ import logo from "@/assets/apps-logo.png";
 const quietAction =
   "inline-flex min-h-11 items-center justify-center rounded-md px-3 text-sm font-medium text-sky-soft hover:bg-white/10 hover:text-white";
 
-function HeaderContent({ signedIn = false, account }: { signedIn?: boolean; account: ReactNode }) {
+const navigationClass =
+  "relative inline-flex min-h-11 items-center rounded-md px-3 text-sm font-medium text-sky-soft hover:text-white aria-[current]:text-white aria-[current]:after:absolute aria-[current]:after:inset-x-3 aria-[current]:after:bottom-1.5 aria-[current]:after:h-0.5 aria-[current]:after:rounded-full aria-[current]:after:bg-sky";
+
+// Rendered only after the server confirms platform-operator access.
+export function OperatorNavLink({ waiting }: { waiting: number | null }) {
   const pathname = usePathname();
-  const navigationClass =
-    "relative inline-flex min-h-11 items-center rounded-md px-3 text-sm font-medium text-sky-soft hover:text-white aria-[current]:text-white aria-[current]:after:absolute aria-[current]:after:inset-x-3 aria-[current]:after:bottom-1.5 aria-[current]:after:h-0.5 aria-[current]:after:rounded-full aria-[current]:after:bg-sky";
+  return (
+    <Link
+      href="/operator"
+      aria-current={
+        pathname === "/operator"
+          ? "page"
+          : pathname.startsWith("/operator/")
+            ? "location"
+            : undefined
+      }
+      className={navigationClass}
+    >
+      Operator
+      {waiting ? (
+        <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-sky px-1.5 text-xs font-semibold text-navy tabular-nums">
+          {waiting}
+          <span className="sr-only"> {waiting === 1 ? "application" : "applications"} waiting</span>
+        </span>
+      ) : null}
+    </Link>
+  );
+}
+
+function HeaderContent({
+  signedIn = false,
+  account,
+  operatorEntry,
+}: {
+  signedIn?: boolean;
+  account: ReactNode;
+  operatorEntry?: ReactNode;
+}) {
+  const pathname = usePathname();
   return (
     <header className="public-band border-b border-sky/15 bg-navy text-white">
       <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3 sm:gap-x-6 sm:px-6">
@@ -61,6 +96,7 @@ function HeaderContent({ signedIn = false, account }: { signedIn?: boolean; acco
               Teams
             </Link>
           ) : null}
+          {signedIn ? operatorEntry : null}
         </nav>
         <div className="flex shrink-0 items-center gap-1">{account}</div>
       </div>
@@ -68,12 +104,13 @@ function HeaderContent({ signedIn = false, account }: { signedIn?: boolean; acco
   );
 }
 
-function AccountHeader() {
+function AccountHeader({ operatorEntry }: { operatorEntry?: ReactNode }) {
   const { isLoaded, isSignedIn } = useAuth();
   const pathname = usePathname();
   return (
     <HeaderContent
       signedIn={isSignedIn}
+      operatorEntry={operatorEntry}
       account={
         isSignedIn ? (
           <UserButton
@@ -111,9 +148,15 @@ function AccountHeader() {
   );
 }
 
-export function SiteHeader({ authEnabled }: { authEnabled: boolean }) {
+export function SiteHeader({
+  authEnabled,
+  operatorEntry,
+}: {
+  authEnabled: boolean;
+  operatorEntry?: ReactNode;
+}) {
   return authEnabled ? (
-    <AccountHeader />
+    <AccountHeader operatorEntry={operatorEntry} />
   ) : (
     <HeaderContent
       account={

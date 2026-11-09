@@ -193,7 +193,7 @@ Use the command for the first operator. After that, operators manage the list at
 - **Remove:** any other operator, after a confirmation dialog. An operator cannot remove themselves, so at least one always remains.
 - Each record shows who added it ("setup command" for CLI additions).
 
-Every operator request rechecks the record, so removal takes effect on the next request. Operators see a "Review applications" button on the team selection page, and an operator navigation row with Applications and Operators.
+Every operator request rechecks the record, so removal takes effect on the next request. Operators see an Operator item in the main navigation, with a count of waiting applications, and an operator navigation row with Applications and Operators. An operator with no team is sent from team selection to `/operator`.
 
 **Submission.** `POST /web/access-applications` calls `submit_access_application`. A retry of the same submission ID returns the same receipt. A new application for a team number that already has a pending, rejected or approved application, or an existing organization, gets HTTP 409 and a team-number error on the form. This tells the applicant that the team has a record; this was an explicit product decision.
 

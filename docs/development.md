@@ -185,3 +185,27 @@ Run `node --test apps/backend/src/event-mode.test.ts` for timezone/DST, idle/ove
 ## Local administration login
 
 Follow the [web app setup and provisioning guide](web-app.md#local-development) to use the existing Neon development branch with local backend/frontend services and Clerk development. It includes env separation, migration commands, adult approval, invitations, account linking, expected results and troubleshooting.
+
+### Telegram connection development
+
+Use the shared-bot variables `TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET`, and
+`TELEGRAM_BOT_USERNAME` (without `@`). Run migrations with the owner connection;
+the runtime role retains tenant RLS. Approved and linked web admins can connect
+Telegram from `/admin/<organization-id>`, then run `/invite` in the bot.
+Connection links expire in ten minutes and are consumed once. `/team` shows a button for each of the sender's teams and requires an explicit
+selection when several exist.
+
+The historical `telegram-setup.ts enroll` fixture is local development only:
+set both `NODE_ENV=development` and `ALLOW_LOCAL_TELEGRAM_ENROLL=true` to use it.
+Its `TELEGRAM_ORGANIZATION_ID` selects only that local enrollment fixture and no
+longer controls the webhook or workers. Webhook registration requires the token
+and webhook secret but no enrollment. Existing invitation URLs remain valid.
+
+Run `telegram-connect.integration.test.ts` against an isolated migrated Postgres
+database with an owner connection to check expiry, replay, tenant RLS,
+disconnect, live approval and multiple-team selection.
+
+Telegram team-selection buttons require the webhook to include both `message`
+and `callback_query` in `allowed_updates`. Re-register an existing webhook with
+`telegram-setup.ts webhook <https-base-url>` after deploying this change; the
+setup command includes both update types. Button taps recheck current membership.

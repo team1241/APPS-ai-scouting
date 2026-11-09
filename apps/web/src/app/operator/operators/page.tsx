@@ -5,7 +5,9 @@ import {
   InvitationActions,
   RemoveOperator,
 } from "@/components/operator-management";
-import { operatorAccess, operatorInvitations, platformOperators } from "@/lib/operator";
+import { PageHeading } from "@/components/page-heading";
+import { StatusBadge } from "@/components/status-badge";
+import { operatorAccess, operatorLists } from "@/lib/operator";
 
 const dateFormat = new Intl.DateTimeFormat("en-CA", {
   dateStyle: "medium",
@@ -13,22 +15,17 @@ const dateFormat = new Intl.DateTimeFormat("en-CA", {
 });
 
 export default async function OperatorsPage() {
-  const access = await operatorAccess();
+  // The access check is shared with the layout; the lists load alongside it.
+  const [access, lists] = await Promise.all([operatorAccess(), operatorLists()]);
   if (access === "denied") notFound();
-  const [operators, invitations] =
-    access === null
-      ? [null, null]
-      : await Promise.all([platformOperators(), operatorInvitations()]);
+  const operators = access === null ? null : (lists?.operators ?? null);
+  const invitations = access === null ? null : (lists?.invitations ?? null);
   const now = Date.now();
   return (
     <main id="main" className="mx-auto max-w-3xl space-y-10 px-6 py-12">
-      <div>
-        <h1 className="text-2xl font-semibold">Operators</h1>
-        <p className="mt-2 text-muted-foreground">
-          Operators review access applications and manage this list. They don’t get access to any
-          team’s data.
-        </p>
-      </div>
+      <PageHeading description="Operators review access applications and manage this list. They don’t get access to any team’s data.">
+        Operators
+      </PageHeading>
       {operators === null || invitations === null ? (
         <ApplicationsUnavailable href="/operator/operators" />
       ) : (
@@ -44,11 +41,9 @@ export default async function OperatorsPage() {
                   className="flex flex-col gap-2 p-6 sm:flex-row sm:items-center sm:justify-between"
                 >
                   <div className="min-w-0 [overflow-wrap:anywhere]">
-                    <p className="font-semibold">
+                    <p className="flex flex-wrap items-center gap-x-3 gap-y-1 font-semibold">
                       {operator.name}
-                      {operator.isSelf ? (
-                        <span className="font-normal text-muted-foreground"> (you)</span>
-                      ) : null}
+                      {operator.isSelf ? <StatusBadge tone="neutral">You</StatusBadge> : null}
                     </p>
                     <p className="mt-1 text-sm text-muted-foreground">
                       Added{" "}
@@ -79,19 +74,22 @@ export default async function OperatorsPage() {
                       className="flex flex-col gap-3 p-6 sm:flex-row sm:items-start sm:justify-between"
                     >
                       <div className="min-w-0 [overflow-wrap:anywhere]">
-                        <p className="font-semibold">{invitation.name}</p>
-                        <p className="mt-1 text-sm text-muted-foreground">{invitation.email}</p>
-                        <p
-                          className={
-                            expired || !invitation.sent
-                              ? "mt-1 text-sm font-medium text-destructive"
-                              : "mt-1 text-sm text-muted-foreground"
-                          }
-                        >
+                        <p className="flex flex-wrap items-center gap-x-3 gap-y-1 font-semibold">
+                          {invitation.name}
                           {!invitation.sent ? (
-                            "Not sent. Resend to try again."
+                            <StatusBadge tone="danger">Not sent</StatusBadge>
                           ) : expired ? (
-                            "Expired. Resend to give them another 7 days."
+                            <StatusBadge tone="danger">Expired</StatusBadge>
+                          ) : (
+                            <StatusBadge tone="waiting">Invited</StatusBadge>
+                          )}
+                        </p>
+                        <p className="mt-1 text-sm text-muted-foreground">{invitation.email}</p>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          {!invitation.sent ? (
+                            "The email failed. Resend to try again."
+                          ) : expired ? (
+                            "Resend to give them another 7 days."
                           ) : (
                             <>
                               Expires{" "}
@@ -118,9 +116,8 @@ export default async function OperatorsPage() {
                 Add an operator
               </h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                People with an account become operators now. Anyone else gets an email invitation
-                that expires in 7 days and joins as an operator when they first sign in. Operators
-                don’t get a team.
+                People with an account become operators right away. Anyone else gets an email
+                invitation that expires in 7 days.
               </p>
             </div>
             <AddOperatorForm />

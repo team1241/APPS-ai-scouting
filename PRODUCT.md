@@ -25,7 +25,7 @@ Administrators use laptops and phones during busy events. They sign in through C
 ## Capabilities and Constraints
 
 - Public adults can request team access through `/request-access`. A team with an earlier application or an existing organization cannot apply again. Submissions grant no membership or account until a platform operator approves them.
-- Platform operators review applications at `/operator`. Approval creates the organization, its first admin member and the adult web-admin approval, then sends a Clerk invitation. The invited account links to the new team on first sign-in. Operators add and remove other operators at `/operator/operators`, and invite people without an account by email. Invited operators get no team.
+- Platform operators review applications at `/operator`, reached from the Operator item in the main navigation. Operators without a team land there after sign-in. Approval creates the organization, its first admin member and the adult web-admin approval, then sends a Clerk invitation. The invited account links to the new team on first sign-in. Operators add and remove other operators at `/operator/operators`, and invite people without an account by email. Invited operators get no team.
 - Current surfaces include the app shell, sign-in, organization selection, organization workspace and privacy notice, with loading, error, empty and denied-access states.
 - Access requires explicit adult-admin approval and account linking. Clerk authentication does not grant membership; the backend determines current memberships and permissions.
 - Preserve tenant isolation and privacy boundaries. Do not add product analytics or session replay.

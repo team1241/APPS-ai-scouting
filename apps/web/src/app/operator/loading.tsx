@@ -13,10 +13,12 @@ export default function Loading() {
         <ListSkeleton rows={2}>
           <div className="space-y-4">
             <div className="flex flex-wrap items-start justify-between gap-3">
-              <PersonLines wide />
-              <Skeleton className="h-4 w-36" />
+              <div className="flex gap-5">
+                <Skeleton className="h-7 w-16" />
+                <PersonLines wide />
+              </div>
             </div>
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:pl-29">
               <div className="flex-1 space-y-1.5">
                 <Skeleton className="h-4 w-20" />
                 <Skeleton className="h-11 w-full" />
@@ -29,8 +31,11 @@ export default function Loading() {
       <SectionSkeleton>
         <ListSkeleton rows={2}>
           <div className="flex flex-col gap-3 sm:flex-row sm:justify-between">
-            <PersonLines />
-            <Skeleton className="h-4 w-44" />
+            <div className="flex gap-5">
+              <Skeleton className="h-7 w-16" />
+              <PersonLines />
+            </div>
+            <Skeleton className="h-7 w-24 rounded-full" />
           </div>
         </ListSkeleton>
       </SectionSkeleton>

@@ -5,7 +5,6 @@ import { extractionConfig } from "./extraction-config.ts";
 const base = {
   EXTRACTION_ENABLED: "true",
   DATABASE_URL: "postgresql://fixture",
-  TELEGRAM_ORGANIZATION_ID: "tenant",
   TELEGRAM_BOT_TOKEN: "bot",
   TELEGRAM_WEBHOOK_SECRET: "secret",
   MASTRA_URL: "https://example.com",
