@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useRef, useState } from "react";
+import { useActionState, useEffect, useRef } from "react";
 import {
   addOperator,
   cancelOperatorInvitation,
@@ -94,47 +94,26 @@ export function AddOperatorForm() {
   );
 }
 
-// Removal is confirmed in place; there is no modal.
+// Removal is confirmed in a dialog.
 export function RemoveOperator({ clerkUserId, name }: { clerkUserId: string; name: string }) {
   const [state, remove, removing] = useActionState<RemoveState, FormData>(removeOperator, {
     status: "idle",
   });
-  const [confirming, setConfirming] = useState(false);
   return (
-    <form action={remove} className="flex flex-wrap items-center gap-2 sm:justify-end">
-      <input type="hidden" name="clerkUserId" value={clerkUserId} />
-      {confirming ? (
-        <>
-          <span className="text-sm">Remove {name}?</span>
-          <Button type="submit" variant="destructive" disabled={removing} className="h-11">
-            {removing ? "Removing…" : "Confirm remove"}
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            disabled={removing}
-            className="h-11"
-            onClick={() => setConfirming(false)}
-          >
-            Cancel
-          </Button>
-        </>
-      ) : (
-        <Button
-          type="button"
-          variant="ghost"
-          className="h-11 text-destructive hover:text-destructive"
-          onClick={() => setConfirming(true)}
-        >
-          Remove
-        </Button>
-      )}
-      {state.status === "error" ? (
-        <p role="alert" className="w-full text-sm text-destructive sm:text-right">
-          {state.message}
-        </p>
-      ) : null}
-    </form>
+    <div className="sm:text-right">
+      <ConfirmDialog
+        trigger="Remove"
+        title={`Remove ${name} as an operator?`}
+        description="They lose access to application review and operator management on their next request. Any team access they have is not affected. You can add them again later."
+        confirmLabel="Remove operator"
+        pendingLabel="Removing…"
+        cancelLabel="Keep operator"
+        action={remove}
+        pending={removing}
+        error={state.status === "error" ? state.message : undefined}
+        fields={{ clerkUserId }}
+      />
+    </div>
   );
 }
 
