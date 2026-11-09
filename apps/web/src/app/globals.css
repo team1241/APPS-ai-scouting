@@ -13,6 +13,7 @@
   --color-secondary: oklch(0.96 0 0);
   --color-secondary-foreground: var(--foreground);
   --color-muted: oklch(0.96 0 0);
+  --color-skeleton: oklch(0.93 0.006 260);
   --color-muted-foreground: oklch(0.45 0 0);
   --color-accent: oklch(0.95 0.015 260);
   --color-accent-foreground: var(--foreground);
