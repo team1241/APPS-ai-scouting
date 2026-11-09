@@ -55,8 +55,8 @@ export default async function OrganizationPage({
           connected={state?.connected ?? null}
           connectedAt={state?.connectedAt ?? null}
         />
-        <ApiKeys organizationId={organizationId} keys={keys} />
         <TeamAdministrators organizationId={organizationId} data={admins} />
+        <ApiKeys organizationId={organizationId} keys={keys} />
       </main>
     </>
   );
