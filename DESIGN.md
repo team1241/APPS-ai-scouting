@@ -36,6 +36,8 @@ Team-selection lists clip hover backgrounds to their rounded container. Row focu
 
 A pending row has a team name field prefilled with "Team <number>" and a primary "Approve and invite" action on the same line on wider screens. Reject is a quiet destructive text button that expands in place into a one-line warning with "Confirm reject" and "Cancel"; there is no modal. Reviewed rows show their state in text: Invited, Signed in, Rejected, or "Invitation not sent" in the destructive colour with "Resend invitation". Controls keep 44px hit areas and stack to full width on phones. The destructive button variant uses `--color-destructive-foreground` for its label.
 
+Operator pages share a white secondary navigation row ("Platform operator", then Applications and Operators) with the current page underlined in the primary colour. The Operators page lists operators with who added them, marks the viewer "(you)" without a Remove action, and ends with a bordered add form (name and email side by side on wider screens). Remove uses the same in-place confirmation as Reject.
+
 ## Public entrance
 
 The signed-out home page, `/sign-in` and `/request-access` share a navy entrance band (`PublicBand`, `apps/web/src/components/public-band.tsx`). Its character comes from the Theory6 Apps badge: navy (`--navy`), sky blue (`--sky`, `--sky-soft`), circuit-trace linework and the mascot badge. The admin pages keep the light interface.

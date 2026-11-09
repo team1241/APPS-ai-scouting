@@ -20,7 +20,14 @@ function deps(overrides: Partial<OperatorDeps> = {}): OperatorDeps {
     reject: async () => "rejected",
     invitable: async () => ({ id, email: "lead@example.com" }),
     recordInvitation: async () => true,
-    accounts: { invite: async () => "inv_1", pendingClaim: async () => null },
+    operators: async () => [],
+    grantOperator: async () => "added",
+    revokeOperator: async () => "removed",
+    accounts: {
+      invite: async () => "inv_1",
+      pendingClaim: async () => null,
+      findVerifiedUser: async () => "user_new",
+    },
     ...overrides,
   };
 }
@@ -59,6 +66,7 @@ test("approval validates the team name, provisions, then sends the invitation", 
           return "inv_1";
         },
         pendingClaim: async () => null,
+        findVerifiedUser: async () => null,
       },
       recordInvitation: async (_subject, applicationId, invitationId) => {
         calls.push(`record:${applicationId}:${invitationId}`);
@@ -105,6 +113,7 @@ test("review conflicts and invitation failures return safe, specific results", a
           throw Error("Clerk: lead@example.com already exists");
         },
         pendingClaim: async () => null,
+        findVerifiedUser: async () => null,
       },
       recordInvitation: async () => assert.fail("failed invitation recorded"),
     }),
@@ -147,4 +156,109 @@ test("review conflicts and invitation failures return safe, specific results", a
   const error = await broken.request("/applications", { headers });
   assert.equal(error.status, 503);
   assert.deepEqual(await error.json(), { error: "Application review unavailable" });
+});
+
+test("operators list, add by verified email and remove others", async () => {
+  const calls: string[] = [];
+  const app = operatorRoutes(
+    deps({
+      operators: async () => [
+        {
+          clerkUserId: "user_operator",
+          name: "Operator",
+          createdAt: "2026-11-08T00:00:00.000Z",
+          addedByName: null,
+        },
+        {
+          clerkUserId: "user_other",
+          name: "Other",
+          createdAt: "2026-11-08T00:00:00.000Z",
+          addedByName: "Operator",
+        },
+      ],
+      grantOperator: async (subject, target, name) => {
+        calls.push(`grant:${subject}:${target}:${name}`);
+        return "added";
+      },
+      accounts: {
+        invite: async () => "inv_1",
+        pendingClaim: async () => null,
+        findVerifiedUser: async (email) => {
+          calls.push(`lookup:${email}`);
+          return email === "new@example.com" ? "user_new" : null;
+        },
+      },
+    }),
+  );
+  const list = await (await app.request("/operators", { headers })).json();
+  assert.deepEqual(
+    list.operators.map((o: { clerkUserId: string; isSelf: boolean }) => [o.clerkUserId, o.isSelf]),
+    [
+      ["user_operator", true],
+      ["user_other", false],
+    ],
+  );
+  const add = (body: unknown) =>
+    app.request("/operators", { method: "POST", headers, body: JSON.stringify(body) });
+  for (const body of [
+    { name: "", email: "new@example.com" },
+    { name: "New", email: "bad" },
+    { name: 5, email: "new@example.com" },
+    { name: "a\nb", email: "new@example.com" },
+  ])
+    assert.equal((await add(body)).status, 400);
+  const missing = await add({ name: "Nobody", email: "missing@example.com" });
+  assert.equal(missing.status, 422);
+  assert.match((await missing.json()).errors.email, /No account/);
+  assert.equal((await add({ name: " New ", email: " NEW@example.com " })).status, 201);
+  assert.deepEqual(calls, [
+    "lookup:missing@example.com",
+    "lookup:new@example.com",
+    "grant:user_operator:user_new:New",
+  ]);
+  assert.equal(
+    (await app.request("/operators/not-an-id", { method: "DELETE", headers })).status,
+    404,
+  );
+  assert.equal(
+    (await app.request("/operators/user_other", { method: "DELETE", headers })).status,
+    200,
+  );
+});
+
+test("operator management conflicts and missing Clerk configuration", async () => {
+  const exists = operatorRoutes(deps({ grantOperator: async () => "exists" }));
+  const add = await exists.request("/operators", {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ name: "Dup", email: "dup@example.com" }),
+  });
+  assert.equal(add.status, 409);
+  const noClerk = operatorRoutes(deps({ accounts: null }));
+  assert.equal(
+    (
+      await noClerk.request("/operators", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ name: "X", email: "x@example.com" }),
+      })
+    ).status,
+    503,
+  );
+  for (const [outcome, status] of [
+    ["self", 409],
+    ["not_found", 404],
+    ["forbidden", 403],
+  ] as const) {
+    const app = operatorRoutes(deps({ revokeOperator: async () => outcome }));
+    assert.equal(
+      (await app.request("/operators/user_x", { method: "DELETE", headers })).status,
+      status,
+    );
+  }
+  const notOperator = operatorRoutes(deps({ profile: async () => undefined }));
+  assert.equal(
+    (await notOperator.request("/operators/user_x", { method: "DELETE", headers })).status,
+    403,
+  );
 });

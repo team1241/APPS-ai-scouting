@@ -13,11 +13,14 @@ import { workerEvents } from "./repositories/operations.ts";
 import {
   approveApplication,
   claimApplication,
+  grantOperator,
   invitableApplication,
+  listOperators,
   operatorProfile,
   recordInvitation,
   rejectApplication,
   reviewApplications,
+  revokeOperator,
 } from "./repositories/operators.ts";
 import { adminOrganizations } from "./repositories/web-admin.ts";
 import { telegramRoutes } from "./telegram.ts";
@@ -39,6 +42,9 @@ app.route(
     reject: rejectApplication,
     invitable: invitableApplication,
     recordInvitation,
+    operators: listOperators,
+    grantOperator,
+    revokeOperator,
     accounts,
   }),
 );

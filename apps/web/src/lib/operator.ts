@@ -36,3 +36,18 @@ export async function reviewApplications(
   const data = (await response.json()) as { applications: ReviewApplication[] };
   return data.applications;
 }
+
+export interface PlatformOperator {
+  clerkUserId: string;
+  name: string;
+  createdAt: string;
+  addedByName: string | null;
+  isSelf: boolean;
+}
+
+export async function platformOperators(): Promise<PlatformOperator[] | null> {
+  const response = await backendRequest("/web/operator/operators");
+  if (!response?.ok) return null;
+  const data = (await response.json()) as { operators: PlatformOperator[] };
+  return data.operators;
+}

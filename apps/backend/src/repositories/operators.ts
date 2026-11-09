@@ -174,3 +174,40 @@ export async function removeOperator(subject: string) {
     .executeTakeFirst();
   return result.numDeletedRows > 0n;
 }
+
+export interface PlatformOperator {
+  clerkUserId: string;
+  name: string;
+  createdAt: string;
+  addedByName: string | null;
+}
+
+// Web operator management. Each function checks the acting operator in the database.
+export async function listOperators(actor: string): Promise<PlatformOperator[]> {
+  const { rows } = await sql<{
+    clerk_user_id: string;
+    name: string;
+    created_at: Date | string;
+    added_by_name: string | null;
+  }>`select * from list_platform_operators(${actor})`.execute(db);
+  return rows.map((row) => ({
+    clerkUserId: row.clerk_user_id,
+    name: row.name,
+    createdAt: new Date(row.created_at).toISOString(),
+    addedByName: row.added_by_name,
+  }));
+}
+
+export async function grantOperator(actor: string, subject: string, name: string) {
+  const { rows } = await sql<{
+    outcome: "forbidden" | "invalid" | "added" | "exists";
+  }>`select add_platform_operator(${actor}, ${subject}, ${name}) as outcome`.execute(db);
+  return rows[0]?.outcome ?? "invalid";
+}
+
+export async function revokeOperator(actor: string, subject: string) {
+  const { rows } = await sql<{
+    outcome: "forbidden" | "self" | "removed" | "not_found";
+  }>`select remove_platform_operator(${actor}, ${subject}) as outcome`.execute(db);
+  return rows[0]?.outcome ?? "not_found";
+}

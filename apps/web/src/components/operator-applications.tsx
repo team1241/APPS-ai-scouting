@@ -66,16 +66,16 @@ function ReviewedStatus({ application }: { application: ReviewApplication }) {
   );
 }
 
-export function ApplicationsUnavailable() {
+export function ApplicationsUnavailable({ href = "/operator" }: { href?: string }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Applications are unavailable</CardTitle>
-        <CardDescription>We couldn’t load access applications. Try again shortly.</CardDescription>
+        <CardTitle>Operator tools are unavailable</CardTitle>
+        <CardDescription>We couldn’t load this page. Try again shortly.</CardDescription>
       </CardHeader>
       <CardContent>
         <Button asChild variant="outline">
-          <Link href="/operator">Try again</Link>
+          <Link href={href}>Try again</Link>
         </Button>
       </CardContent>
     </Card>

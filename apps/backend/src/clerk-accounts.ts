@@ -4,6 +4,8 @@ export interface ClerkAccounts {
   invite(input: { email: string; applicationId: string; resend: boolean }): Promise<string>;
   // Reads only server-controlled public metadata and Clerk-verified emails.
   pendingClaim(subject: string): Promise<{ applicationId: string; emails: string[] } | null>;
+  // Returns the account only when the email is verified on exactly one user.
+  findVerifiedUser(email: string): Promise<string | null>;
 }
 
 const metadataKey = "accessApplicationId";
@@ -33,6 +35,18 @@ export function clerkAccounts(env: NodeJS.ProcessEnv): ClerkAccounts | null {
         .filter((address) => address.verification?.status === "verified")
         .map((address) => address.emailAddress.trim().toLowerCase());
       return emails.length ? { applicationId, emails } : null;
+    },
+    async findVerifiedUser(email) {
+      const wanted = email.trim().toLowerCase();
+      const { data } = await clerk.users.getUserList({ emailAddress: [wanted], limit: 2 });
+      const matches = data.filter((user) =>
+        user.emailAddresses.some(
+          (address) =>
+            address.emailAddress.trim().toLowerCase() === wanted &&
+            address.verification?.status === "verified",
+        ),
+      );
+      return matches.length === 1 && matches[0] ? matches[0].id : null;
     },
   };
 }

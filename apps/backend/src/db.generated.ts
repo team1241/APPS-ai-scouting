@@ -219,6 +219,7 @@ export interface OutboundIntervention {
 }
 
 export interface PlatformOperator {
+  added_by: string | null;
   clerk_user_id: string;
   created_at: Generated<Timestamp>;
   name: string;

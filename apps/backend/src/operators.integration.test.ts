@@ -8,12 +8,15 @@ import {
   addOperator,
   approveApplication,
   claimApplication,
+  grantOperator,
   invitableApplication,
+  listOperators,
   operatorProfile,
   recordInvitation,
   rejectApplication,
   removeOperator,
   reviewApplications,
+  revokeOperator,
 } from "./repositories/operators.ts";
 import { adminOrganizations } from "./repositories/web-admin.ts";
 
@@ -244,5 +247,35 @@ test("runtime role reads only through operator RLS and changes state only throug
     await cleanup([team], [operator]);
     await sql`DROP OWNED BY ${sql.id(role)}`.execute(db);
     await sql`DROP ROLE ${sql.id(role)}`.execute(db);
+  }
+});
+
+test("operators add and remove other operators, never themselves", async () => {
+  const first = subject();
+  const second = subject();
+  const outsider = subject();
+  try {
+    await addOperator(first, "First");
+    assert.deepEqual(await listOperators(outsider), []);
+    assert.equal(await grantOperator(outsider, second, "Second"), "forbidden");
+    assert.equal(await grantOperator(first, "not-a-user", "Second"), "invalid");
+    assert.equal(await grantOperator(first, second, " "), "invalid");
+    assert.equal(await grantOperator(first, second, "  Second  "), "added");
+    assert.equal(await grantOperator(first, second, "Second again"), "exists");
+    const listed = await listOperators(second);
+    const added = listed.find((operator) => operator.clerkUserId === second);
+    assert.equal(added?.name, "Second");
+    assert.equal(added?.addedByName, "First");
+    assert.equal(await revokeOperator(first, first), "self");
+    assert.equal(await revokeOperator(outsider, first), "forbidden");
+    assert.equal(await revokeOperator(second, first), "removed");
+    assert.equal(await revokeOperator(second, first), "not_found");
+    assert.deepEqual(await listOperators(first), []);
+    assert.equal(await grantOperator(first, outsider, "Outsider"), "forbidden");
+  } finally {
+    await db
+      .deleteFrom("platform_operator")
+      .where("clerk_user_id", "in", [first, second, outsider])
+      .execute();
   }
 });

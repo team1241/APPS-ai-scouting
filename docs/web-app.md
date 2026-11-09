@@ -185,7 +185,13 @@ node --env-file=.env src/platform-operator-setup.ts add user_REPLACE_WITH_CLERK_
 node --env-file=.env src/platform-operator-setup.ts remove user_REPLACE_WITH_CLERK_ID
 ```
 
-Every operator request rechecks the record, so removal takes effect on the next request. Operators see a "Review applications" button on the team selection page.
+Use the command for the first operator. After that, operators manage the list at `/operator/operators`:
+
+- **Add:** enter a name and email. The backend looks the email up in Clerk and adds the account only if exactly one user has it as a verified email. Sign-in is invite-only, so a new person must be invited in Clerk and sign in first. The email itself is not stored.
+- **Remove:** any other operator, after an in-place confirmation. An operator cannot remove themselves, so at least one always remains.
+- Each record shows who added it ("setup command" for CLI additions).
+
+Every operator request rechecks the record, so removal takes effect on the next request. Operators see a "Review applications" button on the team selection page, and an operator navigation row with Applications and Operators.
 
 **Submission.** `POST /web/access-applications` calls `submit_access_application`. A retry of the same submission ID returns the same receipt. A new application for a team number that already has a pending, rejected or approved application, or an existing organization, gets HTTP 409 and a team-number error on the form. This tells the applicant that the team has a record; this was an explicit product decision.
 
@@ -195,6 +201,6 @@ Every operator request rechecks the record, so removal takes effect on the next 
 
 **Rejection.** Reject asks for confirmation in place. The applicant is not notified, and the team cannot apply again. To allow a new application, an owner must delete the rejected row with the owner connection.
 
-**Database access.** The runtime role reads `access_application` and `platform_operator` only through row-level security on `app.clerk_user_id`, and has no INSERT, UPDATE or DELETE on either table. All state changes go through the `SECURITY DEFINER` functions in `20261109010000_platform_operators.ts`. Those functions must be owned by the migration role, which bypasses row-level security, as the existing operator commands already require.
+**Database access.** The runtime role reads `access_application` and `platform_operator` only through row-level security on `app.clerk_user_id`, and has no INSERT, UPDATE or DELETE on either table. All state changes go through the `SECURITY DEFINER` functions in `20261109010000_platform_operators.ts` and `20261109020000_operator_management.ts`. Those functions must be owned by the migration role, which bypasses row-level security, as the existing operator commands already require.
 
 Validation covers route authorization and errors, duplicate-team rules under concurrency, provisioning, claim email matching, operator removal and runtime-role privileges against disposable Postgres. The review page was checked at desktop and phone widths with fixture data. A live Clerk invitation and claim were not tested end to end.
