@@ -3,6 +3,7 @@ import { test } from "node:test";
 import { type OperatorDeps, operatorRoutes } from "./operator-review.ts";
 
 const id = "00000000-0000-4000-8000-000000000033";
+const invitationId = "00000000-0000-4000-8000-000000000035";
 const headers = { authorization: "Bearer session", "content-type": "application/json" };
 
 function deps(overrides: Partial<OperatorDeps> = {}): OperatorDeps {
@@ -23,9 +24,16 @@ function deps(overrides: Partial<OperatorDeps> = {}): OperatorDeps {
     operators: async () => [],
     grantOperator: async () => "added",
     revokeOperator: async () => "removed",
+    invitations: async () => [],
+    createInvitation: async () => ({ outcome: "created", id: invitationId }),
+    recordOperatorInvitation: async () => true,
+    openInvitation: async () => ({ email: "new@example.com", clerkInvitationId: "inv_old" }),
+    revokeInvitation: async () => ({ outcome: "revoked", clerkInvitationId: "inv_old" }),
     accounts: {
       invite: async () => "inv_1",
       pendingClaim: async () => null,
+      inviteOperator: async () => "inv_op",
+      revokeInvitation: async () => {},
       findVerifiedUser: async () => "user_new",
     },
     ...overrides,
@@ -66,6 +74,8 @@ test("approval validates the team name, provisions, then sends the invitation", 
           return "inv_1";
         },
         pendingClaim: async () => null,
+        inviteOperator: async () => "inv_op",
+        revokeInvitation: async () => {},
         findVerifiedUser: async () => null,
       },
       recordInvitation: async (_subject, applicationId, invitationId) => {
@@ -113,6 +123,8 @@ test("review conflicts and invitation failures return safe, specific results", a
           throw Error("Clerk: lead@example.com already exists");
         },
         pendingClaim: async () => null,
+        inviteOperator: async () => "inv_op",
+        revokeInvitation: async () => {},
         findVerifiedUser: async () => null,
       },
       recordInvitation: async () => assert.fail("failed invitation recorded"),
@@ -183,6 +195,8 @@ test("operators list, add by verified email and remove others", async () => {
       accounts: {
         invite: async () => "inv_1",
         pendingClaim: async () => null,
+        inviteOperator: async () => "inv_op",
+        revokeInvitation: async () => {},
         findVerifiedUser: async (email) => {
           calls.push(`lookup:${email}`);
           return email === "new@example.com" ? "user_new" : null;
@@ -208,8 +222,8 @@ test("operators list, add by verified email and remove others", async () => {
   ])
     assert.equal((await add(body)).status, 400);
   const missing = await add({ name: "Nobody", email: "missing@example.com" });
-  assert.equal(missing.status, 422);
-  assert.match((await missing.json()).errors.email, /No account/);
+  assert.equal(missing.status, 202);
+  assert.deepEqual(await missing.json(), { invited: true });
   assert.equal((await add({ name: " New ", email: " NEW@example.com " })).status, 201);
   assert.deepEqual(calls, [
     "lookup:missing@example.com",
@@ -260,5 +274,148 @@ test("operator management conflicts and missing Clerk configuration", async () =
   assert.equal(
     (await notOperator.request("/operators/user_x", { method: "DELETE", headers })).status,
     403,
+  );
+});
+
+test("people without an account get a 7-day operator invitation; failures close it", async () => {
+  const calls: string[] = [];
+  const recorder = (overrides: Partial<OperatorDeps> = {}) =>
+    operatorRoutes(
+      deps({
+        createInvitation: async (_subject, email, name) => {
+          calls.push(`create:${email}:${name}`);
+          return { outcome: "created", id: invitationId };
+        },
+        recordOperatorInvitation: async (_subject, id, clerkId) => {
+          calls.push(`record:${id}:${clerkId}`);
+          return true;
+        },
+        revokeInvitation: async (_subject, id) => {
+          calls.push(`revoke:${id}`);
+          return { outcome: "revoked", clerkInvitationId: null };
+        },
+        accounts: {
+          invite: async () => "inv_1",
+          pendingClaim: async () => null,
+          findVerifiedUser: async () => null,
+          inviteOperator: async ({ email, invitationId: id }) => {
+            calls.push(`clerk:${email}:${id}`);
+            return "inv_op";
+          },
+          revokeInvitation: async (clerkId) => {
+            calls.push(`clerk-revoke:${clerkId}`);
+          },
+        },
+        ...overrides,
+      }),
+    );
+  const post = (app: ReturnType<typeof operatorRoutes>) =>
+    app.request("/operators", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ name: "New Operator", email: "New@Example.com" }),
+    });
+  assert.equal((await post(recorder())).status, 202);
+  assert.deepEqual(calls, [
+    "create:new@example.com:New Operator",
+    `clerk:new@example.com:${invitationId}`,
+    `record:${invitationId}:inv_op`,
+  ]);
+  calls.length = 0;
+  const exists = await post(recorder({ createInvitation: async () => ({ outcome: "exists" }) }));
+  assert.equal(exists.status, 409);
+  assert.match((await exists.json()).errors.email, /open invitation/);
+  const clerkDown = recorder({
+    accounts: {
+      invite: async () => "inv_1",
+      pendingClaim: async () => null,
+      findVerifiedUser: async () => null,
+      inviteOperator: async () => {
+        throw Error("Clerk details");
+      },
+      revokeInvitation: async () => {},
+    },
+  });
+  calls.length = 0;
+  const failed = await post(clerkDown);
+  assert.equal(failed.status, 502);
+  assert.ok(calls.includes(`revoke:${invitationId}`));
+});
+
+test("operators list, resend and cancel invitations", async () => {
+  const calls: string[] = [];
+  const app = operatorRoutes(
+    deps({
+      invitations: async () => [
+        {
+          id: invitationId,
+          email: "new@example.com",
+          name: "New",
+          invitedByName: "Operator",
+          createdAt: "2026-11-09T00:00:00.000Z",
+          expiresAt: "2026-11-16T00:00:00.000Z",
+          sent: true,
+        },
+      ],
+      recordOperatorInvitation: async (_subject, id, clerkId) => {
+        calls.push(`record:${id}:${clerkId}`);
+        return true;
+      },
+      accounts: {
+        invite: async () => "inv_1",
+        pendingClaim: async () => null,
+        findVerifiedUser: async () => null,
+        inviteOperator: async () => {
+          calls.push("clerk:invite");
+          return "inv_new";
+        },
+        revokeInvitation: async (clerkId) => {
+          calls.push(`clerk-revoke:${clerkId}`);
+        },
+      },
+    }),
+  );
+  const list = await (await app.request("/operator-invitations", { headers })).json();
+  assert.equal(list.invitations[0].id, invitationId);
+  assert.equal(
+    (await app.request("/operator-invitations/bad/resend", { method: "POST", headers })).status,
+    404,
+  );
+  const resend = await app.request(`/operator-invitations/${invitationId}/resend`, {
+    method: "POST",
+    headers,
+  });
+  assert.equal(resend.status, 200);
+  assert.deepEqual(calls, [
+    "clerk-revoke:inv_old",
+    "clerk:invite",
+    `record:${invitationId}:inv_new`,
+  ]);
+  calls.length = 0;
+  const cancel = await app.request(`/operator-invitations/${invitationId}`, {
+    method: "DELETE",
+    headers,
+  });
+  assert.equal(cancel.status, 200);
+  assert.deepEqual(calls, ["clerk-revoke:inv_old"]);
+  const gone = operatorRoutes(
+    deps({
+      openInvitation: async () => undefined,
+      revokeInvitation: async () => ({ outcome: "not_found", clerkInvitationId: null }),
+    }),
+  );
+  assert.equal(
+    (
+      await gone.request(`/operator-invitations/${invitationId}/resend`, {
+        method: "POST",
+        headers,
+      })
+    ).status,
+    404,
+  );
+  assert.equal(
+    (await gone.request(`/operator-invitations/${invitationId}`, { method: "DELETE", headers }))
+      .status,
+    404,
   );
 });

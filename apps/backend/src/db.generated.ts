@@ -167,6 +167,19 @@ export interface ObservationRevision {
   values: Json;
 }
 
+export interface OperatorInvitation {
+  accepted_at: Timestamp | null;
+  accepted_by: string | null;
+  clerk_invitation_id: string | null;
+  created_at: Generated<Timestamp>;
+  email: string | null;
+  expires_at: Generated<Timestamp>;
+  id: Generated<string>;
+  invited_by: string;
+  name: string;
+  revoked_at: Timestamp | null;
+}
+
 export interface Organization {
   created_at: Generated<Timestamp>;
   frc_team_number: number;
@@ -326,6 +339,7 @@ export interface DB {
   member: Member;
   observation_flag: ObservationFlag;
   observation_revision: ObservationRevision;
+  operator_invitation: OperatorInvitation;
   organization: Organization;
   organization_event_setting: OrganizationEventSetting;
   outbound_delivery: OutboundDelivery;

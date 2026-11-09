@@ -4,6 +4,7 @@ import type { ClerkAccounts } from "./clerk-accounts.ts";
 import { uuidPattern } from "./event-config.ts";
 import type {
   ApproveOutcome,
+  OperatorInvitation,
   PlatformOperator,
   ReviewApplication,
 } from "./repositories/operators.ts";
@@ -26,6 +27,26 @@ export interface OperatorDeps {
     subject: string,
     target: string,
   ) => Promise<"forbidden" | "self" | "removed" | "not_found">;
+  invitations: (subject: string) => Promise<OperatorInvitation[]>;
+  createInvitation: (
+    subject: string,
+    email: string,
+    name: string,
+  ) => Promise<
+    { outcome: "created"; id: string } | { outcome: "forbidden" | "invalid" | "exists" }
+  >;
+  recordOperatorInvitation: (subject: string, id: string, clerkId: string) => Promise<boolean>;
+  openInvitation: (
+    subject: string,
+    id: string,
+  ) => Promise<{ email: string; clerkInvitationId: string | null } | undefined>;
+  revokeInvitation: (
+    subject: string,
+    id: string,
+  ) => Promise<{
+    outcome: "forbidden" | "not_found" | "revoked";
+    clerkInvitationId: string | null;
+  }>;
   accounts: ClerkAccounts | null;
 }
 
@@ -150,18 +171,36 @@ export function operatorRoutes(deps: OperatorDeps) {
         errors.email = "Enter a valid email address.";
       if (Object.keys(errors).length) return c.json({ errors }, 400);
       if (!deps.accounts) return c.json({ error: "Account lookup is not configured." }, 503);
-      const target = await deps.accounts.findVerifiedUser(email);
-      if (!target)
-        return c.json(
-          {
-            errors: {
-              email:
-                "No account has this verified email. Invite them in Clerk, then add them after they sign in.",
+      const subject = c.get("subject");
+      const accounts = deps.accounts;
+      const target = await accounts.findVerifiedUser(email);
+      if (!target) {
+        // No account yet: invite them. They become an operator on first sign-in.
+        const created = await deps.createInvitation(subject, email, name);
+        if (created.outcome !== "created") {
+          if (created.outcome === "forbidden")
+            return c.json({ error: "Operator access required" }, 403);
+          if (created.outcome === "invalid")
+            return c.json({ errors: { email: "Enter a valid email address." } }, 400);
+          return c.json({ errors: { email: "This email already has an open invitation." } }, 409);
+        }
+        try {
+          const clerkId = await accounts.inviteOperator({ email, invitationId: created.id });
+          await deps.recordOperatorInvitation(subject, created.id, clerkId);
+        } catch {
+          console.error("Operator invitation failed");
+          await deps.revokeInvitation(subject, created.id);
+          return c.json(
+            {
+              error:
+                "We couldn’t send the invitation. If this email already has an account, ask them to verify it, then add them again.",
             },
-          },
-          422,
-        );
-      const outcome = await deps.grantOperator(c.get("subject"), target, name);
+            502,
+          );
+        }
+        return c.json({ invited: true }, 202);
+      }
+      const outcome = await deps.grantOperator(subject, target, name);
       if (outcome === "forbidden") return c.json({ error: "Operator access required" }, 403);
       if (outcome === "invalid")
         return c.json({ errors: { name: "Enter a name using 120 characters or fewer." } }, 400);
@@ -178,6 +217,42 @@ export function operatorRoutes(deps: OperatorDeps) {
     if (outcome === "self") return c.json({ error: "You can’t remove yourself." }, 409);
     if (outcome === "not_found") return c.json({ error: "Operator not found." }, 404);
     return c.json({ removed: true });
+  });
+
+  app.get("/operator-invitations", async (c) =>
+    c.json({ invitations: await deps.invitations(c.get("subject")) }),
+  );
+  app.post("/operator-invitations/:id/resend", async (c) => {
+    const id = c.req.param("id");
+    if (!uuidPattern.test(id)) return c.json({ error: "Invitation not found." }, 404);
+    if (!deps.accounts) return c.json({ error: "Invitations are not configured." }, 503);
+    const subject = c.get("subject");
+    const open = await deps.openInvitation(subject, id);
+    if (!open) return c.json({ error: "Invitation not found." }, 404);
+    try {
+      // Replace the earlier Clerk invitation so only one link works.
+      if (open.clerkInvitationId)
+        await deps.accounts.revokeInvitation(open.clerkInvitationId).catch(() => undefined);
+      const clerkId = await deps.accounts.inviteOperator({ email: open.email, invitationId: id });
+      await deps.recordOperatorInvitation(subject, id, clerkId);
+    } catch {
+      console.error("Operator invitation resend failed");
+      return c.json({ error: "We couldn’t resend the invitation. Try again." }, 502);
+    }
+    return c.json({ sent: true });
+  });
+  app.delete("/operator-invitations/:id", async (c) => {
+    const id = c.req.param("id");
+    if (!uuidPattern.test(id)) return c.json({ error: "Invitation not found." }, 404);
+    const result = await deps.revokeInvitation(c.get("subject"), id);
+    if (result.outcome === "forbidden") return c.json({ error: "Operator access required" }, 403);
+    if (result.outcome === "not_found") return c.json({ error: "Invitation not found." }, 404);
+    // The database record is closed first, so a failed Clerk revoke cannot grant access.
+    if (result.clerkInvitationId && deps.accounts)
+      await deps.accounts
+        .revokeInvitation(result.clerkInvitationId)
+        .catch(() => console.error("Clerk invitation revoke failed"));
+    return c.json({ cancelled: true });
   });
   return app;
 }

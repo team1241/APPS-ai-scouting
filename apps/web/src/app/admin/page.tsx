@@ -5,10 +5,10 @@ import { authorizedOrganizations } from "@/lib/backend";
 import { operatorAccess } from "@/lib/operator";
 
 export default async function OrganizationsPage() {
-  const [organizations, operator] = await Promise.all([
-    authorizedOrganizations(),
-    operatorAccess(),
-  ]);
+  // Sequential on purpose: loading teams claims a pending operator invitation first.
+  const organizations = await authorizedOrganizations();
+  const operator = await operatorAccess();
+  const isOperator = Boolean(operator && operator !== "denied");
   return (
     <main id="main" className="mx-auto max-w-3xl space-y-8 px-6 py-12">
       <div className="flex items-start justify-between gap-4">
@@ -18,7 +18,7 @@ export default async function OrganizationsPage() {
             Your current team permissions determine access.
           </p>
         </div>
-        {operator && operator !== "denied" ? (
+        {isOperator ? (
           <Button asChild variant="outline" className="h-11 shrink-0">
             <Link href="/operator">Review applications</Link>
           </Button>
@@ -43,8 +43,9 @@ export default async function OrganizationsPage() {
           <CardHeader>
             <CardTitle>No approved organizations</CardTitle>
             <CardDescription>
-              Your account does not have approved administrator access. Ask your team’s adult lead
-              to arrange or restore access.
+              {isOperator
+                ? "You don’t administer a team yet. As an operator, you can review access applications."
+                : "Your account does not have approved administrator access. Ask your team’s adult lead to arrange or restore access."}
             </CardDescription>
           </CardHeader>
         </Card>

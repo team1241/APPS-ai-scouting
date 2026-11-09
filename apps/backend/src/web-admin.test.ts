@@ -63,7 +63,7 @@ test("accounts without a team claim an approved application once, and claim erro
       assert.equal(subject, "user_invited");
       claims++;
       linked = true;
-      return id;
+      return true;
     },
   });
   assert.deepEqual(await (await app.request("/organizations")).json(), {

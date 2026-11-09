@@ -3,9 +3,12 @@
 import { useActionState, useEffect, useRef, useState } from "react";
 import {
   addOperator,
+  cancelOperatorInvitation,
+  type InvitationState,
   type OperatorFormState,
   type RemoveState,
   removeOperator,
+  resendOperatorInvitation,
 } from "@/app/operator/operators/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -62,11 +65,16 @@ export function AddOperatorForm() {
     <form ref={form} action={submit} className="space-y-4 rounded-lg border bg-card p-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
         {field("name", "Name", "text")}
-        {field("email", "Email", "email", "Must match their verified sign-in email.")}
+        {field(
+          "email",
+          "Email",
+          "email",
+          "If they have no account yet, we email them an invitation.",
+        )}
       </div>
       <div className="flex flex-wrap items-center gap-3">
         <Button type="submit" disabled={pending} className="h-11 px-5">
-          {pending ? "Adding…" : "Add operator"}
+          {pending ? "Adding…" : "Add or invite"}
         </Button>
         {state.message ? (
           <p
@@ -126,5 +134,80 @@ export function RemoveOperator({ clerkUserId, name }: { clerkUserId: string; nam
         </p>
       ) : null}
     </form>
+  );
+}
+
+// Resend and cancel for an open operator invitation. Cancel is confirmed in place.
+export function InvitationActions({
+  invitationId,
+  email,
+}: {
+  invitationId: string;
+  email: string;
+}) {
+  const [resent, resend, resending] = useActionState<InvitationState, FormData>(
+    resendOperatorInvitation,
+    { status: "idle" },
+  );
+  const [cancelled, cancel, cancelling] = useActionState<InvitationState, FormData>(
+    cancelOperatorInvitation,
+    { status: "idle" },
+  );
+  const [confirming, setConfirming] = useState(false);
+  const busy = resending || cancelling;
+  const feedback = [resent, cancelled].find((state) => state.status !== "idle" && state.message);
+  return (
+    <div className="flex flex-col gap-2 sm:items-end">
+      <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+        {confirming ? (
+          <form action={cancel} className="flex flex-wrap items-center gap-2">
+            <input type="hidden" name="invitationId" value={invitationId} />
+            <span className="text-sm">Cancel the invitation to {email}?</span>
+            <Button type="submit" variant="destructive" disabled={busy} className="h-11">
+              {cancelling ? "Cancelling…" : "Confirm cancel"}
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              disabled={busy}
+              className="h-11"
+              onClick={() => setConfirming(false)}
+            >
+              Keep
+            </Button>
+          </form>
+        ) : (
+          <>
+            <form action={resend}>
+              <input type="hidden" name="invitationId" value={invitationId} />
+              <Button type="submit" variant="outline" disabled={busy} className="h-11">
+                {resending ? "Sending…" : "Resend"}
+              </Button>
+            </form>
+            <Button
+              type="button"
+              variant="ghost"
+              disabled={busy}
+              className="h-11 text-destructive hover:text-destructive"
+              onClick={() => setConfirming(true)}
+            >
+              Cancel invitation
+            </Button>
+          </>
+        )}
+      </div>
+      {feedback ? (
+        <p
+          role={feedback.status === "error" ? "alert" : "status"}
+          className={
+            feedback.status === "error"
+              ? "text-sm text-destructive"
+              : "text-sm text-muted-foreground"
+          }
+        >
+          {feedback.message}
+        </p>
+      ) : null}
+    </div>
   );
 }

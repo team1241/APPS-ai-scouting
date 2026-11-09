@@ -187,7 +187,9 @@ node --env-file=.env src/platform-operator-setup.ts remove user_REPLACE_WITH_CLE
 
 Use the command for the first operator. After that, operators manage the list at `/operator/operators`:
 
-- **Add:** enter a name and email. The backend looks the email up in Clerk and adds the account only if exactly one user has it as a verified email. Sign-in is invite-only, so a new person must be invited in Clerk and sign in first. The email itself is not stored.
+- **Add:** enter a name and email. The backend looks the email up in Clerk. If exactly one account has it as a verified email, that account becomes an operator at once, and the email is not stored.
+- **Invite (#35):** if no account has that verified email, the backend records an `operator_invitation` and sends a Clerk invitation with `publicMetadata.operatorInvitationId`. It expires in 7 days. When an account with no teams loads `/web/organizations`, the backend reads that server-set metadata and the account's verified emails from Clerk. If an email matches an open, unexpired invitation, `claim_operator_invitation` adds the operator, recording the inviter as `added_by`. Invitees get no team; team assignment is separate work.
+- **Pending invitations** appear under "Invited" with Resend and Cancel. Resend revokes the earlier Clerk invitation, sends a new one and restarts the 7 days. Cancel closes the database record first, then revokes the Clerk invitation, so a failed Clerk call cannot grant access. If sending fails when inviting, the record is closed and the operator sees an error. The invitee's email is stored only while the invitation is open; accepting, cancelling or replacing an expired invitation clears it.
 - **Remove:** any other operator, after an in-place confirmation. An operator cannot remove themselves, so at least one always remains.
 - Each record shows who added it ("setup command" for CLI additions).
 
@@ -201,6 +203,6 @@ Every operator request rechecks the record, so removal takes effect on the next 
 
 **Rejection.** Reject asks for confirmation in place. The applicant is not notified, and the team cannot apply again. To allow a new application, an owner must delete the rejected row with the owner connection.
 
-**Database access.** The runtime role reads `access_application` and `platform_operator` only through row-level security on `app.clerk_user_id`, and has no INSERT, UPDATE or DELETE on either table. All state changes go through the `SECURITY DEFINER` functions in `20261109010000_platform_operators.ts` and `20261109020000_operator_management.ts`. Those functions must be owned by the migration role, which bypasses row-level security, as the existing operator commands already require.
+**Database access.** The runtime role reads `access_application` and `platform_operator` only through row-level security on `app.clerk_user_id`, and has no INSERT, UPDATE or DELETE on either table. All state changes go through the `SECURITY DEFINER` functions in `20261109010000_platform_operators.ts`, `20261109020000_operator_management.ts` and `20261109030000_operator_invitations.ts`. The runtime has no table privileges on `operator_invitation`. Those functions must be owned by the migration role, which bypasses row-level security, as the existing operator commands already require.
 
 Validation covers route authorization and errors, duplicate-team rules under concurrency, provisioning, claim email matching, operator removal and runtime-role privileges against disposable Postgres. The review page was checked at desktop and phone widths with fixture data. A live Clerk invitation and claim were not tested end to end.
