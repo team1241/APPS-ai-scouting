@@ -10,7 +10,7 @@ Next.js App Router with Tailwind CSS and locally owned shadcn/ui New York compon
 
 ## Components and layout
 
-Buttons and cards live in `apps/web/src/components/ui`. Keep corners at 8–12px and reserve the accent for actions and selection. Admin surfaces use borders, not decorative shadows. The one exception is a public card that overlaps the navy band (request form, Clerk sign-in): it uses a soft navy shadow and no border. Desktop content is centered; organization rows remain readable and clickable on phones. Error, denied-access, loading and empty states use plain actionable language.
+Buttons and cards live in `apps/web/src/components/ui`. Keep corners at 8–12px and reserve the accent for actions and selection. Field outlines use `--color-input` (light grey, slightly stronger than card borders); checkboxes use a stronger muted outline so the small box stays visible. Admin surfaces use borders, not decorative shadows. The one exception is a public card that overlaps the navy band (request form, Clerk sign-in): it uses a soft navy shadow and no border. Desktop content is centered; organization rows remain readable and clickable on phones. Error, denied-access, loading and empty states use plain actionable language.
 
 The public access application uses TanStack Form with Zod validation and shadcn Field, Input, Select and Checkbox components. The page heading leads directly into the form without introductory paragraphs. Controls have visible labels and focus, with full-width fields and a full-width primary action on phones. Validation uses inline FieldError messages and focuses the first invalid control; server failures add an actionable error summary; service failure preserves entered values. Pending submission disables the controls and names the operation. A successful submission replaces the form, inside the same card, with a receipt that distinguishes pending review from granted access.
 
@@ -29,6 +29,14 @@ Signed-in users have the Clerk profile button in the same header position across
 Inside a workspace, a secondary navigation row displays the current backend-authorized team number and name with an explicit Change team action only when the current backend response contains more than one authorized team. It uses the page's existing access result, never a Clerk organization claim or URL-derived label. Loading and denied/unavailable pages do not assert a selected team. Long names wrap, controls retain at least 44px hit areas, and narrow layouts can wrap the team action onto another line without a hamburger menu.
 
 Team-selection lists clip hover backgrounds to their rounded container. Row focus outlines sit inside the row so keyboard focus remains visible within that clipping.
+
+## Operator review
+
+`/operator` is an admin surface in the light register. It is reached from a "Review applications" outline button on the team selection page, shown only to platform operators. The page has two bordered lists: "Waiting for review" (oldest first) and "Recently reviewed". Each row leads with the tabular team number and applicant name, then role, email and date in muted text.
+
+A pending row has a team name field prefilled with "Team <number>" and a primary "Approve and invite" action on the same line on wider screens. Reject is a quiet destructive text button that expands in place into a one-line warning with "Confirm reject" and "Cancel"; there is no modal. Reviewed rows show their state in text: Invited, Signed in, Rejected, or "Invitation not sent" in the destructive colour with "Resend invitation". Controls keep 44px hit areas and stack to full width on phones. The destructive button variant uses `--color-destructive-foreground` for its label.
+
+Operator pages share a white secondary navigation row ("Platform operator", then Applications and Operators) with the current page underlined in the primary colour. The Operators page lists operators with who added them, marks the viewer "(you)" without a Remove action, and ends with a bordered add form (name and email side by side on wider screens). Remove uses the same in-place confirmation as Reject.
 
 ## Public entrance
 

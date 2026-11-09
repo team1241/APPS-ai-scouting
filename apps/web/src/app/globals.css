@@ -17,8 +17,9 @@
   --color-accent: oklch(0.95 0.015 260);
   --color-accent-foreground: var(--foreground);
   --color-destructive: oklch(0.5 0.18 25);
+  --color-destructive-foreground: oklch(0.985 0 0);
   --color-border: oklch(0.88 0 0);
-  --color-input: oklch(0.8 0 0);
+  --color-input: oklch(0.87 0 0);
   --color-ring: var(--primary);
   --color-navy: var(--navy);
   --color-navy-raised: var(--navy-raised);

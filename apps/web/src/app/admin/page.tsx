@@ -2,9 +2,13 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { authorizedOrganizations } from "@/lib/backend";
+import { operatorAccess } from "@/lib/operator";
 
 export default async function OrganizationsPage() {
-  const organizations = await authorizedOrganizations();
+  const [organizations, operator] = await Promise.all([
+    authorizedOrganizations(),
+    operatorAccess(),
+  ]);
   return (
     <main id="main" className="mx-auto max-w-3xl space-y-8 px-6 py-12">
       <div className="flex items-start justify-between gap-4">
@@ -14,6 +18,11 @@ export default async function OrganizationsPage() {
             Your current team permissions determine access.
           </p>
         </div>
+        {operator && operator !== "denied" ? (
+          <Button asChild variant="outline" className="h-11 shrink-0">
+            <Link href="/operator">Review applications</Link>
+          </Button>
+        ) : null}
       </div>
       {organizations === null ? (
         <Card>

@@ -44,7 +44,7 @@ export async function submitApplication(
       redirect: "error",
       signal: AbortSignal.timeout(10_000),
     });
-    if (response.status === 400) {
+    if (response.status === 400 || response.status === 409) {
       const data: unknown = await response.json();
       if (
         data &&
@@ -64,7 +64,10 @@ export async function submitApplication(
             status: "error",
             values,
             errors,
-            message: "Check the highlighted details and submit again.",
+            message:
+              response.status === 409
+                ? "We can’t accept another application for this team."
+                : "Check the highlighted details and submit again.",
           };
       }
     }

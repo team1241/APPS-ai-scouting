@@ -168,10 +168,39 @@ Issue #30 adds `/request-access`, linked from the home page and available withou
 
 The website uses TanStack Form with Zod validation and shadcn Field, Input, Select and Checkbox components; controlled values persist after validation and transport failures. The public Next.js server action posts only these details plus a submission UUID to `POST /web/access-applications`. Configure the existing server-only `BACKEND_URL`; production uses HTTPS. The backend validates a bounded request and saves an `access_application` with status `pending` and a server timestamp. Retrying a submission or applying again for the same email/team while pending returns the same generic receipt without creating a second pending record or revealing whether one already exists. The endpoint never accepts approval state or creates identities, memberships, teams, or approval links.
 
-Apply the versioned migration through the normal `db:sync` process. The runtime role has INSERT-only column privileges and row-level security allows only pending, adult-attested submissions. It cannot list, read, approve, edit, or delete applications. Privileged application owners/operators can inspect pending records with their migration/owner connection until a separately authorized review interface is implemented. Do not grant this table's SELECT privileges to public or tenant-scoped routes. Review and approval UI/actions, Clerk invitations, and email/Resend integration remain out of scope. The completion state confirms receipt and explicitly says no email has been sent.
+Apply the versioned migration through the normal `db:sync` process. Since #33, the runtime submits through a database function and reads applications only as a recorded platform operator; see [Operator review and team provisioning](#operator-review-and-team-provisioning). Do not grant this table's SELECT privileges to public or tenant-scoped routes. Email/Resend integration remains out of scope. The completion state confirms receipt and explicitly says no email has been sent.
 
 Name and email are applicant-supplied contact details, not verified identity. Never use them alone to provision or link an account. Follow the existing adult approval/linking procedure after review. Delete application contact details within 90 days of submission, including unresolved requests; the operator must schedule and verify cleanup with an owner connection because the runtime cannot delete these records. Include applications in privacy access/deletion requests and backup deletion handling. Avoid logging request bodies or application details.
 
 The same issue restyles the public entrance (home, sign-in and request access) and the shared header and footer around the Theory6 Apps badge. `DESIGN.md` records the decisions under Visual direction, Administration navigation and Public entrance. Each worktree needs its own ignored `apps/web/.env.local` and `apps/backend/.env`; without the backend env, `/admin` cannot load teams, and without the Clerk keys, Sign in returns to the home page.
 
 Validation covers route inputs, persistence, concurrent retries, database privileges/RLS, server-action failure recovery, and existing admin authorization. CI runs the application tests against disposable Postgres. No live Clerk account or email delivery is required for the public flow.
+
+## Operator review and team provisioning
+
+Issue #33 adds platform operators, who review access applications at `/operator`. Clerk sign-in alone does not make someone an operator. Operators are recorded in the `platform_operator` table with an owner/migration connection. From `apps/backend`:
+
+```bash
+node --env-file=.env src/platform-operator-setup.ts add user_REPLACE_WITH_CLERK_ID "Operator name"
+node --env-file=.env src/platform-operator-setup.ts remove user_REPLACE_WITH_CLERK_ID
+```
+
+Use the command for the first operator. After that, operators manage the list at `/operator/operators`:
+
+- **Add:** enter a name and email. The backend looks the email up in Clerk and adds the account only if exactly one user has it as a verified email. Sign-in is invite-only, so a new person must be invited in Clerk and sign in first. The email itself is not stored.
+- **Remove:** any other operator, after an in-place confirmation. An operator cannot remove themselves, so at least one always remains.
+- Each record shows who added it ("setup command" for CLI additions).
+
+Every operator request rechecks the record, so removal takes effect on the next request. Operators see a "Review applications" button on the team selection page, and an operator navigation row with Applications and Operators.
+
+**Submission.** `POST /web/access-applications` calls `submit_access_application`. A retry of the same submission ID returns the same receipt. A new application for a team number that already has a pending, rejected or approved application, or an existing organization, gets HTTP 409 and a team-number error on the form. This tells the applicant that the team has a record; this was an explicit product decision.
+
+**Approval.** "Approve and invite" calls `approve_access_application` in one transaction. It creates the organization with the operator-confirmed team name, an `admin` member with the applicant's name, and a `web_admin_access` approval (`policy_version = operator-approved-v1`, self-approved bootstrap; the reviewing operator is recorded on the application). It refuses applications that are not pending and teams that already have an organization. After the commit, the backend sends a Clerk invitation to the application email with `publicMetadata.accessApplicationId`. Set `WEB_INVITATION_REDIRECT_URL` to send invitees to a specific page; otherwise Clerk uses the Account Portal. If the invitation fails (for example, the email already has a Clerk account), the team stays provisioned and the row shows "Invitation not sent" with "Resend invitation".
+
+**Linking.** When a signed-in account has no linked teams, `GET /web/organizations` reads the user from the Clerk Backend API. If the server-set public metadata names an approved application and one of the account's verified emails matches the application email, `claim_access_application` links the Clerk subject to the new admin member. Existing admins never trigger this Clerk call. A claimed application cannot be linked to a different account; replace a link with the revoke and approve steps above.
+
+**Rejection.** Reject asks for confirmation in place. The applicant is not notified, and the team cannot apply again. To allow a new application, an owner must delete the rejected row with the owner connection.
+
+**Database access.** The runtime role reads `access_application` and `platform_operator` only through row-level security on `app.clerk_user_id`, and has no INSERT, UPDATE or DELETE on either table. All state changes go through the `SECURITY DEFINER` functions in `20261109010000_platform_operators.ts` and `20261109020000_operator_management.ts`. Those functions must be owned by the migration role, which bypasses row-level security, as the existing operator commands already require.
+
+Validation covers route authorization and errors, duplicate-team rules under concurrency, provisioning, claim email matching, operator removal and runtime-role privileges against disposable Postgres. The review page was checked at desktop and phone widths with fixture data. A live Clerk invitation and claim were not tested end to end.

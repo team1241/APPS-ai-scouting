@@ -47,7 +47,7 @@ export function validateApplication(input: unknown) {
 }
 
 export function accessApplicationRoutes(deps: {
-  save: (input: AccessApplication) => Promise<void>;
+  save: (input: AccessApplication) => Promise<"received" | "team_exists">;
 }) {
   const app = new Hono();
   app.use("*", async (c, next) => {
@@ -70,8 +70,19 @@ export function accessApplicationRoutes(deps: {
       }
       const { application, errors } = validateApplication(input);
       if (Object.keys(errors).length) return c.json({ errors }, 400);
-      await deps.save(application);
-      // Identical response for a new submission, retry, or existing pending request.
+      const outcome = await deps.save(application);
+      // Any earlier application or organization for this team blocks a new one.
+      if (outcome === "team_exists")
+        return c.json(
+          {
+            errors: {
+              teamNumber:
+                "This team already has an application or account. Contact us if you think this is wrong.",
+            },
+          },
+          409,
+        );
+      // A retry of the same submission returns the same receipt.
       return c.json({ received: true }, 202);
     },
   );
