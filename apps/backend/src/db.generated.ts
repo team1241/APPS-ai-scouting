@@ -317,6 +317,27 @@ export interface ScoutingSession {
   validation_result: Json | null;
 }
 
+export interface TelegramActiveTeam {
+  external_id: string;
+  organization_id: string;
+}
+
+export interface TelegramConnect {
+  clerk_user_id: string;
+  expires_at: Generated<Timestamp>;
+  member_id: string;
+  organization_id: string;
+  token_hash: string;
+  used_at: Timestamp | null;
+  used_by: string | null;
+}
+
+export interface TelegramMessageRoute {
+  external_id: string;
+  organization_id: string;
+  update_id: string;
+}
+
 export interface WebAdminAccess {
   approved_at: Generated<Timestamp>;
   approved_by: string;
@@ -351,5 +372,8 @@ export interface DB {
   schedule_notification: ScheduleNotification;
   schedule_poll: SchedulePoll;
   scouting_session: ScoutingSession;
+  telegram_active_team: TelegramActiveTeam;
+  telegram_connect: TelegramConnect;
+  telegram_message_route: TelegramMessageRoute;
   web_admin_access: WebAdminAccess;
 }

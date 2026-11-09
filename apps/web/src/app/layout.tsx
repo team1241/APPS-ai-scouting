@@ -2,6 +2,8 @@ import { ClerkProvider } from "@clerk/nextjs";
 import type { Metadata } from "next";
 import { Archivo } from "next/font/google";
 import Link from "next/link";
+import { Suspense } from "react";
+import { OperatorEntry } from "@/components/operator-entry";
 import { SiteHeader } from "@/components/site-header";
 import { authConfigured } from "@/lib/auth-config";
 import "./globals.css";
@@ -28,7 +30,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       >
         Skip to content
       </a>
-      <SiteHeader authEnabled={authConfigured()} />
+      <SiteHeader
+        authEnabled={authConfigured()}
+        operatorEntry={
+          authConfigured() ? (
+            <Suspense fallback={null}>
+              <OperatorEntry />
+            </Suspense>
+          ) : null
+        }
+      />
       {children}
       <footer className="public-band mt-auto border-t border-sky/15 bg-navy text-sm text-sky-soft">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-4 sm:px-6">

@@ -755,25 +755,23 @@ test("flag requests preserve observations, deduplicate concurrent retries, and a
     }
     assert.equal((await flag("9999")).status, "missing");
     assert.equal((await flag("1241 999")).status, "missing");
-    const routed = await (await import("./telegram.ts"))
-      .telegramRoutes(org, "secret")
-      .request("/", {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          "X-Telegram-Bot-Api-Secret-Token": "secret",
+    const routed = await (await import("./telegram.ts")).telegramRoutes("secret").request("/", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "X-Telegram-Bot-Api-Secret-Token": "secret",
+      },
+      body: JSON.stringify({
+        update_id: Number(next()),
+        message: {
+          chat: { id: 1, type: "private" },
+          from: { id: 1 },
+          text: "/flag 1241 Routing test",
         },
-        body: JSON.stringify({
-          update_id: Number(next()),
-          message: {
-            chat: { id: 1, type: "private" },
-            from: { id: 1 },
-            text: "/flag 1241 Routing test",
-          },
-        }),
-      });
+      }),
+    });
     assert.match(((await routed.json()) as { text: string }).text, /Flag recorded/);
-    const route = (await import("./telegram.ts")).telegramRoutes(org, "secret");
+    const route = (await import("./telegram.ts")).telegramRoutes("secret");
     for (const text of [
       `/reextract ${before[0].id}`,
       `/REEXTRACT@scouting_bot ${before[0].id}`,

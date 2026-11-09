@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { backendRequest } from "@/lib/backend";
 
 export interface ReviewApplication {
@@ -15,26 +16,27 @@ export interface ReviewApplication {
   claimedAt: string | null;
 }
 
-export type OperatorAccess = { name: string } | "denied" | null;
+export type OperatorAccess = { name: string; waiting: number } | "denied" | null;
 
 // Returns the operator profile, "denied" for signed-in non-operators, or null
 // when the backend cannot answer.
-export async function operatorAccess(): Promise<OperatorAccess> {
+export const operatorAccess = cache(async (): Promise<OperatorAccess> => {
   const response = await backendRequest("/web/operator");
   if (!response) return null;
   if (response.status === 403) return "denied";
   if (!response.ok) return null;
-  const data = (await response.json()) as { operator: { name: string } };
+  const data = (await response.json()) as { operator: { name: string; waiting: number } };
   return data.operator;
-}
+});
 
-export async function reviewApplications(
-  status: "pending" | "reviewed",
-): Promise<ReviewApplication[] | null> {
-  const response = await backendRequest(`/web/operator/applications?status=${status}`);
+// Both review lists in one backend request.
+export async function applicationLists(): Promise<{
+  pending: ReviewApplication[];
+  reviewed: ReviewApplication[];
+} | null> {
+  const response = await backendRequest("/web/operator/applications");
   if (!response?.ok) return null;
-  const data = (await response.json()) as { applications: ReviewApplication[] };
-  return data.applications;
+  return (await response.json()) as { pending: ReviewApplication[]; reviewed: ReviewApplication[] };
 }
 
 export interface PlatformOperator {
@@ -43,13 +45,6 @@ export interface PlatformOperator {
   createdAt: string;
   addedByName: string | null;
   isSelf: boolean;
-}
-
-export async function platformOperators(): Promise<PlatformOperator[] | null> {
-  const response = await backendRequest("/web/operator/operators");
-  if (!response?.ok) return null;
-  const data = (await response.json()) as { operators: PlatformOperator[] };
-  return data.operators;
 }
 
 export interface OperatorInvitation {
@@ -62,9 +57,15 @@ export interface OperatorInvitation {
   sent: boolean;
 }
 
-export async function operatorInvitations(): Promise<OperatorInvitation[] | null> {
-  const response = await backendRequest("/web/operator/operator-invitations");
+// Operators and open invitations in one backend request.
+export async function operatorLists(): Promise<{
+  operators: PlatformOperator[];
+  invitations: OperatorInvitation[];
+} | null> {
+  const response = await backendRequest("/web/operator/operators");
   if (!response?.ok) return null;
-  const data = (await response.json()) as { invitations: OperatorInvitation[] };
-  return data.invitations;
+  return (await response.json()) as {
+    operators: PlatformOperator[];
+    invitations: OperatorInvitation[];
+  };
 }

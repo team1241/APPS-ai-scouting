@@ -4,13 +4,14 @@ import { accessApplicationRoutes } from "./access-applications.ts";
 import { clerkAccounts } from "./clerk-accounts.ts";
 import { createWorkerControl, eventMode } from "./event-mode.ts";
 import { extractionConfig } from "./extraction-config.ts";
-import { startExtractionWorker } from "./extraction-worker.ts";
+import { runExtractionPass } from "./extraction-worker.ts";
 import { operatorRoutes } from "./operator-review.ts";
-import { startOutboundWorker } from "./outbound-worker.ts";
+import { drainOutbound } from "./outbound-worker.ts";
 import { saveAccessApplication } from "./repositories/access-applications.ts";
 import { checkDatabase, closeDatabase } from "./repositories/database.ts";
 import { workerEvents } from "./repositories/operations.ts";
 import {
+  applicationLists,
   approveApplication,
   claimApplication,
   claimOperatorInvitation,
@@ -28,10 +29,12 @@ import {
   revokeOperator,
   revokeOperatorInvitation,
 } from "./repositories/operators.ts";
+import { organizationIds } from "./repositories/telegram-connect.ts";
 import { adminOrganizations } from "./repositories/web-admin.ts";
 import { telegramRoutes } from "./telegram.ts";
 import { webAdminRoutes } from "./web-admin.ts";
 import { webSessionVerifier } from "./web-auth.ts";
+import { startWorkerLoop } from "./worker-loop.ts";
 
 const extraction = extractionConfig(process.env);
 const app = new Hono();
@@ -44,6 +47,7 @@ app.route(
     verify: verifyWebSession,
     profile: operatorProfile,
     applications: reviewApplications,
+    applicationLists,
     approve: approveApplication,
     reject: rejectApplication,
     invitable: invitableApplication,
@@ -79,9 +83,9 @@ app.route(
       : null,
   }),
 );
-const org = process.env.TELEGRAM_ORGANIZATION_ID;
-const control = createWorkerControl(eventMode(process.env), () =>
-  org ? workerEvents(org) : Promise.resolve([]),
+
+const control = createWorkerControl(eventMode(process.env), async () =>
+  (await Promise.all((await organizationIds()).map(workerEvents))).flat(),
 );
 // Load before accepting traffic; startup failure cannot leave an apparently healthy auto worker.
 await control.refresh();
@@ -93,11 +97,8 @@ app.use("/telegram/webhook", async (c, next) => {
     void control.refresh().catch(() => console.error("Event-window refresh failed"));
   }
 });
-if (process.env.TELEGRAM_ORGANIZATION_ID && process.env.TELEGRAM_WEBHOOK_SECRET) {
-  app.route(
-    "/telegram/webhook",
-    telegramRoutes(process.env.TELEGRAM_ORGANIZATION_ID, process.env.TELEGRAM_WEBHOOK_SECRET),
-  );
+if (process.env.TELEGRAM_WEBHOOK_SECRET) {
+  app.route("/telegram/webhook", telegramRoutes(process.env.TELEGRAM_WEBHOOK_SECRET));
 }
 
 // No database query, so a wake-up ping does not wake Neon.
@@ -120,26 +121,29 @@ const server = serve({ fetch: app.fetch, port }, (info) => {
 });
 
 const stops: (() => Promise<void>)[] = [];
-if (extraction) {
+if (extraction || process.env.TELEGRAM_BOT_TOKEN) {
   stops.push(
-    startExtractionWorker(
-      extraction.organizationId,
-      extraction.baseUrl,
-      extraction.botToken,
-      extraction.serviceToken,
-      control.active,
-    ),
+    startWorkerLoop(async () => {
+      for (const org of await organizationIds()) {
+        if (!control.active()) break;
+        try {
+          if (extraction) await runExtractionPass(org, extraction.baseUrl, extraction.serviceToken);
+          if (process.env.TELEGRAM_BOT_TOKEN)
+            await drainOutbound(
+              org,
+              process.env.TELEGRAM_BOT_TOKEN,
+              fetch,
+              undefined,
+              control.active,
+              10,
+            );
+        } catch {
+          console.error("Organization worker pass failed");
+        }
+      }
+    }, control.active),
   );
 }
-
-if (process.env.TELEGRAM_ORGANIZATION_ID && process.env.TELEGRAM_BOT_TOKEN)
-  stops.push(
-    startOutboundWorker(
-      process.env.TELEGRAM_ORGANIZATION_ID,
-      process.env.TELEGRAM_BOT_TOKEN,
-      control.active,
-    ),
-  );
 let stopping = false;
 async function shutdown() {
   if (stopping) return;

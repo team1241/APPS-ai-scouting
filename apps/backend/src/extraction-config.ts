@@ -1,5 +1,4 @@
 export interface ExtractionConfig {
-  organizationId: string;
   baseUrl: string;
   botToken: string;
   serviceToken?: string;
@@ -12,7 +11,6 @@ export function extractionConfig(env: NodeJS.ProcessEnv): ExtractionConfig | nul
   if (env.EXTRACTION_ENABLED !== "true") return null;
   for (const name of [
     "DATABASE_URL",
-    "TELEGRAM_ORGANIZATION_ID",
     "TELEGRAM_BOT_TOKEN",
     "TELEGRAM_WEBHOOK_SECRET",
     "MASTRA_URL",
@@ -28,7 +26,6 @@ export function extractionConfig(env: NodeJS.ProcessEnv): ExtractionConfig | nul
   if ((!local || env.NODE_ENV === "production") && !env.MASTRA_SERVICE_TOKEN?.trim())
     throw Error("Hosted extraction requires MASTRA_SERVICE_TOKEN");
   return {
-    organizationId: env.TELEGRAM_ORGANIZATION_ID as string,
     baseUrl: url.toString(),
     botToken: env.TELEGRAM_BOT_TOKEN as string,
     serviceToken: env.MASTRA_SERVICE_TOKEN,

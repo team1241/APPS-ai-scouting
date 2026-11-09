@@ -66,12 +66,7 @@ export function AddOperatorForm() {
     <form ref={form} action={submit} className="space-y-4 rounded-lg border bg-card p-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
         {field("name", "Name", "text")}
-        {field(
-          "email",
-          "Email",
-          "email",
-          "If they have no account yet, we email them an invitation.",
-        )}
+        {field("email", "Email", "email")}
       </div>
       <div className="flex flex-wrap items-center gap-3">
         <Button type="submit" disabled={pending} className="h-11 px-5">

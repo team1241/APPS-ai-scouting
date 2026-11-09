@@ -10,8 +10,10 @@ function deps(overrides: Partial<OperatorDeps> = {}): OperatorDeps {
   return {
     verify: async (request) =>
       request.headers.get("authorization") === "Bearer session" ? "user_operator" : null,
-    profile: async (subject) => (subject === "user_operator" ? { name: "Operator" } : undefined),
+    profile: async (subject) =>
+      subject === "user_operator" ? { name: "Operator", waiting: 2 } : undefined,
     applications: async () => [],
+    applicationLists: async () => ({ pending: [], reviewed: [] }),
     approve: async () => ({
       outcome: "approved",
       organizationId: "00000000-0000-4000-8000-000000000001",
@@ -52,7 +54,29 @@ test("operator routes require a verified session and a current operator record",
   );
   const response = await app.request("/", { headers });
   assert.equal(response.headers.get("cache-control"), "private, no-store");
-  assert.deepEqual(await response.json(), { operator: { name: "Operator" } });
+  assert.deepEqual(await response.json(), { operator: { name: "Operator", waiting: 2 } });
+});
+
+test("the applications page loads both lists in one request", async () => {
+  const calls: string[] = [];
+  const app = operatorRoutes(
+    deps({
+      applications: async (_subject, status) => {
+        calls.push(status);
+        return [];
+      },
+      applicationLists: async () => {
+        calls.push("both");
+        return { pending: [], reviewed: [] };
+      },
+    }),
+  );
+  assert.deepEqual(await (await app.request("/applications", { headers })).json(), {
+    pending: [],
+    reviewed: [],
+  });
+  await app.request("/applications?status=reviewed", { headers });
+  assert.deepEqual(calls, ["both", "reviewed"]);
 });
 
 test("approval validates the team name, provisions, then sends the invitation", async () => {
@@ -165,7 +189,7 @@ test("review conflicts and invitation failures return safe, specific results", a
       },
     }),
   );
-  const error = await broken.request("/applications", { headers });
+  const error = await broken.request("/applications?status=pending", { headers });
   assert.equal(error.status, 503);
   assert.deepEqual(await error.json(), { error: "Application review unavailable" });
 });
@@ -212,6 +236,7 @@ test("operators list, add by verified email and remove others", async () => {
       ["user_other", false],
     ],
   );
+  assert.deepEqual(list.invitations, []);
   const add = (body: unknown) =>
     app.request("/operators", { method: "POST", headers, body: JSON.stringify(body) });
   for (const body of [

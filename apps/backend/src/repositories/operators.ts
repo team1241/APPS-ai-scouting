@@ -35,57 +35,81 @@ function asOperator<T>(subject: string, fallback: T, run: (tx: Transaction<DB>) 
   });
 }
 
-export function operatorProfile(subject: string) {
+export interface OperatorProfile {
+  name: string;
+  waiting: number;
+}
+
+// The operator check and the waiting count share one statement, so the
+// per-request check also feeds the navigation badge.
+export function operatorProfile(subject: string): Promise<OperatorProfile | undefined> {
   return db.transaction().execute(async (tx) => {
     await sql`select set_config('app.clerk_user_id', ${subject}, true)`.execute(tx);
-    return tx
-      .selectFrom("platform_operator")
-      .select("name")
-      .where("clerk_user_id", "=", subject)
-      .executeTakeFirst();
+    const { rows } = await sql<{
+      name: string;
+      waiting: string;
+    }>`select o.name, (select count(*) from access_application where status = 'pending') as waiting from platform_operator o where o.clerk_user_id = ${subject}`.execute(
+      tx,
+    );
+    const row = rows[0];
+    return row ? { name: row.name, waiting: Number(row.waiting) } : undefined;
   });
 }
 
+async function listApplications(tx: Transaction<DB>, status: "pending" | "reviewed") {
+  let query = tx
+    .selectFrom("access_application")
+    .select([
+      "id",
+      "name",
+      "email",
+      "team_number",
+      "team_role",
+      "status",
+      "created_at",
+      "reviewed_at",
+      "organization_id",
+      "invited_at",
+      "claimed_at",
+    ]);
+  query =
+    status === "pending"
+      ? query.where("status", "=", "pending").orderBy("created_at", "asc")
+      : query.where("status", "<>", "pending").orderBy("reviewed_at", "desc").limit(50);
+  const rows = await query.orderBy("id").execute();
+  const iso = (value: Date | string | null) =>
+    value === null ? null : new Date(value).toISOString();
+  return rows.map(
+    (row): ReviewApplication => ({
+      id: row.id,
+      name: row.name,
+      email: row.email,
+      teamNumber: row.team_number,
+      role: row.team_role,
+      status: row.status as ReviewApplication["status"],
+      createdAt: new Date(row.created_at).toISOString(),
+      reviewedAt: iso(row.reviewed_at),
+      organizationId: row.organization_id,
+      invitedAt: iso(row.invited_at),
+      claimedAt: iso(row.claimed_at),
+    }),
+  );
+}
+
 export function reviewApplications(subject: string, status: "pending" | "reviewed") {
-  return asOperator(subject, [] as ReviewApplication[], async (tx) => {
-    let query = tx
-      .selectFrom("access_application")
-      .select([
-        "id",
-        "name",
-        "email",
-        "team_number",
-        "team_role",
-        "status",
-        "created_at",
-        "reviewed_at",
-        "organization_id",
-        "invited_at",
-        "claimed_at",
-      ]);
-    query =
-      status === "pending"
-        ? query.where("status", "=", "pending").orderBy("created_at", "asc")
-        : query.where("status", "<>", "pending").orderBy("reviewed_at", "desc").limit(50);
-    const rows = await query.orderBy("id").execute();
-    const iso = (value: Date | string | null) =>
-      value === null ? null : new Date(value).toISOString();
-    return rows.map(
-      (row): ReviewApplication => ({
-        id: row.id,
-        name: row.name,
-        email: row.email,
-        teamNumber: row.team_number,
-        role: row.team_role,
-        status: row.status as ReviewApplication["status"],
-        createdAt: new Date(row.created_at).toISOString(),
-        reviewedAt: iso(row.reviewed_at),
-        organizationId: row.organization_id,
-        invitedAt: iso(row.invited_at),
-        claimedAt: iso(row.claimed_at),
-      }),
-    );
-  });
+  return asOperator(subject, [] as ReviewApplication[], (tx) => listApplications(tx, status));
+}
+
+// Both review lists in one transaction, for the applications page.
+export function applicationLists(subject: string) {
+  return asOperator(
+    subject,
+    { pending: [] as ReviewApplication[], reviewed: [] as ReviewApplication[] },
+    async (tx) => ({
+      pending: await listApplications(tx, "pending"),
+      reviewed: await listApplications(tx, "reviewed"),
+    }),
+  );
 }
 
 export async function approveApplication(

@@ -21,6 +21,13 @@ function saveEnv(values: Record<string, string>) {
 }
 try {
   if (command === "enroll" && value && /^\d+$/.test(value)) {
+    if (
+      process.env.NODE_ENV !== "development" ||
+      process.env.ALLOW_LOCAL_TELEGRAM_ENROLL !== "true"
+    )
+      throw Error(
+        "Local enrollment requires NODE_ENV=development and ALLOW_LOCAL_TELEGRAM_ENROLL=true",
+      );
     const id = process.env.TELEGRAM_ORGANIZATION_ID || randomUUID();
     await enrollMember({
       organizationId: id,
@@ -41,7 +48,7 @@ try {
     const url = new URL(value);
     if (url.protocol !== "https:") throw Error("Webhook requires HTTPS");
     if (!process.env.TELEGRAM_BOT_TOKEN || !process.env.TELEGRAM_WEBHOOK_SECRET)
-      throw Error("Configure bot token and enroll first");
+      throw Error("Configure TELEGRAM_BOT_TOKEN and TELEGRAM_WEBHOOK_SECRET");
     const response = await fetch(
       `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/setWebhook`,
       {
@@ -50,7 +57,7 @@ try {
         body: JSON.stringify({
           url: new URL("/telegram/webhook", url).toString(),
           secret_token: process.env.TELEGRAM_WEBHOOK_SECRET,
-          allowed_updates: ["message"],
+          allowed_updates: ["message", "callback_query"],
         }),
       },
     );

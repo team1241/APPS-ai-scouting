@@ -200,3 +200,33 @@ Use [event-day reliability](event-day-reliability.md) for EVENT_MODE, the indepe
 ## Privacy release gate
 
 Follow [Privacy boundaries](privacy.md) before enabling web enrollment or data exports. Publish the [notice](privacy-notice.md) with the responsible adult lead’s contact, and verify retention and vendor settings. Trace exports use a strict content-free allowlist; retain them for at most 30 days and restrict access. Workflow snapshots remain private content-bearing operational records.
+
+### Shared Telegram bot
+
+Apply migration `20261109040000_telegram_connect` using the migration owner
+(which must have BYPASSRLS, as for operator provisioning), then deploy the backend.
+Set `TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET`, and
+`TELEGRAM_BOT_USERNAME` (the bot username without `@`). The username is needed
+for web connection links. `TELEGRAM_ORGANIZATION_ID` is no longer used for routing
+or workers; existing enrolled identities and invitation links continue working.
+The ID-only `scouting_organization_ids()` function discovers worker tenants;
+all organization data queries still run in transaction-local tenant RLS.
+
+Approved web admins connect from their team workspace, follow the link, and
+confirm it in the shared bot. Links expire after ten minutes and can be used once.
+Creating another link invalidates earlier unused links for that admin. The bot
+links the existing admin member; it refuses to replace a conflicting Telegram
+identity. Disconnect on the team page before reconnecting. Used token hashes,
+Telegram IDs and use timestamps are retained for auditing.
+
+Admins create reusable scout links with `/invite` in Telegram and revoke them
+with `/revokeinvite`. A person enrolled on several teams uses `/team` to show
+a button for each accessible team; tapping a button selects the active team. Membership is checked on every
+message; no message is submitted until an ambiguous team choice is resolved.
+Extraction, outbound processing, recovery and schedule jobs discover all teams.
+One team's failure is recorded in the durable queue for recovery.
+
+Telegram team-selection buttons require the webhook to include both `message`
+and `callback_query` in `allowed_updates`. Re-register an existing webhook with
+`telegram-setup.ts webhook <https-base-url>` after deploying this change; the
+setup command includes both update types. Button taps recheck current membership.

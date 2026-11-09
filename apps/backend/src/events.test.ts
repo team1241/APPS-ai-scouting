@@ -68,10 +68,10 @@ test("event changes enforce roles, deduplicate commands and retain tenant/archiv
     other = randomUUID();
   try {
     await enroll(org);
-    await enroll(org, "2", "scout");
+    await enroll(org, "37021", "scout");
     await enroll(other);
     assert.equal(
-      (await changeEvent(org, "2", next(), { kind: "import-frc", config: config("Denied") }))
+      (await changeEvent(org, "37021", next(), { kind: "import-frc", config: config("Denied") }))
         .status,
       "forbidden",
     );
@@ -90,7 +90,7 @@ test("event changes enforce roles, deduplicate commands and retain tenant/archiv
       "missing",
     );
     assert.equal(
-      (await changeEvent(org, "2", next(), { kind: "activate", eventId: aid })).status,
+      (await changeEvent(org, "37021", next(), { kind: "activate", eventId: aid })).status,
       "forbidden",
     );
     const activation = next();
@@ -102,7 +102,7 @@ test("event changes enforce roles, deduplicate commands and retain tenant/archiv
     await changeEvent(org, "1", next(), { kind: "activate", eventId: bid });
     await changeEvent(org, "1", activation, { kind: "activate", eventId: aid });
     assert.equal(
-      (await readEvents(org, "2"))?.active?.id,
+      (await readEvents(org, "37021"))?.active?.id,
       bid,
       "delayed duplicate activation must not roll back current context",
     );
@@ -167,14 +167,14 @@ test("sessions bind at intake and follow-ups keep the original event after activ
   const org = randomUUID();
   try {
     await enroll(org);
-    const scout = await enroll(org, "2", "scout");
+    const scout = await enroll(org, "37021", "scout");
     const aid = await create(org, "A"),
       bid = await create(org, "B");
     await changeEvent(org, "1", next(), { kind: "activate", eventId: aid });
     const original = await saveIncomingNote({
       organizationId: org,
       channel: "telegram",
-      externalUserId: "2",
+      externalUserId: "37021",
       externalUpdateId: next(),
       text: "Q42 team 1241",
     });
@@ -204,7 +204,7 @@ test("sessions bind at intake and follow-ups keep the original event after activ
     const answer = await saveIncomingNote({
       organizationId: org,
       channel: "telegram",
-      externalUserId: "2",
+      externalUserId: "37021",
       externalUpdateId: next(),
       text: "no climb",
       replyToMessageId: "888",
@@ -234,7 +234,7 @@ test("sessions bind at intake and follow-ups keep the original event after activ
     const delayed = await saveIncomingNote({
       organizationId: org,
       channel: "telegram",
-      externalUserId: "2",
+      externalUserId: "37021",
       externalUpdateId: next(),
       text: `/scout ${aid} Q41 team 1241 climbed`,
       eventId: aid,
@@ -255,12 +255,12 @@ test("new notes require an active event, rejected retries cannot adopt later con
     other = randomUUID();
   try {
     await enroll(org);
-    const scout = await enroll(org, "2", "scout");
+    const scout = await enroll(org, "37021", "scout");
     await enroll(other);
     const aid = await create(org, "A"),
       bid = await create(org, "B"),
       foreign = await create(other, "Foreign");
-    const app = telegramRoutes(org, "secret");
+    const app = telegramRoutes("secret");
     const post = async (text: string, updateId = next()) => {
       const response = await app.request("/", {
         method: "POST",
@@ -270,7 +270,7 @@ test("new notes require an active event, rejected retries cannot adopt later con
         },
         body: JSON.stringify({
           update_id: Number(updateId),
-          message: { from: { id: 2 }, chat: { id: 2, type: "private" }, text },
+          message: { from: { id: 37021 }, chat: { id: 37021, type: "private" }, text },
         }),
       });
       assert.equal(response.status, 200);
@@ -355,7 +355,7 @@ test("new notes require an active event, rejected retries cannot adopt later con
       await saveIncomingNote({
         organizationId: org,
         channel: "telegram",
-        externalUserId: "2",
+        externalUserId: "37021",
         externalUpdateId: next(),
         text: "late answer",
         replyToMessageId: "legacy-question",
@@ -382,7 +382,7 @@ test("FRC event selection imports once, preserves settings, and deduplicates act
   const org = randomUUID();
   try {
     await enroll(org);
-    await enroll(org, "2", "scout");
+    await enroll(org, "37021", "scout");
     let lookups = 0;
     const lookup = async (season: number, code: string) => {
       lookups++;
@@ -400,7 +400,7 @@ test("FRC event selection imports once, preserves settings, and deduplicates act
       text,
     });
     assert.match(
-      (await eventCommand(input("/event set 2026 ONOSH", "2"), lookup)) ?? "",
+      (await eventCommand(input("/event set 2026 ONOSH", "37021"), lookup)) ?? "",
       /Only team admins/,
     );
     assert.equal(lookups, 0);

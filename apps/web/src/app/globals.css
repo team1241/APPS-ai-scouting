@@ -26,6 +26,11 @@
   --color-navy-raised: var(--navy-raised);
   --color-sky: var(--sky);
   --color-sky-soft: var(--sky-soft);
+  --color-success: oklch(0.45 0.12 155);
+  --color-success-soft: oklch(0.95 0.045 155);
+  --color-warning: oklch(0.47 0.11 65);
+  --color-warning-soft: oklch(0.96 0.06 85);
+  --color-destructive-soft: oklch(0.96 0.025 25);
   --radius-lg: 0.75rem;
   --radius-md: 0.5rem;
   --radius-sm: 0.25rem;

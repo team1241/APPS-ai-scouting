@@ -18,7 +18,7 @@ export function LoadingPage({
         {label}
       </p>
       <div className="space-y-3">
-        <Skeleton className="h-8 w-64 max-w-full" />
+        <Skeleton className="h-9 w-72 max-w-full sm:h-10" />
         {description ? <Skeleton className="h-5 w-full max-w-xl" /> : null}
       </div>
       {children}
