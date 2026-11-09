@@ -50,7 +50,7 @@ function HeaderContent({
 }) {
   const pathname = usePathname();
   return (
-    <header className="public-band border-b border-sky/15 bg-navy text-white">
+    <header className="public-band sticky top-0 z-40 border-b border-sky/15 bg-navy text-white">
       <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3 sm:gap-x-6 sm:px-6">
         <Link
           href={signedIn ? "/admin" : "/"}

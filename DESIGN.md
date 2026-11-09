@@ -20,7 +20,7 @@ Visible keyboard focus, a skip link, semantic headings, labeled actions, reduced
 
 ## Administration navigation
 
-The header and footer are navy on every page and frame the light admin content. The header shows the supplied Theory6 Apps logo (`apps/web/src/assets/apps-logo.png`), clipped to its circle at 44px, with a "Theory6" wordmark (Archivo width 125) and a sky "Administration" label on wider screens. Together they are the home link, with an accessible name and visible focus. It returns signed-in users to team selection and signed-out users to the public entrance.
+The header and footer are navy on every page and frame the light admin content. The header sticks to the top of the viewport while the page scrolls; the page has scroll padding so in-page link targets land below it. The header shows the supplied Theory6 Apps logo (`apps/web/src/assets/apps-logo.png`), clipped to its circle at 44px, with a "Theory6" wordmark (Archivo width 125) and a sky "Administration" label on wider screens. Together they are the home link, with an accessible name and visible focus. It returns signed-in users to team selection and signed-out users to the public entrance.
 
 The header exposes labeled navigation: Home, and Teams when signed in. The current location has white text and a sky underline. Signed-out users see a quiet Request access link (hidden on phones and on the request page) and a sky Sign in button. While account state loads, show a short loading status. The footer shows the Theory6 Apps wordmark and the Privacy link. Do not leave the logo as the only usable header element. Omit scouting-process explanations and Telegram reminders from the ordinary administration interface.
 
