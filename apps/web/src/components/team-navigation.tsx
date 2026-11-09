@@ -1,5 +1,9 @@
+"use client";
+
 import Link from "next/link";
+import { useRef } from "react";
 import type { Organization } from "@/lib/backend";
+import { useStickyHeight } from "@/lib/use-sticky-height";
 
 // Only render with the organization returned by the page's current access check.
 export function TeamNavigation({
@@ -9,8 +13,15 @@ export function TeamNavigation({
   organization: Organization;
   canChangeTeam: boolean;
 }) {
+  const nav = useRef<HTMLElement>(null);
+  useStickyHeight(nav, "--sub-header-height");
+  // Sticks below the site header.
   return (
-    <nav aria-label="Team navigation" className="border-b bg-card">
+    <nav
+      ref={nav}
+      aria-label="Team navigation"
+      className="sticky top-(--site-header-height) z-30 border-b bg-card"
+    >
       <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-x-6 gap-y-2 px-4 py-2 sm:px-6">
         <p className="min-w-0 flex-1 basis-48 text-sm [overflow-wrap:anywhere]">
           <span className="font-semibold tabular-nums">Team {organization.teamNumber}</span>

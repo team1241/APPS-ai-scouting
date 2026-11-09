@@ -3,19 +3,24 @@ import { createClerkClient } from "@clerk/backend";
 export interface ClerkAccounts {
   invite(input: { email: string; applicationId: string; resend: boolean }): Promise<string>;
   inviteOperator(input: { email: string; invitationId: string }): Promise<string>;
+  inviteTeamAdmin(input: { email: string; invitationId: string }): Promise<string>;
   revokeInvitation(clerkInvitationId: string): Promise<void>;
   // Reads only server-controlled public metadata and Clerk-verified emails.
   pendingClaim(subject: string): Promise<{
     applicationId: string | null;
     operatorInvitationId: string | null;
+    teamAdminInvitationId: string | null;
     emails: string[];
   } | null>;
+  // The account's Clerk-verified emails, lowercased.
+  verifiedEmails(subject: string): Promise<string[]>;
   // Returns the account only when the email is verified on exactly one user.
   findVerifiedUser(email: string): Promise<string | null>;
 }
 
 const metadataKey = "accessApplicationId";
 const operatorMetadataKey = "operatorInvitationId";
+const teamAdminMetadataKey = "teamAdminInvitationId";
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // Invitations land on the web app's /sign-up page, which accepts the Clerk
@@ -31,6 +36,14 @@ export function invitationRedirectUrl(env: NodeJS.ProcessEnv) {
   } catch {
     return undefined;
   }
+}
+
+function verified(user: {
+  emailAddresses: { emailAddress: string; verification: { status: string } | null }[];
+}) {
+  return user.emailAddresses
+    .filter((address) => address.verification?.status === "verified")
+    .map((address) => address.emailAddress.trim().toLowerCase());
 }
 
 export function clerkAccounts(env: NodeJS.ProcessEnv): ClerkAccounts | null {
@@ -59,6 +72,16 @@ export function clerkAccounts(env: NodeJS.ProcessEnv): ClerkAccounts | null {
       });
       return invitation.id;
     },
+    async inviteTeamAdmin({ email, invitationId }) {
+      const invitation = await clerk.invitations.createInvitation({
+        emailAddress: email,
+        publicMetadata: { [teamAdminMetadataKey]: invitationId },
+        notify: true,
+        expiresInDays: 7,
+        redirectUrl,
+      });
+      return invitation.id;
+    },
     async revokeInvitation(clerkInvitationId) {
       await clerk.invitations.revokeInvitation(clerkInvitationId);
     },
@@ -70,11 +93,15 @@ export function clerkAccounts(env: NodeJS.ProcessEnv): ClerkAccounts | null {
       };
       const applicationId = id(metadataKey);
       const operatorInvitationId = id(operatorMetadataKey);
-      if (!applicationId && !operatorInvitationId) return null;
-      const emails = user.emailAddresses
-        .filter((address) => address.verification?.status === "verified")
-        .map((address) => address.emailAddress.trim().toLowerCase());
-      return emails.length ? { applicationId, operatorInvitationId, emails } : null;
+      const teamAdminInvitationId = id(teamAdminMetadataKey);
+      if (!applicationId && !operatorInvitationId && !teamAdminInvitationId) return null;
+      const emails = verified(user);
+      return emails.length
+        ? { applicationId, operatorInvitationId, teamAdminInvitationId, emails }
+        : null;
+    },
+    async verifiedEmails(subject) {
+      return verified(await clerk.users.getUser(subject));
     },
     async findVerifiedUser(email) {
       const wanted = email.trim().toLowerCase();

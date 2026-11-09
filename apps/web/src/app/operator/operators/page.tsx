@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { ApplicationsUnavailable } from "@/components/operator-applications";
 import {
-  AddOperatorForm,
+  CurrentOperatorsHeading,
   InvitationActions,
   RemoveOperator,
 } from "@/components/operator-management";
@@ -31,9 +31,7 @@ export default async function OperatorsPage() {
       ) : (
         <>
           <section aria-labelledby="current-heading" className="space-y-4">
-            <h2 id="current-heading" className="text-lg font-semibold">
-              Current operators <span className="tabular-nums">({operators.length})</span>
-            </h2>
+            <CurrentOperatorsHeading count={operators.length} />
             <ul className="divide-y overflow-hidden rounded-lg border bg-card">
               {operators.map((operator) => (
                 <li
@@ -110,18 +108,6 @@ export default async function OperatorsPage() {
               </ul>
             </section>
           ) : null}
-          <section aria-labelledby="add-heading" className="space-y-4">
-            <div>
-              <h2 id="add-heading" className="text-lg font-semibold">
-                Add an operator
-              </h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                People with an account become operators right away. Anyone else gets an email
-                invitation that expires in 7 days.
-              </p>
-            </div>
-            <AddOperatorForm />
-          </section>
         </>
       )}
     </main>

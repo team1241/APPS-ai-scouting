@@ -32,6 +32,16 @@ import {
   revokeOperator,
   revokeOperatorInvitation,
 } from "./repositories/operators.ts";
+import {
+  acceptTeamAdminInvitation,
+  accountTeamAdminInvitations,
+  cancelTeamAdminInvitation,
+  createTeamAdminInvitation,
+  listTeamAdminInvitations,
+  listTeamAdmins,
+  recordTeamAdminInvitation,
+  resendTeamAdminInvitation,
+} from "./repositories/team-admins.ts";
 import { organizationIds } from "./repositories/telegram-connect.ts";
 import { adminOrganizations, organizationProfile } from "./repositories/web-admin.ts";
 import { telegramRoutes } from "./telegram.ts";
@@ -82,9 +92,33 @@ app.route(
           const organization = pending.applicationId
             ? await claimApplication(subject, pending.applicationId, pending.emails)
             : null;
-          return operator || organization !== null;
+          // Only an email invitation's ID comes from metadata, after sign-up.
+          const teamAdmin = pending.teamAdminInvitationId
+            ? await acceptTeamAdminInvitation(
+                subject,
+                pending.teamAdminInvitationId,
+                pending.emails,
+                true,
+              )
+            : null;
+          return (
+            operator ||
+            organization !== null ||
+            (teamAdmin !== null && teamAdmin.outcome !== "unavailable")
+          );
         }
       : null,
+    teamAdmins: {
+      admins: listTeamAdmins,
+      invitations: listTeamAdminInvitations,
+      create: createTeamAdminInvitation,
+      record: recordTeamAdminInvitation,
+      resend: resendTeamAdminInvitation,
+      cancel: cancelTeamAdminInvitation,
+      accountInvitations: accountTeamAdminInvitations,
+      accept: acceptTeamAdminInvitation,
+      accounts,
+    },
     apiKeys: apiKeys && {
       list: (org, subject) => listApiKeys(org, subject, apiKeys),
       create: (org, subject, name) => createApiKey(org, subject, name, apiKeys),

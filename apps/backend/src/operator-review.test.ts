@@ -34,6 +34,8 @@ function deps(overrides: Partial<OperatorDeps> = {}): OperatorDeps {
     accounts: {
       invite: async () => "inv_1",
       pendingClaim: async () => null,
+      inviteTeamAdmin: async () => "inv_team",
+      verifiedEmails: async () => [],
       inviteOperator: async () => "inv_op",
       revokeInvitation: async () => {},
       findVerifiedUser: async () => "user_new",
@@ -98,6 +100,8 @@ test("approval validates the team name, provisions, then sends the invitation", 
           return "inv_1";
         },
         pendingClaim: async () => null,
+        inviteTeamAdmin: async () => "inv_team",
+        verifiedEmails: async () => [],
         inviteOperator: async () => "inv_op",
         revokeInvitation: async () => {},
         findVerifiedUser: async () => null,
@@ -147,6 +151,8 @@ test("review conflicts and invitation failures return safe, specific results", a
           throw Error("Clerk: lead@example.com already exists");
         },
         pendingClaim: async () => null,
+        inviteTeamAdmin: async () => "inv_team",
+        verifiedEmails: async () => [],
         inviteOperator: async () => "inv_op",
         revokeInvitation: async () => {},
         findVerifiedUser: async () => null,
@@ -219,6 +225,8 @@ test("operators list, add by verified email and remove others", async () => {
       accounts: {
         invite: async () => "inv_1",
         pendingClaim: async () => null,
+        inviteTeamAdmin: async () => "inv_team",
+        verifiedEmails: async () => [],
         inviteOperator: async () => "inv_op",
         revokeInvitation: async () => {},
         findVerifiedUser: async (email) => {
@@ -322,6 +330,8 @@ test("people without an account get a 7-day operator invitation; failures close 
         accounts: {
           invite: async () => "inv_1",
           pendingClaim: async () => null,
+          inviteTeamAdmin: async () => "inv_team",
+          verifiedEmails: async () => [],
           findVerifiedUser: async () => null,
           inviteOperator: async ({ email, invitationId: id }) => {
             calls.push(`clerk:${email}:${id}`);
@@ -354,6 +364,8 @@ test("people without an account get a 7-day operator invitation; failures close 
     accounts: {
       invite: async () => "inv_1",
       pendingClaim: async () => null,
+      inviteTeamAdmin: async () => "inv_team",
+      verifiedEmails: async () => [],
       findVerifiedUser: async () => null,
       inviteOperator: async () => {
         throw Error("Clerk details");
@@ -389,6 +401,8 @@ test("operators list, resend and cancel invitations", async () => {
       accounts: {
         invite: async () => "inv_1",
         pendingClaim: async () => null,
+        inviteTeamAdmin: async () => "inv_team",
+        verifiedEmails: async () => [],
         findVerifiedUser: async () => null,
         inviteOperator: async () => {
           calls.push("clerk:invite");

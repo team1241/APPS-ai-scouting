@@ -29,6 +29,7 @@ Administrators use laptops and phones during busy events. They sign in through C
 - Current surfaces include the app shell, sign-in, organization selection, organization workspace and privacy notice, with loading, error, empty and denied-access states.
 - Access requires explicit adult-admin approval and account linking. Clerk authentication does not grant membership; the backend determines current memberships and permissions.
 - Preserve tenant isolation and privacy boundaries. Do not add product analytics or session replay.
+- Team admins invite other adult administrators to their team from the Administrators section of the team workspace (#40). The inviter enters a name and email and attests that the person is an adult authorized to administer the team. A person without an account gets a Clerk invitation email; a person with an account accepts from team selection. Acceptance creates a new admin member and the linked adult approval. Pending invitations grant nothing, expire after 7 days and can be resent or cancelled. Team admin invitations never grant platform-operator access. Removing admins and editing roles are out of scope.
 - Team admins manage read-only organization API keys in the team workspace (#21): create named keys, view and copy any key at any time, and revoke keys. Keys belong to the team, not the admin who created them.
 - Do not add scouting-data browsing or editing.
 

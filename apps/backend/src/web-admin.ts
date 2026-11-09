@@ -4,11 +4,13 @@ import { uuidPattern } from "./event-config.ts";
 import type { ApiKeySummary } from "./repositories/api-keys.ts";
 import { telegramAdmin } from "./repositories/telegram-connect.ts";
 import type { AdminOrganization } from "./repositories/web-admin.ts";
+import { type TeamAdminDeps, teamAdminRoutes } from "./team-admin-routes.ts";
 
 export function webAdminRoutes(deps: {
   verify: ((request: Request) => Promise<string | null>) | null;
   organizations: (subject: string) => Promise<AdminOrganization[]>;
-  // Links an account invited through an approved application or operator invitation.
+  // Links an account invited through an approved application, operator
+  // invitation or team admin invitation.
   claim: ((subject: string) => Promise<boolean>) | null;
   // Null when Unkey or the encryption key is not configured.
   apiKeys?: {
@@ -16,6 +18,8 @@ export function webAdminRoutes(deps: {
     create(org: string, subject: string, name: string): Promise<ApiKeySummary | "limit" | null>;
     revoke(org: string, subject: string, id: string): Promise<boolean | null>;
   } | null;
+  // Team admin invitations (#40). Omitted in tests that do not need them.
+  teamAdmins?: TeamAdminDeps;
 }) {
   const app = new Hono<{ Variables: { subject: string } }>();
   app.use("*", async (c, next) => {
@@ -81,6 +85,7 @@ export function webAdminRoutes(deps: {
       },
     );
   }
+  if (deps.teamAdmins) app.route("/", teamAdminRoutes(deps.teamAdmins));
   const keys = deps.apiKeys;
   const keysPath = "/organizations/:id/api-keys";
   // The wildcard also matches the list path itself.

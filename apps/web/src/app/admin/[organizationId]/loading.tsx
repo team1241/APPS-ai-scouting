@@ -10,7 +10,7 @@ export default function Loading() {
         </div>
       </div>
       <LoadingPage label="Loading your team workspace…">
-        {/* Telegram, then API keys. */}
+        {/* Telegram, administrators, then API keys. */}
         <div className="space-y-8">
           <div className="rounded-xl border bg-card">
             <div className="flex items-start justify-between gap-6 p-6">
@@ -22,6 +22,18 @@ export default function Loading() {
             </div>
             <div className="border-t px-6 py-4">
               <Skeleton className="h-11 w-36" />
+            </div>
+          </div>
+          <div className="rounded-xl border bg-card">
+            <div className="flex items-start justify-between gap-6 p-6">
+              <div className="flex-1 space-y-3">
+                <Skeleton className="h-5 w-24" />
+                <Skeleton className="h-4 w-full max-w-md" />
+              </div>
+              <Skeleton className="h-11 w-48" />
+            </div>
+            <div className="border-t px-6 py-4">
+              <Skeleton className="h-10 w-full max-w-xs" />
             </div>
           </div>
           <div className="rounded-xl border bg-card">
