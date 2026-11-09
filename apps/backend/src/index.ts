@@ -1,13 +1,16 @@
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { accessApplicationRoutes } from "./access-applications.ts";
+import { apiKeyConfig } from "./api-keys.ts";
 import { clerkAccounts } from "./clerk-accounts.ts";
+import { dataApiRoutes } from "./data-api.ts";
 import { createWorkerControl, eventMode } from "./event-mode.ts";
 import { extractionConfig } from "./extraction-config.ts";
 import { runExtractionPass } from "./extraction-worker.ts";
 import { operatorRoutes } from "./operator-review.ts";
 import { drainOutbound } from "./outbound-worker.ts";
 import { saveAccessApplication } from "./repositories/access-applications.ts";
+import { activeApiKey, createApiKey, listApiKeys, revokeApiKey } from "./repositories/api-keys.ts";
 import { checkDatabase, closeDatabase } from "./repositories/database.ts";
 import { workerEvents } from "./repositories/operations.ts";
 import {
@@ -30,7 +33,7 @@ import {
   revokeOperatorInvitation,
 } from "./repositories/operators.ts";
 import { organizationIds } from "./repositories/telegram-connect.ts";
-import { adminOrganizations } from "./repositories/web-admin.ts";
+import { adminOrganizations, organizationProfile } from "./repositories/web-admin.ts";
 import { telegramRoutes } from "./telegram.ts";
 import { webAdminRoutes } from "./web-admin.ts";
 import { webSessionVerifier } from "./web-auth.ts";
@@ -41,6 +44,7 @@ const app = new Hono();
 app.route("/web/access-applications", accessApplicationRoutes({ save: saveAccessApplication }));
 const verifyWebSession = webSessionVerifier(process.env);
 const accounts = clerkAccounts(process.env);
+const apiKeys = apiKeyConfig(process.env);
 app.route(
   "/web/operator",
   operatorRoutes({
@@ -81,6 +85,19 @@ app.route(
           return operator || organization !== null;
         }
       : null,
+    apiKeys: apiKeys && {
+      list: (org, subject) => listApiKeys(org, subject, apiKeys),
+      create: (org, subject, name) => createApiKey(org, subject, name, apiKeys),
+      revoke: (org, subject, id) => revokeApiKey(org, subject, id, apiKeys),
+    },
+  }),
+);
+app.route(
+  "/v1",
+  dataApiRoutes({
+    verify: apiKeys && ((key) => apiKeys.provider.verify(key)),
+    active: activeApiKey,
+    organization: organizationProfile,
   }),
 );
 

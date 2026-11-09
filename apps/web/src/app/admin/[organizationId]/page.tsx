@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { type ApiKey, ApiKeys } from "@/components/api-keys";
 import { PageHeading, TeamNumber } from "@/components/page-heading";
 import { TeamNavigation } from "@/components/team-navigation";
 import { TelegramConnection } from "@/components/telegram-connection";
@@ -11,10 +12,11 @@ export default async function OrganizationPage({
   params: Promise<{ organizationId: string }>;
 }) {
   const { organizationId } = await params;
-  // The backend checks admin access for the Telegram state itself, so both load together.
-  const [organizations, connection] = await Promise.all([
+  // The backend checks admin access for each section itself, so all load together.
+  const [organizations, connection, keyList] = await Promise.all([
     authorizedOrganizations(),
     backendRequest(`/web/organizations/${organizationId}/telegram/state`),
+    backendRequest(`/web/organizations/${organizationId}/api-keys`),
   ]);
   if (organizations === null)
     return (
@@ -31,6 +33,7 @@ export default async function OrganizationPage({
   const state = connection?.ok
     ? ((await connection.json()) as { connected: boolean; connectedAt: string | null })
     : null;
+  const keys = keyList?.ok ? ((await keyList.json()) as { keys: ApiKey[] }).keys : null;
   return (
     <>
       <TeamNavigation organization={organization} canChangeTeam={organizations.length > 1} />
@@ -43,6 +46,7 @@ export default async function OrganizationPage({
           connected={state?.connected ?? null}
           connectedAt={state?.connectedAt ?? null}
         />
+        <ApiKeys organizationId={organizationId} keys={keys} />
       </main>
     </>
   );

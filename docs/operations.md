@@ -230,3 +230,66 @@ Telegram team-selection buttons require the webhook to include both `message`
 and `callback_query` in `allowed_updates`. Re-register an existing webhook with
 `telegram-setup.ts webhook <https-base-url>` after deploying this change; the
 setup command includes both update types. Button taps recheck current membership.
+
+## Organization API keys (#21)
+
+Team admins manage read-only API keys in the **API keys** section of their team
+workspace. Each key belongs to one organization, not to the admin who created
+it, so it stays when that admin leaves or loses the admin role. Any admin of the
+team can view, copy and revoke every active key at any time. A team can have at
+most 10 active keys.
+
+### Setup
+
+1. In Unkey, create an API (keyspace) and a root key with `create_key`,
+   `delete_key` and `verify_key` for that API only.
+2. Set `UNKEY_ROOT_KEY`, `UNKEY_API_ID` and `API_KEY_ENCRYPTION_KEY`
+   (`openssl rand -base64 32`) on the backend. `API_KEY_RATE_LIMIT_PER_MINUTE`
+   is optional (default 60).
+3. Apply migration `20261109050000_api_keys`, then deploy the backend.
+
+Without these variables, key management and the data API return 503.
+
+### How keys work
+
+- Unkey issues each key (prefix `scout_`) with the organization UUID as its
+  `externalId` and a per-key rate limit. No names of people, emails or scouting
+  data go to Unkey. Key names stay in our database.
+- Unkey stores only a hash. The backend stores the key encrypted with
+  AES-256-GCM (`API_KEY_ENCRYPTION_KEY`) so admins can view it again. Keep that
+  variable secret and stable: losing or changing it makes stored keys unreadable
+  (they still verify; revoke and replace them). Revocation deletes the
+  ciphertext.
+- Management uses Clerk web sessions and a live admin role check. API keys are
+  not accepted for management.
+
+### Data API
+
+Integrations send `Authorization: Bearer <key>` to `/v1/*`. The organization
+comes only from the verified key, never from the request. `GET /v1/organization`
+returns the key's team, so an integration can check its key. Scouting data
+endpoints follow in #22.
+
+Every request calls Unkey `keys.verifyKey`, then checks that the key is still
+active in our database. There is no verification cache. Revocation deletes the
+key at Unkey first, so it stops working within Unkey's propagation time (up to
+about 30 seconds), and the database check rejects it at once.
+
+Responses: `401` missing, invalid or revoked key; `429` key rate limit
+exceeded; `503` Unkey unreachable, quota exhausted, or misconfigured. The API
+never skips verification to keep requests working.
+
+### Replace a key
+
+1. Create a new key with a clear name.
+2. Update the integration to use it.
+3. Revoke the old key.
+
+### Free-tier usage
+
+The Unkey free tier allows 150,000 billable operations (verifications and rate
+limit checks) and 1,000 keys per month. Each data request costs one
+verification; key creation and revocation are not verifications. Check usage in
+the Unkey dashboard. We do not upgrade the plan automatically. If the quota is
+exhausted and Unkey refuses verification, data requests return 503 until the
+quota resets or the plan changes.

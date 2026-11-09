@@ -1,4 +1,5 @@
-import { sql } from "kysely";
+import { sql, type Transaction } from "kysely";
+import type { DB } from "../db.generated.ts";
 import { db } from "../db.ts";
 import { withTenant } from "./tenant.ts";
 
@@ -41,6 +42,23 @@ export async function adminOrganizations(subject: string): Promise<AdminOrganiza
   return organizations
     .filter((row): row is AdminOrganization => row !== undefined)
     .sort((a, b) => a.teamNumber - b.teamNumber || a.id.localeCompare(b.id));
+}
+
+// Inside a tenant transaction: the subject's member ID when it is a linked team admin.
+export async function webAdminMember(tx: Transaction<DB>, org: string, subject: string) {
+  await sql`select set_config('app.clerk_user_id', ${subject}, true)`.execute(tx);
+  return tx
+    .selectFrom("web_admin_access")
+    .innerJoin("member", (join) =>
+      join
+        .onRef("member.id", "=", "web_admin_access.member_id")
+        .onRef("member.organization_id", "=", "web_admin_access.organization_id"),
+    )
+    .select("member.id")
+    .where("web_admin_access.clerk_user_id", "=", subject)
+    .where("member.organization_id", "=", org)
+    .where("member.role", "=", "admin")
+    .executeTakeFirst();
 }
 
 // Operator-only, using the migration/owner connection. Runtime has SELECT only.
@@ -104,4 +122,15 @@ export function linkWebAdmin(organizationId: string, memberId: string, subject: 
       .executeTakeFirst();
     if (result.numUpdatedRows !== 1n) throw Error("Unlinked adult approval required");
   });
+}
+
+// For callers that already established the organization, such as a verified API key.
+export function organizationProfile(org: string): Promise<AdminOrganization | undefined> {
+  return withTenant(org, (tx) =>
+    tx
+      .selectFrom("organization")
+      .select(["id", "name", "frc_team_number as teamNumber"])
+      .where("id", "=", org)
+      .executeTakeFirst(),
+  );
 }
