@@ -1,0 +1,48 @@
+// app/api/scouting/[organizationId]/events/[eventId]/route.ts
+// Copy into your integrating Next.js application and implement its authorization
+// adapter. The application owns the server-side mapping from organization to key.
+import "server-only";
+import { auth } from "@clerk/nextjs/server";
+import { canReadOrganization, organizationApiKey } from "@/lib/scouting-access";
+
+const headers = { "Cache-Control": "private, no-store" };
+export async function GET(
+  request: Request,
+  context: { params: Promise<{ organizationId: string; eventId: string }> },
+) {
+  const { userId } = await auth();
+  if (!userId) return Response.json({ error: "Sign in required" }, { status: 401, headers });
+  const { organizationId, eventId } = await context.params;
+  // Check current membership/role in your authoritative backend on EVERY request.
+  // Clerk sign-in or a browser-provided organization ID alone grants no access.
+  if (!(await canReadOrganization(userId, organizationId)))
+    return Response.json({ error: "Not found" }, { status: 404, headers });
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(eventId))
+    return Response.json({ error: "Invalid event ID" }, { status: 400, headers });
+  const origin = process.env.SCOUTING_API_ORIGIN;
+  // This lookup MUST select the key for the authorized organization, never a
+  // shared fallback key. Store keys in a secret manager or server-only config.
+  const key = await organizationApiKey(organizationId);
+  if (!origin || !key)
+    return Response.json({ error: "Data unavailable" }, { status: 503, headers });
+  const url = new URL(`/v1/events/${eventId}/observations`, origin);
+  if (url.protocol !== "https:")
+    return Response.json({ error: "Data unavailable" }, { status: 503, headers });
+  const query = new URL(request.url).searchParams;
+  if ([...query.keys()].some((name) => !["limit", "cursor"].includes(name)))
+    return Response.json({ error: "Invalid query" }, { status: 400, headers });
+  for (const name of ["limit", "cursor"])
+    if (query.has(name)) url.searchParams.set(name, query.get(name)!);
+  try {
+    const upstream = await fetch(url, {
+      headers: { Authorization: `Bearer ${key}` }, cache: "no-store",
+      redirect: "error", signal: AbortSignal.timeout(10_000),
+    });
+    // Do not forward upstream cookies, headers, credentials or diagnostic errors.
+    if (upstream.status === 401)
+      return Response.json({ error: "Integration key unavailable" }, { status: 503, headers });
+    return Response.json(await upstream.json(), { status: upstream.status, headers });
+  } catch {
+    return Response.json({ error: "Data unavailable" }, { status: 503, headers });
+  }
+}

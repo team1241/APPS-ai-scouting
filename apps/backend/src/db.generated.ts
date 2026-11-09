@@ -274,6 +274,7 @@ export interface PublishedSpecification {
 export interface RawEntry {
   channel: string;
   external_update_id: string;
+  extracted_at: Timestamp | null;
   extraction_result: Json | null;
   follow_up_message_id: string | null;
   id: Generated<string>;

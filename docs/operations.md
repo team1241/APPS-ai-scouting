@@ -265,6 +265,9 @@ Without these variables, key management and the data API return 503.
 
 ### Data API
 
+Versioned scouting reads, pagination, privacy semantics, OpenAPI and a Next.js
+server-proxy example are documented in [Scouting data API](api/README.md).
+
 Integrations send `Authorization: Bearer <key>` to `/v1/*`. The organization
 comes only from the verified key, never from the request. `GET /v1/organization`
 returns the key's team, so an integration can check its key. Scouting data
