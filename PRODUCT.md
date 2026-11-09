@@ -29,8 +29,9 @@ Administrators use laptops and phones during busy events. They sign in through C
 - Current surfaces include the app shell, sign-in, organization selection, organization workspace and privacy notice, with loading, error, empty and denied-access states.
 - Access requires explicit adult-admin approval and account linking. Clerk authentication does not grant membership; the backend determines current memberships and permissions.
 - Preserve tenant isolation and privacy boundaries. Do not add product analytics or session replay.
-- Team admins invite other adult administrators to their team from the Administrators section of the team workspace (#40). The inviter enters a name and email and attests that the person is an adult authorized to administer the team. A person without an account gets a Clerk invitation email; a person with an account accepts from team selection. Acceptance creates a new admin member and the linked adult approval. Pending invitations grant nothing, expire after 7 days and can be resent or cancelled. Team admin invitations never grant platform-operator access. Removing admins and editing roles are out of scope.
+- Team admins invite other adult administrators to their team from the Administrators section of the team workspace (#40). The inviter enters a name and email and attests that the person is an adult authorized to administer the team. A person without an account gets a Clerk invitation email; a person with an account accepts from team selection. Acceptance creates a new admin member and the linked adult approval. Pending invitations grant nothing, expire after 7 days and can be resent or cancelled. Team admin invitations never grant platform-operator access. Team admins cannot remove admins or edit roles; platform operators can remove admins (#41).
 - Team admins manage read-only organization API keys in the team workspace (#21): create named keys, view and copy any key at any time, and revoke keys. Keys belong to the team, not the admin who created them.
+- Platform operators see every registered team at `/operator/teams` (#41): team number, name, registration date, admins with their web-access status, open admin invitations (without emails) and API keys. Operators can show and copy one active key value at a time, revoke any key, and remove any administrator. Removal demotes the member to scout and ends their web access; it keeps their scouting history. These are operator-only. They never add the operator to a team, and team-admin access stays tenant-scoped. Creating keys, editing teams and adding admins from this view are out of scope.
 - Do not add scouting-data browsing or editing.
 
 ## Brand Personality
@@ -45,7 +46,7 @@ Avoid marketing landing pages, ornamental dashboards, and analytics or scouting-
 
 ## Design Principles
 
-- Make the selected team and access scope clear.
+- Make the selected team and access scope clear. Operator views across teams say so.
 - Require explicit approval before administration access.
 - Show actionable empty and unavailable states.
 - Collect only what is needed for authentication and authorization.

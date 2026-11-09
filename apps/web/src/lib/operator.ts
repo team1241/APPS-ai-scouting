@@ -69,3 +69,71 @@ export async function operatorLists(): Promise<{
     invitations: OperatorInvitation[];
   };
 }
+
+export interface DirectoryTeam {
+  id: string;
+  name: string;
+  teamNumber: number;
+  createdAt: string;
+  adminCount: number;
+  webAdminCount: number;
+  pendingInvitationCount: number;
+  activeKeyCount: number;
+}
+
+export interface DirectoryPage {
+  teams: DirectoryTeam[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface DirectoryTeamDetail {
+  team: { id: string; name: string; teamNumber: number; createdAt: string };
+  administrators: {
+    memberId: string;
+    name: string;
+    addedAt: string;
+    webAccess: "none" | "approved" | "linked";
+    approvedAt: string | null;
+  }[];
+  invitations: {
+    id: string;
+    name: string;
+    existingAccount: boolean;
+    invitedByName: string | null;
+    createdAt: string;
+    expiresAt: string;
+    sent: boolean;
+  }[];
+  // Metadata only. Values come from the reveal action, one key at a time.
+  keys: {
+    id: string;
+    name: string;
+    start: string;
+    rateLimitPerMinute: number;
+    createdAt: string;
+    revokedAt: string | null;
+  }[];
+}
+
+// One page of every registered team. Null when the backend cannot answer.
+export async function directoryPage(search: string, page: number): Promise<DirectoryPage | null> {
+  const params = new URLSearchParams({ page: String(page) });
+  if (search) params.set("q", search);
+  const response = await backendRequest(`/web/operator/teams?${params}`);
+  if (!response?.ok) return null;
+  return (await response.json()) as DirectoryPage;
+}
+
+// "missing" for an unknown team; null when the backend cannot answer.
+export async function directoryTeam(
+  organizationId: string,
+): Promise<DirectoryTeamDetail | "missing" | null> {
+  const response = await backendRequest(
+    `/web/operator/teams/${encodeURIComponent(organizationId)}`,
+  );
+  if (response?.status === 404) return "missing";
+  if (!response?.ok) return null;
+  return (await response.json()) as DirectoryTeamDetail;
+}

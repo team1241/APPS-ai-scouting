@@ -9,8 +9,12 @@ export function OperatorNavigation({ waiting }: { waiting: number | null }) {
   const pathname = usePathname();
   const links = [
     { href: "/operator", label: "Applications", count: waiting },
+    { href: "/operator/teams", label: "All teams", count: null },
     { href: "/operator/operators", label: "Operators", count: null },
   ];
+  // A team's detail page sits under All teams.
+  const current = (href: string) =>
+    pathname === href || (href === "/operator/teams" && pathname.startsWith(`${href}/`));
   return (
     <nav aria-label="Operator navigation" className="border-b bg-card">
       <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-1 gap-y-2 px-4 py-2 sm:px-6">
@@ -22,7 +26,9 @@ export function OperatorNavigation({ waiting }: { waiting: number | null }) {
           <Link
             key={link.href}
             href={link.href}
-            aria-current={pathname === link.href ? "page" : undefined}
+            aria-current={
+              pathname === link.href ? "page" : current(link.href) ? "location" : undefined
+            }
             className="relative inline-flex min-h-11 items-center rounded-md px-3 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-foreground aria-[current]:text-foreground aria-[current]:after:absolute aria-[current]:after:inset-x-3 aria-[current]:after:bottom-1.5 aria-[current]:after:h-0.5 aria-[current]:after:rounded-full aria-[current]:after:bg-primary"
           >
             {link.label}

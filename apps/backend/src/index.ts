@@ -14,6 +14,14 @@ import { activeApiKey, createApiKey, listApiKeys, revokeApiKey } from "./reposit
 import { checkDatabase, closeDatabase } from "./repositories/database.ts";
 import { workerEvents } from "./repositories/operations.ts";
 import {
+  directoryTeam,
+  listDirectoryTeams,
+  removeDirectoryAdmin,
+  revealApiKeyCiphertext,
+  revokeDirectoryApiKey,
+  TEAMS_PAGE_SIZE,
+} from "./repositories/operator-teams.ts";
+import {
   applicationLists,
   approveApplication,
   claimApplication,
@@ -75,6 +83,18 @@ app.route(
     openInvitation: openOperatorInvitation,
     revokeInvitation: revokeOperatorInvitation,
     accounts,
+    directory: {
+      list: listDirectoryTeams,
+      team: directoryTeam,
+      reveal: revealApiKeyCiphertext,
+      pageSize: TEAMS_PAGE_SIZE,
+      cipher: apiKeys?.cipher ?? null,
+      revokeKey: apiKeys
+        ? (subject, org, id) =>
+            revokeDirectoryApiKey(subject, org, id, (keyId) => apiKeys.provider.revoke(keyId))
+        : null,
+      removeAdmin: removeDirectoryAdmin,
+    },
   }),
 );
 app.route(
