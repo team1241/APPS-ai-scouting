@@ -33,26 +33,26 @@ Two version values exist. Do not mix them up.
 
 Questions are ordered. Follow-ups use this order, with identity questions first. Each question has these fields:
 
-| Field | Audience | Purpose |
-| --- | --- | --- |
-| `key` | System | Stable code. Answers, rules and consumers use it. Lowercase letters, digits and underscores. |
-| `label` | People | Short readable name. You can change it without changing stored data. |
-| `prompt` | Scouts | Follow-up question wording sent in Telegram. |
-| `guidance` | Model | Extraction instructions. Scouts never see it. |
-| `required` | System | Base requirement before rules apply. |
-| `answer` | System | Answer type and constraints. |
-| `rules` | System | Optional conditional behaviour. |
+| Field      | Audience | Purpose                                                                                      |
+| ---------- | -------- | -------------------------------------------------------------------------------------------- |
+| `key`      | System   | Stable code. Answers, rules and consumers use it. Lowercase letters, digits and underscores. |
+| `label`    | People   | Short readable name. You can change it without changing stored data.                         |
+| `prompt`   | Scouts   | Follow-up question wording sent in Telegram.                                                 |
+| `guidance` | Model    | Extraction instructions. Scouts never see it.                                                |
+| `required` | System   | Base requirement before rules apply.                                                         |
+| `answer`   | System   | Answer type and constraints.                                                                 |
+| `rules`    | System   | Optional conditional behaviour.                                                              |
 
 Do not reuse a code with a different meaning in a later version. Consumers interpret values with the publication that recorded them.
 
 ## Answer types
 
-| Type | Constraints | Known value |
-| --- | --- | --- |
-| `number` | `format`: `integer` or `decimal`. Optional `min` and `max`. | A finite number within bounds. `0` is valid when the bounds allow it. |
-| `text` | Optional `maxLength`, up to 20,000. | Trimmed text that is not empty. Whitespace only is unknown. |
-| `boolean` | None | `true` or `false`. Explicit `false` is an answer. |
-| `single_choice` | 2 to 50 `options`, each with `code` and `label`. | One option code. |
+| Type              | Constraints                                                  | Known value                                                                             |
+| ----------------- | ------------------------------------------------------------ | --------------------------------------------------------------------------------------- |
+| `number`          | `format`: `integer` or `decimal`. Optional `min` and `max`.  | A finite number within bounds. `0` is valid when the bounds allow it.                   |
+| `text`            | Optional `maxLength`, up to 20,000.                          | Trimmed text that is not empty. Whitespace only is unknown.                             |
+| `boolean`         | None                                                         | `true` or `false`. Explicit `false` is an answer.                                       |
+| `single_choice`   | 2 to 50 `options`, each with `code` and `label`.             | One option code.                                                                        |
 | `multiple_choice` | 1 to 50 `options`. Optional `minSelected` and `maxSelected`. | A list of unique option codes. `[]` means "none of these" when `minSelected` allows it. |
 
 `null` or a missing value is always unknown. Unknown is never false, zero or a default choice. `checkAnswer` returns `known`, `unknown` or `invalid` with a reason. An invalid value, such as an out-of-range number or an unlisted option, is never coerced into a valid one.
@@ -80,14 +80,14 @@ Rules are data attached to a question. They are not answer types and not executa
 
 `when` is a comparison or a group. Groups are `{ "all": [...] }` or `{ "any": [...] }`, with 1 to 20 items, up to 4 levels deep.
 
-| Upstream type | Operators | Value |
-| --- | --- | --- |
-| `boolean` | `equals`, `not_equals` | `true` or `false` |
-| `number` | `equals`, `not_equals`, `lt`, `lte`, `gt`, `gte` | A number |
-| `single_choice` | `equals`, `not_equals` | One option code |
-| `single_choice` | `in`, `not_in` | A list of option codes |
-| `multiple_choice` | `includes`, `excludes` | One option code |
-| `text` | None | Free text is not a condition source |
+| Upstream type     | Operators                                        | Value                               |
+| ----------------- | ------------------------------------------------ | ----------------------------------- |
+| `boolean`         | `equals`, `not_equals`                           | `true` or `false`                   |
+| `number`          | `equals`, `not_equals`, `lt`, `lte`, `gt`, `gte` | A number                            |
+| `single_choice`   | `equals`, `not_equals`                           | One option code                     |
+| `single_choice`   | `in`, `not_in`                                   | A list of option codes              |
+| `multiple_choice` | `includes`, `excludes`                           | One option code                     |
+| `text`            | None                                             | Free text is not a condition source |
 
 ### Evaluation and precedence
 
@@ -106,14 +106,14 @@ The validator rejects show and hide rules on the same question, and rules that r
 
 `evaluateAnswers(contract, values)` gives each question a visibility, a requirement and a state:
 
-| State | Meaning | Blocks completion |
-| --- | --- | --- |
-| `answered` | Visible with a valid value. It is in `current`. | No |
-| `unanswered` | Unknown, but known not to be required. | No |
-| `missing` | Visible, required and unknown. | Yes |
-| `invalid` | Value fails its constraints. | Only if not known to be optional |
-| `pending` | Applicability is unknown. The question has a value or could be required. | Yes |
-| `inactive` | Hidden. Any value goes to `inactive`, not `current`. | No |
+| State        | Meaning                                                                  | Blocks completion                |
+| ------------ | ------------------------------------------------------------------------ | -------------------------------- |
+| `answered`   | Visible with a valid value. It is in `current`.                          | No                               |
+| `unanswered` | Unknown, but known not to be required.                                   | No                               |
+| `missing`    | Visible, required and unknown.                                           | Yes                              |
+| `invalid`    | Value fails its constraints.                                             | Only if not known to be optional |
+| `pending`    | Applicability is unknown. The question has a value or could be required. | Yes                              |
+| `inactive`   | Hidden. Any value goes to `inactive`, not `current`.                     | No                               |
 
 An observation is complete when no question blocks. Follow-ups include:
 
@@ -126,24 +126,24 @@ This prevents deadlock. Validated contracts are acyclic, and questions without v
 
 `validateContract(document, kind)` returns `{ ok: true, contract }` or `{ ok: false, issues }`. Each issue has a `code`, a `path` to the question, option or rule, the affected question `key` and a message.
 
-| Code | Cause |
-| --- | --- |
-| `invalid_structure` | Schema error, bad code, empty group or expression string |
-| `unsupported_format` | `formatVersion` is not supported |
-| `unsupported_type` | Unknown answer type |
-| `kind_mismatch` | Document kind is not the expected kind |
-| `duplicate_question` | Code used more than once |
-| `duplicate_option` | Repeated option code or label (case-insensitive) |
-| `invalid_constraint` | Integer bound with decimals, `min` > `max`, impossible selection limits |
-| `invalid_rule` | Condition nested too deeply |
-| `unsupported_comparison` | Operator not valid for the upstream type, or a value of the wrong type |
-| `missing_reference` | Rule refers to a question that does not exist |
-| `missing_option` | Rule refers to an option that does not exist |
-| `self_reference` | Rule refers to its own question |
-| `cycle` | Rules depend on each other in a loop |
-| `conflicting_rules` | Show and hide rules on the same question |
-| `redundant_rule` | `require` on a required question, or `optional` on an optional question |
-| `identity_missing`, `identity_excluded`, `identity_type`, `identity_protected` | Identity contract violation |
+| Code                                                                           | Cause                                                                   |
+| ------------------------------------------------------------------------------ | ----------------------------------------------------------------------- |
+| `invalid_structure`                                                            | Schema error, bad code, empty group or expression string                |
+| `unsupported_format`                                                           | `formatVersion` is not supported                                        |
+| `unsupported_type`                                                             | Unknown answer type                                                     |
+| `kind_mismatch`                                                                | Document kind is not the expected kind                                  |
+| `duplicate_question`                                                           | Code used more than once                                                |
+| `duplicate_option`                                                             | Repeated option code or label (case-insensitive)                        |
+| `invalid_constraint`                                                           | Integer bound with decimals, `min` > `max`, impossible selection limits |
+| `invalid_rule`                                                                 | Condition nested too deeply                                             |
+| `unsupported_comparison`                                                       | Operator not valid for the upstream type, or a value of the wrong type  |
+| `missing_reference`                                                            | Rule refers to a question that does not exist                           |
+| `missing_option`                                                               | Rule refers to an option that does not exist                            |
+| `self_reference`                                                               | Rule refers to its own question                                         |
+| `cycle`                                                                        | Rules depend on each other in a loop                                    |
+| `conflicting_rules`                                                            | Show and hide rules on the same question                                |
+| `redundant_rule`                                                               | `require` on a required question, or `optional` on an optional question |
+| `identity_missing`, `identity_excluded`, `identity_type`, `identity_protected` | Identity contract violation                                             |
 
 ### Changed or deleted upstream questions
 
@@ -159,11 +159,11 @@ The author must fix or remove those rules before publication. Existing sessions 
 
 Event context always comes from the session's event binding. Contracts cannot change it.
 
-| Kind | `match` | `team_number` |
-| --- | --- | --- |
-| `match` | Required | Required |
-| `pit` | Not allowed | Required |
-| `general` | Optional | Optional |
+| Kind      | `match`     | `team_number` |
+| --------- | ----------- | ------------- |
+| `match`   | Required    | Required      |
+| `pit`     | Not allowed | Required      |
+| `general` | Optional    | Optional      |
 
 Identity questions keep their system type: `match` is text, and `team_number` is an integer with `min` 1 or more. Identity questions cannot have `show` or `hide` rules. Required identity cannot be optional and cannot have `optional` rules. Optional identity can have `require` rules. For example, a general note requires a team when its topic is a team.
 
