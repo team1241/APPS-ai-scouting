@@ -144,11 +144,25 @@ The session endpoint is `POST /scouting/sessions/:runId/turn`, authenticated wit
 
 ## 6. Extraction requirements
 
-The current JSON requirements document is a starter template, not an official 2026 or 2027 game specification. It requires a match label, positive team number, and explicit climb outcome; free-text notes are optional. Supported field types are text, positive integer, and boolean.
+The current JSON requirements document is a starter template, not an official 2026 or 2027 game specification. It requires a match label, positive team number, and explicit climb outcome; free-text notes are optional. It is contract format 1 and supports text, positive integer and boolean fields.
 
 Requirements determine field descriptions, required fields, and follow-up wording. Missing/ambiguous values become null; explicit false is valid data. Application code computes completeness instead of trusting an agent's assertion. Scout input is untrusted data and cannot override the specification.
 
-Future specifications should be published immutable versions associated with season and observation kind (`match`, `pit`, `general`). Each note should retain its assigned specification version across follow-ups and deployments. Re-extraction under another version must be explicit. The current session rejects changes to its pinned version; loading multiple published schemas remains planned. Define the actual 2027 requirements after Kickoff.
+Specifications are published immutable versions associated with season and observation kind (`match`, `pit`, `general`). Each note retains its assigned specification version across follow-ups and deployments. Re-extraction under another version must be explicit. The current session rejects changes to its pinned version. Define the actual 2027 requirements after Kickoff.
+
+### Customizable contract (#45)
+
+The [scouting contract](scouting-contract.md) defines format 2, the agreed shared contract that each team's builder authors. It is implemented in `packages/scouting` with tests and worked examples:
+
+- Ordered questions with a stable code, readable label, scout-facing follow-up wording, model-facing extraction guidance, base required status and a typed answer: integer or decimal number with bounds, text, boolean, single choice or multiple choice with stable option codes.
+- Structured show, hide, require and optional rules attached to questions, with typed comparisons, choice membership and all/any groups. No executable expressions.
+- Three-valued evaluation. Unknown is never false, hidden questions are never required, and unresolved dependencies ask their nearest askable prerequisite, so an incomplete observation always has a follow-up.
+- Validation with addressable errors for duplicates, invalid constraints, unsupported comparisons, missing references, self references, cycles, conflicting rules and identity violations.
+- Protected identity by kind: match requires match and team; pit requires team and cannot ask for a match; general may ask for both. Event context comes from the session.
+- Turn history: hidden answers stay as inactive history, are excluded from current values, completeness and export, and are not restored on reactivation without a new statement.
+- `formatVersion` is separate from the publication identity. `readContract` reads existing format 1 publications with their original semantics.
+
+Publication validation now uses the shared contract validator for duplicate codes and protected identity. Telegram extraction, follow-ups and the data API still use the format 1 path; #48 connects format 2 to them. Draft and publish APIs are #46, the builder is #47 and preview is #49.
 
 ## 7. Event configuration and external data
 

@@ -1,0 +1,146 @@
+{
+  "formatVersion": 2,
+  "kind": "match",
+  "version": "example-match-v1",
+  "description": "Worked example only. Shows conditional rules, unknown handling, numeric zero and explicit false.",
+  "questions": [
+    {
+      "key": "match",
+      "label": "Match",
+      "prompt": "Which match was this (for example Q42)?",
+      "guidance": "Explicit match label, for example Q42. Never infer from receive time.",
+      "required": true,
+      "answer": { "type": "text", "maxLength": 40 }
+    },
+    {
+      "key": "team_number",
+      "label": "Team number",
+      "prompt": "Which team number were you scouting?",
+      "guidance": "Positive FRC team number. Do not confuse match number with team number.",
+      "required": true,
+      "answer": { "type": "number", "format": "integer", "min": 1, "max": 99999 }
+    },
+    {
+      "key": "robot_status",
+      "label": "Robot status",
+      "prompt": "Did the robot play, break down or not show up?",
+      "guidance": "played if the robot competed normally; disabled if it stopped working during the match; no_show if it was not on the field.",
+      "required": true,
+      "answer": {
+        "type": "single_choice",
+        "options": [
+          { "code": "played", "label": "Played" },
+          { "code": "disabled", "label": "Disabled during the match" },
+          { "code": "no_show", "label": "No show" }
+        ]
+      }
+    },
+    {
+      "key": "auto_pieces",
+      "label": "Auto pieces scored",
+      "prompt": "How many game pieces did the robot score in auto?",
+      "guidance": "Count of pieces scored in autonomous. 0 only when the scout says none were scored; null when not mentioned.",
+      "required": true,
+      "answer": { "type": "number", "format": "integer", "min": 0, "max": 30 },
+      "rules": [
+        {
+          "effect": "hide",
+          "when": { "question": "robot_status", "operator": "equals", "value": "no_show" }
+        }
+      ]
+    },
+    {
+      "key": "climbed",
+      "label": "Climbed",
+      "prompt": "Did the robot complete a climb?",
+      "guidance": "true for a completed climb. false only for an explicit failure or no climb. Missing mention is null.",
+      "required": true,
+      "answer": { "type": "boolean" },
+      "rules": [
+        {
+          "effect": "show",
+          "when": { "question": "robot_status", "operator": "in", "value": ["played", "disabled"] }
+        }
+      ]
+    },
+    {
+      "key": "climb_level",
+      "label": "Climb level",
+      "prompt": "Which level did the robot climb to?",
+      "guidance": "The level the robot finished on. null if not stated.",
+      "required": true,
+      "answer": {
+        "type": "single_choice",
+        "options": [
+          { "code": "low", "label": "Low" },
+          { "code": "mid", "label": "Mid" },
+          { "code": "high", "label": "High" }
+        ]
+      },
+      "rules": [
+        { "effect": "show", "when": { "question": "climbed", "operator": "equals", "value": true } }
+      ]
+    },
+    {
+      "key": "played_defence",
+      "label": "Played defence",
+      "prompt": "Did the robot play defence?",
+      "guidance": "true if it played defence, false only if the scout says it did not. Missing mention is null.",
+      "required": false,
+      "answer": { "type": "boolean" },
+      "rules": [
+        {
+          "effect": "hide",
+          "when": { "question": "robot_status", "operator": "equals", "value": "no_show" }
+        }
+      ]
+    },
+    {
+      "key": "defence_notes",
+      "label": "Defence notes",
+      "prompt": "How effective was its defence?",
+      "guidance": "The scout's description of the defence played.",
+      "required": false,
+      "answer": { "type": "text", "maxLength": 1000 },
+      "rules": [
+        {
+          "effect": "require",
+          "when": { "question": "played_defence", "operator": "equals", "value": true }
+        }
+      ]
+    },
+    {
+      "key": "cycle_speed",
+      "label": "Cycle speed",
+      "prompt": "How fast were its scoring cycles: slow, average or fast?",
+      "guidance": "The scout's judgement of cycle speed.",
+      "required": true,
+      "answer": {
+        "type": "single_choice",
+        "options": [
+          { "code": "slow", "label": "Slow" },
+          { "code": "average", "label": "Average" },
+          { "code": "fast", "label": "Fast" }
+        ]
+      },
+      "rules": [
+        {
+          "effect": "hide",
+          "when": { "question": "robot_status", "operator": "equals", "value": "no_show" }
+        },
+        {
+          "effect": "optional",
+          "when": { "question": "robot_status", "operator": "equals", "value": "disabled" }
+        }
+      ]
+    },
+    {
+      "key": "notes",
+      "label": "Notes",
+      "prompt": "Any other observations?",
+      "guidance": "Other observations in the scout's own words.",
+      "required": false,
+      "answer": { "type": "text", "maxLength": 2000 }
+    }
+  ]
+}
