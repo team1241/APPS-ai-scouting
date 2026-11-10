@@ -198,10 +198,23 @@ export function followUpQuestion(contract: Contract, evaluation: Evaluation): st
 
 // Fold the statements of every message, run the rules and decide completeness.
 export function finalizeTurns(contract: Contract, turns: unknown[]): ExtractionResult {
+  return finalize(contract, turns).result;
+}
+
+// The same fold as production, with the per-question evaluation that explains it.
+// Admin previews and draft tests use this; production stores only `result`.
+export function finalizeWithEvaluation(
+  contract: Contract,
+  turns: unknown[],
+): { result: ExtractionResult; evaluation: Evaluation } {
+  return finalize(contract, turns);
+}
+
+function finalize(contract: Contract, turns: unknown[]) {
   const stated = turns.map((turn) => statedValues(contract, turn));
   const { evaluation, history } = foldTurns(contract, stated);
   const question = followUpQuestion(contract, evaluation);
-  return {
+  const result: ExtractionResult = {
     resultFormat: 2,
     kind: contract.kind,
     specificationVersion: contract.version,
@@ -225,4 +238,5 @@ export function finalizeTurns(contract: Contract, turns: unknown[]): ExtractionR
     turns: stated,
     history,
   };
+  return { result, evaluation };
 }

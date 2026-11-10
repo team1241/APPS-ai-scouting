@@ -1,10 +1,22 @@
-import { type ObservationKind, observationKinds } from "@ai-scouting/scouting";
+import {
+  type Contract,
+  draftTestMessagesSchema,
+  type ExtractionMessage,
+  finalizeTurns,
+  LIMITS_DRAFT_TEST,
+  type ModelExtraction,
+  type ObservationKind,
+  observationKinds,
+  validateContract,
+} from "@ai-scouting/scouting";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { uuidPattern } from "./event-config.ts";
+import { DraftTestFailed } from "./mastra-client.ts";
 import {
   type AssignResult,
   type CreateDraftResult,
+  contractInput,
   type Draft,
   type DraftDocument,
   type DraftSource,
@@ -64,7 +76,50 @@ export interface SpecificationDeps {
     kind: ObservationKind,
     version: string | null,
   ): Promise<AssignResult | null>;
+  // Model extraction for draft tests (#49). Null when Mastra is not configured.
+  draftTest?:
+    | ((contract: Contract, messages: ExtractionMessage[]) => Promise<ModelExtraction>)
+    | null;
+  // Model calls each team may start per window. Defaults to 20 per 10 minutes.
+  draftTestLimit?: { count: number; windowMs: number };
 }
+
+// In-memory and per process: enough to stop runaway clicks, not a billing control.
+function draftTestLimiter({ count, windowMs }: { count: number; windowMs: number }) {
+  const starts = new Map<string, number[]>();
+  const running = new Set<string>();
+  return {
+    begin(org: string, draft: string, now = Date.now()): "ok" | "busy" | "limited" {
+      if (running.has(draft)) return "busy";
+      const recent = (starts.get(org) ?? []).filter((t) => now - t < windowMs);
+      if (recent.length >= count) {
+        starts.set(org, recent);
+        return "limited";
+      }
+      starts.set(org, [...recent, now]);
+      running.add(draft);
+      return "ok";
+    },
+    end(draft: string) {
+      running.delete(draft);
+    },
+  };
+}
+
+const draftTestFailures: Record<DraftTestFailed["reason"], [string, 502 | 503 | 504]> = {
+  unavailable: [
+    "The extraction service is unavailable. Your sample is kept; try again in a minute.",
+    503,
+  ],
+  timeout: [
+    "The extraction service took too long to answer. Your sample is kept; try again, or shorten the sample.",
+    504,
+  ],
+  invalid: [
+    "The extraction service returned an answer we could not use. Try again; if it repeats, simplify the sample.",
+    502,
+  ],
+};
 
 const unavailable = { error: "Organization unavailable" };
 const draftMissing = { error: "Draft not found." };
@@ -271,6 +326,87 @@ export function specificationRoutes(deps: SpecificationDeps) {
       { publication: result.publication, replayed: result.replayed },
       result.replayed ? 200 : 201,
     );
+  });
+
+  // Draft test (#49). Runs the production extraction on synthetic messages against the saved
+  // draft at `revision`. Nothing is stored and no message is sent; publishing still validates.
+  const limiter = draftTestLimiter(deps.draftTestLimit ?? { count: 20, windowMs: 10 * 60_000 });
+  const testLimit = bodyLimit({
+    maxSize: 32 * 1024,
+    onError: (c) => c.json({ error: "The sample is too large." }, 413),
+  });
+  app.post(`${drafts}/:draftId/test`, testLimit, async (c) => {
+    const id = draftId(c.req.param("draftId"));
+    if (!id) return c.json(draftMissing, 404);
+    const body = await json(c.req.raw);
+    if (!isRevision(body.revision))
+      return c.json({ errors: { revision: "Reload the draft and try again." } }, 400);
+    const messages = draftTestMessagesSchema.safeParse(body.messages);
+    if (!messages.success)
+      return c.json(
+        {
+          errors: {
+            messages:
+              messages.error.issues.find((i) => i.code === "custom")?.message ??
+              `Enter a note, and up to ${LIMITS_DRAFT_TEST.messages - 1} replies of ${LIMITS_DRAFT_TEST.text} characters or fewer.`,
+          },
+        },
+        400,
+      );
+    const org = c.req.param("id");
+    // Authorization comes first: a non-admin never reaches the model or the limiter.
+    const draft = await deps.load(org, c.get("subject"), id);
+    if (draft === null) return c.json(unavailable, 404);
+    if (draft === "not_found") return c.json(draftMissing, 404);
+    if (draft.revision !== body.revision)
+      return c.json(
+        {
+          error: "The draft changed since this test started. Save it, then run the test again.",
+          revision: draft.revision,
+        },
+        409,
+      );
+    const version = `draft-r${draft.revision}`;
+    const validation = validateContract(
+      contractInput(draft.kind, draft.document, version),
+      draft.kind,
+    );
+    if (!validation.ok)
+      return c.json(
+        { error: "Fix the listed problems before testing extraction.", issues: validation.issues },
+        422,
+      );
+    if (!deps.draftTest)
+      return c.json({ error: "Extraction testing is not set up on this server." }, 503);
+    const started = limiter.begin(org, id);
+    if (started === "busy")
+      return c.json(
+        { error: "A test of this draft is already running. Wait for it to finish." },
+        429,
+      );
+    if (started === "limited")
+      return c.json(
+        {
+          error:
+            "Your team has run many tests in the last few minutes. Wait a few minutes, then try again.",
+        },
+        429,
+      );
+    try {
+      const extracted = await deps.draftTest(validation.contract, messages.data);
+      return c.json({
+        test: {
+          revision: draft.revision,
+          result: finalizeTurns(validation.contract, extracted.turns),
+        },
+      });
+    } catch (error) {
+      const [message, status] =
+        draftTestFailures[error instanceof DraftTestFailed ? error.reason : "unavailable"];
+      return c.json({ error: message }, status);
+    } finally {
+      limiter.end(id);
+    }
   });
 
   const eventPath = "/organizations/:id/events/:eventId/specifications";

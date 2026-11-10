@@ -17,9 +17,8 @@ import {
   ruleSentence,
   startComparison,
 } from "@/lib/specification-model";
+import { ChoiceSelect } from "./choice-select";
 import { controlClass, ProblemList } from "./fields";
-
-const select = `${controlClass} h-11 pr-8`;
 
 function ValueControl({
   comparison,
@@ -36,15 +35,15 @@ function ValueControl({
   const type = upstream.answer.type;
   if (type === "boolean")
     return (
-      <select
+      <ChoiceSelect
         aria-label={label}
-        className={select}
         value={comparison.value === false ? "false" : "true"}
-        onChange={(e) => onChange(e.target.value === "true")}
-      >
-        <option value="true">Yes</option>
-        <option value="false">No</option>
-      </select>
+        onChange={(next) => onChange(next === "true")}
+        choices={[
+          { value: "true", label: "Yes" },
+          { value: "false", label: "No" },
+        ]}
+      />
     );
   if (type === "number")
     return (
@@ -103,21 +102,18 @@ function ValueControl({
   const value = typeof comparison.value === "string" ? comparison.value : "";
   const known = options.some((o) => o.code === value);
   return (
-    <select
+    <ChoiceSelect
       aria-label={label}
-      className={select}
+      placeholder="Choose an option"
       value={value}
-      onChange={(e) => onChange(e.target.value)}
-    >
-      {!known ? (
-        <option value={value}>{value ? `Deleted option “${value}”` : "Choose an option"}</option>
-      ) : null}
-      {options.map((option) => (
-        <option key={option.id} value={option.code}>
-          {option.label || option.code}
-        </option>
-      ))}
-    </select>
+      onChange={onChange}
+      choices={[
+        ...(!known && value
+          ? [{ value, label: `Deleted option “${value}”`, tone: "danger" as const }]
+          : []),
+        ...options.map((option) => ({ value: option.code, label: option.label || option.code })),
+      ]}
+    />
   );
 }
 
@@ -141,46 +137,42 @@ function ComparisonRow({
   const operators = upstream ? operatorsFor(upstream.answer.type) : [];
   return (
     <div className="grid gap-2 sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1.2fr)_auto]">
-      <select
+      <ChoiceSelect
         aria-label={`Condition ${position}: question`}
-        className={select}
+        placeholder="Choose a question"
         value={comparison.question}
-        onChange={(e) => {
-          const next = questions.find((q) => q.key === e.target.value);
+        onChange={(key) => {
+          const next = questions.find((q) => q.key === key);
           if (next) onChange({ ...comparison, ...startComparison(next) });
         }}
-      >
-        {!listed ? (
-          <option value={comparison.question}>
-            {comparison.question
-              ? upstream
-                ? `${upstream.label || upstream.key} (cannot be used)`
-                : `Deleted question “${comparison.question}”`
-              : "Choose a question"}
-          </option>
-        ) : null}
-        {sources.map((q) => (
-          <option key={q.id} value={q.key}>
-            {q.label || q.key}
-          </option>
-        ))}
-      </select>
-      <select
+        choices={[
+          ...(!listed && comparison.question
+            ? [
+                {
+                  value: comparison.question,
+                  label: upstream
+                    ? `${upstream.label || upstream.key} (cannot be used)`
+                    : `Deleted question “${comparison.question}”`,
+                  tone: "danger" as const,
+                },
+              ]
+            : []),
+          ...sources.map((q) => ({ value: q.key, label: q.label || q.key })),
+        ]}
+      />
+      <ChoiceSelect
         aria-label={`Condition ${position}: comparison`}
-        className={select}
+        placeholder="Choose"
         value={comparison.operator}
         disabled={!operators.length}
-        onChange={(e) => onChange(changeOperator(comparison, e.target.value as ComparisonOperator))}
-      >
-        {!operators.includes(comparison.operator as ComparisonOperator) ? (
-          <option value={comparison.operator}>Choose</option>
-        ) : null}
-        {operators.map((operator) => (
-          <option key={operator} value={operator}>
-            {operatorLabels[operator]}
-          </option>
-        ))}
-      </select>
+        onChange={(operator) =>
+          onChange(changeOperator(comparison, operator as ComparisonOperator))
+        }
+        choices={operators.map((operator) => ({
+          value: operator,
+          label: operatorLabels[operator],
+        }))}
+      />
       <ValueControl
         comparison={comparison}
         upstream={upstream}
@@ -263,32 +255,29 @@ export function RuleEditor({
             ) : (
               <>
                 <div className="grid gap-2 sm:grid-cols-2">
-                  <select
+                  <ChoiceSelect
                     aria-label={`Rule ${index + 1}: effect`}
-                    className={select}
                     value={rule.effect}
-                    onChange={(e) =>
-                      update(rule.id, { ...rule, effect: e.target.value as RuleEffect })
+                    onChange={(effect) =>
+                      update(rule.id, { ...rule, effect: effect as RuleEffect })
                     }
-                  >
-                    {ruleEffects.map((effect) => (
-                      <option key={effect} value={effect}>
-                        {effectLabels[effect]}
-                      </option>
-                    ))}
-                  </select>
+                    choices={ruleEffects.map((effect) => ({
+                      value: effect,
+                      label: effectLabels[effect],
+                    }))}
+                  />
                   {rule.comparisons.length > 1 ? (
-                    <select
+                    <ChoiceSelect
                       aria-label={`Rule ${index + 1}: how conditions combine`}
-                      className={select}
                       value={rule.match}
-                      onChange={(e) =>
-                        update(rule.id, { ...rule, match: e.target.value as "all" | "any" })
+                      onChange={(match) =>
+                        update(rule.id, { ...rule, match: match as "all" | "any" })
                       }
-                    >
-                      <option value="all">all of these are true</option>
-                      <option value="any">any of these is true</option>
-                    </select>
+                      choices={[
+                        { value: "all", label: "all of these are true" },
+                        { value: "any", label: "any of these is true" },
+                      ]}
+                    />
                   ) : null}
                 </div>
                 <div className="space-y-2">

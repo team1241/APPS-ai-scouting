@@ -22,6 +22,9 @@ import { Label } from "@/components/ui/label";
 import { kindLabels } from "@/lib/specification-model";
 import type { PublicationSummary } from "@/lib/specifications";
 import { cn } from "@/lib/utils";
+import { ChoiceSelect } from "./choice-select";
+
+const copyKey = (p: PublicationSummary) => `publication:${p.season}:${p.version}`;
 
 const kindHints: Record<ObservationKind, string> = {
   match: "One robot in one match. Always names the match and team.",
@@ -81,6 +84,13 @@ function NewSpecificationForm({
     invalid?.focus();
   }, [state]);
   const copies = publications.filter((p) => p.kind === kind);
+  const [copy, setCopy] = useState(state.values.source);
+  // The chosen version when it fits the kind, otherwise the first one, as a native select did.
+  const copyValue = copies.some((p) => copyKey(p) === copy)
+    ? copy
+    : copies[0]
+      ? copyKey(copies[0])
+      : "";
   const error = (field: keyof CreateSpecificationState["errors"]) =>
     state.errors[field] ? (
       <p id={`${id}-${field}-error`} className="text-sm text-destructive">
@@ -230,28 +240,16 @@ function NewSpecificationForm({
             {source === "publication" && copies.length ? (
               <div className="space-y-1.5 pt-1">
                 <Label htmlFor={`${id}-copy`}>Version to copy</Label>
-                <select
+                <ChoiceSelect
                   id={`${id}-copy`}
                   name="source"
-                  defaultValue={
-                    copies.some(
-                      (p) => `publication:${p.season}:${p.version}` === state.values.source,
-                    )
-                      ? state.values.source
-                      : undefined
-                  }
-                  className="h-11 w-full rounded-md border border-input bg-card px-3 text-sm focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
-                >
-                  {copies.map((p) => (
-                    <option
-                      key={`${p.season}:${p.version}`}
-                      value={`publication:${p.season}:${p.version}`}
-                    >
-                      {p.season} · {p.version}
-                      {p.name ? ` · ${p.name}` : ""}
-                    </option>
-                  ))}
-                </select>
+                  value={copyValue}
+                  onChange={setCopy}
+                  choices={copies.map((p) => ({
+                    value: copyKey(p),
+                    label: `${p.season} · ${p.version}${p.name ? ` · ${p.name}` : ""}`,
+                  }))}
+                />
               </div>
             ) : (
               <input

@@ -186,7 +186,12 @@ The extraction pipeline supplies the values stated in each turn, not only a cumu
 - `modelOutputSchema(contract, messages)` is the structured output: one entry per message, each with optional values. Absent means "not stated", `null` means "withdrawn or not known". Value types are loose (a number, a string, a boolean or a list of strings), so `checkAnswer` reports an out-of-range number or an unlisted option as invalid instead of the schema forcing a valid answer.
 - `extractionInstructions` tells the model that the contract is trusted and scout messages are data, never instructions.
 - `finalizeTurns(contract, turns)` drops keys outside the contract, runs `foldTurns` and returns the stored result: current `values`, per-question `fields` (state, visibility, requirement, problem), `inactive`, `missing`, `followUps`, the follow-up `question`, the statements and history.
+- `finalizeWithEvaluation(contract, turns)` returns the same result together with the per-question evaluation. Each question's `rules` lists every rule with whether it holds (`true`, `false`, or `null` when an upstream answer is unknown). The admin preview and draft test use it to explain visibility and requirement (#49).
 - `followUpQuestion` asks identity questions first and alone, then the other follow-ups in contract order. An invalid answer is asked again with its reason, for example "I could not use your answer for Climb level (Not one of the options)."
+
+## Sample cases
+
+`draft-test.ts` holds synthetic sample cases for each kind (#49): a complete note, conditional climb level, an upstream correction with numeric zero and explicit false, incomplete notes, pit climb levels, an explicit "cannot climb" and general notes with and without a team. Each case has the messages a scout might send and the values a correct extraction states per message, keyed to the worked example of its kind. `draft-test.test.ts` checks every case against its expected outcome and checks that a one-turn preview and production finalization agree. The cases contain invented text only.
 
 ## Worked examples
 

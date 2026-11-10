@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import match from "@ai-scouting/scouting/examples/match.json" with { type: "json" };
+import { DraftTestFailed } from "./mastra-client.ts";
 import type { Draft } from "./repositories/specifications.ts";
 import type { SpecificationDeps } from "./specification-routes.ts";
 import { webAdminRoutes } from "./web-admin.ts";
@@ -285,4 +287,101 @@ test("event list returns every current event with its assignments", async () => 
     (await app().request("/organizations/not-a-team/specifications/events", { headers })).status,
     404,
   );
+});
+
+const matchDraft: Draft = {
+  ...draft,
+  revision: 4,
+  document: { description: "", questions: match.questions },
+};
+const testPath = `/organizations/${org}/specifications/drafts/${draftId}/test`;
+const sample = { revision: 4, messages: [{ role: "note", text: "Q14 team 1241 played" }] };
+
+test("draft tests are admin-only and never reach the model for others", async () => {
+  let calls = 0;
+  const draftTest = async () => {
+    calls++;
+    return { specificationVersion: "draft-r4", turns: [{}] };
+  };
+  const outsider = await app({ load: async () => null, draftTest }, "user_other").request(
+    testPath,
+    send("POST", sample),
+  );
+  assert.equal(outsider.status, 404);
+  assert.equal(calls, 0);
+});
+
+test("draft tests run the saved snapshot through production finalization", async () => {
+  let sent: unknown;
+  const response = await app({
+    load: async () => matchDraft,
+    draftTest: async (contract, messages) => {
+      sent = { version: contract.version, messages };
+      return {
+        specificationVersion: contract.version,
+        turns: [{ match: "Q14", team_number: 1241, robot_status: "no_show", ignored: 1 }],
+      };
+    },
+  }).request(testPath, send("POST", sample));
+  assert.equal(response.status, 200);
+  assert.deepEqual(sent, { version: "draft-r4", messages: sample.messages });
+  const { test: result } = await response.json();
+  assert.equal(result.revision, 4);
+  assert.equal(result.result.status, "complete");
+  assert.equal(result.result.specificationVersion, "draft-r4");
+  assert.deepEqual(result.result.turns, [
+    { match: "Q14", team_number: 1241, robot_status: "no_show" },
+  ]);
+  assert.equal(result.result.fields.climbed.visibility, "hidden");
+});
+
+test("draft tests reject stale revisions, invalid drafts and oversized samples", async () => {
+  const never = async () => assert.fail("model called");
+  const stale = await app({ load: async () => matchDraft, draftTest: never }).request(
+    testPath,
+    send("POST", { ...sample, revision: 3 }),
+  );
+  assert.equal(stale.status, 409);
+  assert.equal((await stale.json()).revision, 4);
+  const invalid = await app({
+    load: async () => ({ ...matchDraft, document: { description: "", questions: [] } }),
+    draftTest: never,
+  }).request(testPath, send("POST", sample));
+  assert.equal(invalid.status, 422);
+  assert.ok((await invalid.json()).issues.length);
+  const long = await app({ load: async () => matchDraft, draftTest: never }).request(
+    testPath,
+    send("POST", { revision: 4, messages: [{ role: "note", text: "x".repeat(2001) }] }),
+  );
+  assert.equal(long.status, 400);
+  const off = await app({ load: async () => matchDraft, draftTest: null }).request(
+    testPath,
+    send("POST", sample),
+  );
+  assert.equal(off.status, 503);
+});
+
+test("draft tests report service failures and limit repeated model calls", async () => {
+  for (const [reason, status] of [
+    ["unavailable", 503],
+    ["timeout", 504],
+    ["invalid", 502],
+  ] as const) {
+    const response = await app({
+      load: async () => matchDraft,
+      draftTest: async () => {
+        throw new DraftTestFailed(reason);
+      },
+    }).request(testPath, send("POST", sample));
+    assert.equal(response.status, status, reason);
+    assert.match((await response.json()).error, /try again/i);
+  }
+  const limited = app({
+    load: async () => matchDraft,
+    draftTest: async (contract) => ({ specificationVersion: contract.version, turns: [{}] }),
+    draftTestLimit: { count: 2, windowMs: 60_000 },
+  });
+  assert.equal((await limited.request(testPath, send("POST", sample))).status, 200);
+  assert.equal((await limited.request(testPath, send("POST", sample))).status, 200);
+  assert.equal((await limited.request(testPath, send("POST", sample))).status, 429);
 });

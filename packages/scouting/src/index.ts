@@ -19,5 +19,6 @@ if (new Set(requirements.fields.map((f) => f.key)).size !== requirements.fields.
   throw Error("Duplicate requirement keys");
 
 export * from "./contract.ts";
+export * from "./draft-test.ts";
 export * from "./extraction.ts";
 export * from "./rules.ts";

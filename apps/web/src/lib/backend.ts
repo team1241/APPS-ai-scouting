@@ -9,7 +9,11 @@ export interface Organization {
 
 // Calls the backend with the current Clerk session. Returns null when the
 // backend is unreachable or not configured; redirects when sign-in is needed.
-export async function backendRequest(path: string, init: RequestInit = {}) {
+export async function backendRequest(
+  path: string,
+  init: RequestInit = {},
+  { timeoutMs = 10_000 }: { timeoutMs?: number } = {},
+) {
   const { userId, getToken, redirectToSignIn } = await auth();
   if (!userId) return redirectToSignIn();
   const base = process.env.BACKEND_URL;
@@ -32,7 +36,7 @@ export async function backendRequest(path: string, init: RequestInit = {}) {
       },
       cache: "no-store",
       redirect: "error",
-      signal: AbortSignal.timeout(10_000),
+      signal: AbortSignal.timeout(timeoutMs),
     });
   } catch {
     return null;

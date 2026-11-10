@@ -12,6 +12,7 @@ import {
   identityPolicy,
   newId,
 } from "@/lib/specification-model";
+import { ChoiceSelect } from "./choice-select";
 import { controlClass, Field, ProblemList } from "./fields";
 import { RuleEditor } from "./rule-editor";
 
@@ -181,16 +182,16 @@ function AnswerEditor({
       <div className="grid gap-4 sm:grid-cols-3">
         <Field id={`${id}-format`} label="Number format">
           {(props) => (
-            <select
+            <ChoiceSelect
               {...props}
-              className={input}
               value={answer.format}
               disabled={locked}
-              onChange={(e) => set({ format: e.target.value as "integer" | "decimal" })}
-            >
-              <option value="integer">Whole number</option>
-              <option value="decimal">Decimal</option>
-            </select>
+              onChange={(format) => set({ format: format as "integer" | "decimal" })}
+              choices={[
+                { value: "integer", label: "Whole number" },
+                { value: "decimal", label: "Decimal" },
+              ]}
+            />
           )}
         </Field>
         <Field id={`${id}-min`} label="Minimum" errors={problems.get("min")} hint="Optional">
@@ -466,21 +467,16 @@ export function QuestionFields({
             errors={problems.get("answer")}
           >
             {(props) => (
-              <select
+              <ChoiceSelect
                 {...props}
-                className={input}
                 value={question.answer.type}
                 disabled={Boolean(identity)}
-                onChange={(e) =>
-                  setAnswer({ ...question.answer, type: e.target.value as AnswerType })
-                }
-              >
-                {(Object.keys(answerTypeLabels) as AnswerType[]).map((type) => (
-                  <option key={type} value={type}>
-                    {answerTypeLabels[type]}
-                  </option>
-                ))}
-              </select>
+                onChange={(type) => setAnswer({ ...question.answer, type: type as AnswerType })}
+                choices={(Object.keys(answerTypeLabels) as AnswerType[]).map((type) => ({
+                  value: type,
+                  label: answerTypeLabels[type],
+                }))}
+              />
             )}
           </Field>
           <div className="space-y-1.5">

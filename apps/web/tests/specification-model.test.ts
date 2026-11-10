@@ -4,11 +4,14 @@ import pit from "@ai-scouting/scouting/examples/pit.json" with { type: "json" };
 import {
   codeFromLabel,
   dependencies,
+  editorIssue,
   editorIssues,
   ruleSentence,
   serializeQuestions,
   toEditorQuestions,
+  validatedDraft,
 } from "../src/lib/specification-model.ts";
+import { answerFromInput, formatValue, stateView } from "../src/lib/specification-preview.ts";
 
 function item<T>(list: T[], index: number): T {
   const value = list[index];
@@ -81,4 +84,57 @@ test("codes come from labels and stay unique", () => {
   assert.equal(codeFromLabel("Weight (kg)", ["weight_kg"]), "weight_kg_2");
   assert.equal(codeFromLabel("2 robots", []), "question_2_robots");
   assert.equal(codeFromLabel("", []), "question");
+});
+
+test("publish and test issues link back to the question, rule or option", () => {
+  const questions = toEditorQuestions(pit.questions);
+  const climb = item(questions, 3);
+  const levels = climb.answer.options;
+  const rule = editorIssue(
+    {
+      code: "missing_option",
+      path: ["questions", 3, "rules", 0, "when"],
+      question: "climb_levels",
+      message: "x",
+    },
+    questions,
+  );
+  assert.deepEqual(rule, {
+    questionId: climb.id,
+    field: `rule:${item(climb.rules, 0).id}`,
+    message: "x",
+  });
+  const option = editorIssue(
+    {
+      code: "invalid_structure",
+      path: ["questions", 3, "answer", "options", 1, "label"],
+      message: "y",
+    },
+    questions,
+  );
+  assert.equal(option.field, `option:${item(levels, 1).id}`);
+  const unplaced = editorIssue(
+    { code: "identity_missing", path: ["questions"], question: "team_number", message: "z" },
+    [],
+  );
+  assert.equal(unplaced.field, "questions");
+});
+
+test("preview helpers describe values and states in plain words", () => {
+  const validation = validatedDraft("pit", "", toEditorQuestions(pit.questions));
+  assert.ok(validation.ok);
+  const levels = validation.contract.questions[3];
+  const weight = validation.contract.questions[4];
+  assert.ok(levels && weight);
+  assert.equal(formatValue(levels, ["low", "high"]), "Low, High");
+  assert.equal(formatValue(levels, []), "None of these");
+  assert.equal(formatValue(levels, null), "Withdrawn or not known");
+  assert.equal(formatValue(undefined, false), "No");
+  assert.equal(answerFromInput(weight, " 52.5 "), 52.5);
+  assert.equal(answerFromInput(weight, "abc"), "abc");
+  assert.equal(answerFromInput(weight, ""), null);
+  assert.deepEqual(stateView({ state: "inactive", requirement: "not_applicable" }), {
+    tone: "neutral",
+    label: "Not asked",
+  });
 });
