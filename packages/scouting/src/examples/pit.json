@@ -1,0 +1,70 @@
+{
+  "formatVersion": 2,
+  "kind": "pit",
+  "version": "example-pit-v1",
+  "description": "Worked example only. Pit scouting for one team at the session's event.",
+  "questions": [
+    {
+      "key": "team_number",
+      "label": "Team number",
+      "prompt": "Which team's pit did you visit?",
+      "guidance": "Positive FRC team number of the pit visited.",
+      "required": true,
+      "answer": { "type": "number", "format": "integer", "min": 1, "max": 99999 }
+    },
+    {
+      "key": "drivetrain",
+      "label": "Drivetrain",
+      "prompt": "What drivetrain does the robot use?",
+      "guidance": "swerve, tank or mecanum. other for any other drivetrain.",
+      "required": true,
+      "answer": {
+        "type": "single_choice",
+        "options": [
+          { "code": "swerve", "label": "Swerve" },
+          { "code": "tank", "label": "Tank" },
+          { "code": "mecanum", "label": "Mecanum" },
+          { "code": "other", "label": "Other" }
+        ]
+      }
+    },
+    {
+      "key": "can_climb",
+      "label": "Can climb",
+      "prompt": "Can the robot climb?",
+      "guidance": "true if the team says the robot can climb, false if it cannot. null if not discussed.",
+      "required": true,
+      "answer": { "type": "boolean" }
+    },
+    {
+      "key": "climb_levels",
+      "label": "Climb levels",
+      "prompt": "Which levels can it climb to?",
+      "guidance": "Every level the team says the robot can reach.",
+      "required": true,
+      "answer": {
+        "type": "multiple_choice",
+        "minSelected": 1,
+        "options": [
+          { "code": "low", "label": "Low" },
+          { "code": "mid", "label": "Mid" },
+          { "code": "high", "label": "High" }
+        ]
+      },
+      "rules": [
+        {
+          "effect": "show",
+          "when": { "question": "can_climb", "operator": "equals", "value": true }
+        }
+      ]
+    },
+    {
+      "key": "weight_kg",
+      "label": "Weight (kg)",
+      "prompt": "How much does the robot weigh in kilograms?",
+      "guidance": "Robot weight in kilograms, with decimals if given. Convert only explicit units.",
+      "required": false,
+      "answer": { "type": "number", "format": "decimal", "min": 0, "max": 100 }
+    }
+  ]
+}

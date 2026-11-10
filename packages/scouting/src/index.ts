@@ -71,3 +71,6 @@ export function finalizeExtraction(
     status: missing.length ? "needs_review" : "complete",
   };
 }
+
+export * from "./contract.ts";
+export * from "./rules.ts";

@@ -1,0 +1,46 @@
+{
+  "formatVersion": 2,
+  "kind": "general",
+  "version": "example-general-v1",
+  "description": "Worked example only. Event-level notes, optionally about one team.",
+  "questions": [
+    {
+      "key": "topic",
+      "label": "Topic",
+      "prompt": "Is this about a team, the field, the schedule or something else?",
+      "guidance": "team for notes about one team; field for field or venue issues; schedule for timing; other otherwise.",
+      "required": true,
+      "answer": {
+        "type": "single_choice",
+        "options": [
+          { "code": "team", "label": "A team" },
+          { "code": "field", "label": "Field or venue" },
+          { "code": "schedule", "label": "Schedule" },
+          { "code": "other", "label": "Other" }
+        ]
+      }
+    },
+    {
+      "key": "team_number",
+      "label": "Team number",
+      "prompt": "Which team is this about?",
+      "guidance": "Positive FRC team number, only when the note is about one team.",
+      "required": false,
+      "answer": { "type": "number", "format": "integer", "min": 1, "max": 99999 },
+      "rules": [
+        {
+          "effect": "require",
+          "when": { "question": "topic", "operator": "equals", "value": "team" }
+        }
+      ]
+    },
+    {
+      "key": "notes",
+      "label": "Notes",
+      "prompt": "What did you observe?",
+      "guidance": "The observation in the scout's own words.",
+      "required": true,
+      "answer": { "type": "text", "maxLength": 2000 }
+    }
+  ]
+}

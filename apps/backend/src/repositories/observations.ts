@@ -1,4 +1,11 @@
-import { requirements, type Specification, specificationSchema } from "@ai-scouting/scouting";
+import {
+  ContractError,
+  requirements,
+  type Specification,
+  specificationSchema,
+  upgradeLegacySpecification,
+  validateContract,
+} from "@ai-scouting/scouting";
 import type { Transaction } from "kysely";
 import type { DB } from "../db.generated.ts";
 import { lockEventContext } from "./events.ts";
@@ -48,17 +55,9 @@ export function publishSpecification(
   input: Specification,
 ) {
   const document = specificationSchema.parse(input);
-  if (new Set(document.fields.map((f) => f.key)).size !== document.fields.length)
-    throw Error("Duplicate fields");
-  if (
-    kind === "match" &&
-    !["match", "team_number"].every((key) =>
-      document.fields.some(
-        (f) => f.key === key && f.required && f.type === (key === "match" ? "text" : "integer"),
-      ),
-    )
-  )
-    throw Error("Match identity fields required");
+  // Shared contract validation: duplicate codes and protected identity for the kind.
+  const validation = validateContract(upgradeLegacySpecification(document, kind), kind);
+  if (!validation.ok) throw new ContractError(validation.issues);
   return withTenant(organizationId, async (tx) => {
     const member = await tx
       .selectFrom("channel_identity")
