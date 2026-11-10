@@ -42,6 +42,17 @@ import {
 } from "./repositories/operators.ts";
 import { scoutingReads } from "./repositories/scouting-data.ts";
 import {
+  assignSpecification,
+  createDraft,
+  deleteDraft,
+  listSpecifications,
+  loadDraft,
+  publishDraft,
+  readEventAssignments,
+  readPublication,
+  saveDraft,
+} from "./repositories/specifications.ts";
+import {
   acceptTeamAdminInvitation,
   accountTeamAdminInvitations,
   cancelTeamAdminInvitation,
@@ -139,6 +150,17 @@ app.route(
       accountInvitations: accountTeamAdminInvitations,
       accept: acceptTeamAdminInvitation,
       accounts,
+    },
+    specifications: {
+      list: listSpecifications,
+      publication: readPublication,
+      create: createDraft,
+      load: loadDraft,
+      save: saveDraft,
+      remove: deleteDraft,
+      publish: publishDraft,
+      assignments: readEventAssignments,
+      assign: assignSpecification,
     },
     apiKeys: apiKeys && {
       list: (org, subject) => listApiKeys(org, subject, apiKeys),

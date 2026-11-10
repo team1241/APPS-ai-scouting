@@ -8,7 +8,7 @@ The code is in `packages/scouting`:
 - `rules.ts`: `checkAnswer`, `evaluateAnswers` and `foldTurns`.
 - `examples/`: worked match, pit and general contracts. Tests use them.
 
-Extraction does not use format 2 yet. #48 connects it to Telegram intake. #46 adds draft and publish APIs.
+Extraction does not use format 2 yet. #48 connects it to Telegram intake. Team admins author, publish and assign contracts through the [specification API](web-app.md#scouting-specifications-46) (#46).
 
 ## Versions
 

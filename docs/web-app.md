@@ -284,3 +284,34 @@ Issue #41 gives platform operators a view of every registered team at `/operator
 6. Sign in as a team 1241 admin who is not an operator. `/operator/teams` returns the not-found page.
 
 Validation covers route authorization, search and paging input, reveal outcomes and decryption failure, revoke and remove outcomes including provider and Clerk failures, and, against disposable Postgres, revoke ordering and rollback, admin removal (demotion, kept identity, cancelled invitations, last admin, audit rows), directory completeness, teams with no admins or keys, search, paging bounds, admin web-access status, invitation privacy, active and revoked keys, cross-team key isolation, operator revocation, ordinary-admin denial and runtime-role privileges. The UI was checked with fixture data from the real backend routes at desktop and phone widths. Live Clerk sign-in was not used.
+
+## Scouting specifications (#46)
+
+Team admins create, publish and assign scouting contracts through `/web/organizations/<organization>/...`. The contract format is in the [scouting contract](scouting-contract.md). The builder UI is #47. Every call rechecks that the Clerk session is a linked admin of the team (`webAdminMember`). Telegram does not need to be linked. A team the account does not administer gets the same 404 as one that does not exist. The backend never trusts a supplied member ID.
+
+| Method and path                                             | Purpose                                                                                                                                                   |
+| ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET specifications?season=&kind=`                          | Open drafts and publications, with the events each publication is assigned to                                                                             |
+| `GET specifications/publications/<season>/<kind>/<version>` | One publication, read-only. Format 1 publications come back in the current format.                                                                        |
+| `POST specifications/drafts`                                | Create a draft: `{ season, kind, name, source }`. `source` is `{ type: "blank" }`, `{ type: "publication", season, version }` or `{ type: "draft", id }`. |
+| `GET specifications/drafts/<draft>`                         | Load a draft with its validation issues                                                                                                                   |
+| `PUT specifications/drafts/<draft>`                         | Save `{ revision, name, document: { description, questions } }`                                                                                           |
+| `DELETE specifications/drafts/<draft>`                      | Delete an unpublished draft                                                                                                                               |
+| `POST specifications/drafts/<draft>/publish`                | Publish `{ revision }`                                                                                                                                    |
+| `GET events/<event>/specifications`                         | Current match, pit and general assignment for an event                                                                                                    |
+| `PUT events/<event>/specifications/<kind>`                  | Assign `{ version }`, or `{ version: null }` to clear pit or general                                                                                      |
+
+**Drafts.** A draft belongs to one team, season and kind. A blank draft starts with the protected identity questions for its kind. Copying a publication or a draft keeps the kind; the season can change. Save accepts incomplete content up to 256 KB and returns `issues`, the same path-addressable list that publication uses. The server sets `formatVersion`, `kind` and `version`; the client sends only the description and questions.
+
+**Stale saves.** Each save sends the `revision` it loaded and gets the next one back. If someone else saved first, the response is HTTP 409 with the stored draft. Nothing is overwritten, so the editor keeps the author's changes and can offer a merge or a reload.
+
+**Publication.** Publish validates the complete contract and returns HTTP 422 with `issues` if it is not valid. A valid draft becomes an immutable publication with the next server-assigned version for its team, season and kind (`v1`, `v2`, ...). The draft is then locked, leaves the draft list and records its version. A retry of the same draft returns the existing version with `replayed: true` and HTTP 200; it never creates a second version. Publishing an older revision gets HTTP 409. To change a publication, create a draft from it and publish a new version. Publication does not assign the version to any event.
+
+**Assignment.** Assignment chooses the publication new sessions of a kind use at one event. The publication must have the event's season and the same kind (`season_mismatch` or `publication_not_found` otherwise).
+
+- **Match** keeps the existing selection, `event.specification_version`, so Telegram event activation and intake are unchanged. Match always has a publication and cannot be cleared. Until #48 connects custom extraction, match accepts format 1 publications only (`unsupported_by_intake`).
+- **Pit and general** use `event_specification_assignment`, one row per event and kind. They can be cleared. Intake for pit and general is #48.
+
+Sessions pin their publication at intake. A new assignment affects only new sessions. Open sessions, follow-ups and recorded observations keep their publication, and nothing is re-extracted.
+
+**Deployment.** Apply migration `20261110000000_specification_drafts` before deploying the backend, then run `pnpm db:sync` locally. It adds `specification_draft`, `event_specification_assignment` and three nullable columns on `published_specification` (`name`, `published_by`, `source_draft_id`). Existing publications are not changed.
