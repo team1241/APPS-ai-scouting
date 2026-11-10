@@ -15,6 +15,13 @@ export async function cleanupPublished(tx: Transaction<DB>, org: string) {
     .where("organization_id", "=", org)
     .execute();
   await tx.deleteFrom("observation_revision").where("organization_id", "=", org).execute();
+  // Sessions reference their pinned publication.
+  await tx.deleteFrom("scouting_session").where("organization_id", "=", org).execute();
+  await tx
+    .deleteFrom("event_specification_assignment")
+    .where("organization_id", "=", org)
+    .execute();
+  await tx.deleteFrom("specification_draft").where("organization_id", "=", org).execute();
   await tx.deleteFrom("published_specification").where("organization_id", "=", org).execute();
   await sql`ALTER TABLE observation_revision ENABLE TRIGGER immutable_observation`.execute(tx);
   await sql`ALTER TABLE published_specification ENABLE TRIGGER immutable_specification`.execute(tx);

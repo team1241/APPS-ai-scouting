@@ -174,6 +174,7 @@ export interface ObservationFlag {
 }
 
 export interface ObservationRevision {
+  applicability: Generated<Json>;
   created_at: Generated<Timestamp>;
   event_id: string;
   id: Generated<string>;
@@ -187,7 +188,7 @@ export interface ObservationRevision {
   season: number;
   session_id: string;
   specification_version: string;
-  team_number: number;
+  team_number: number | null;
   validation: Json;
   values: Json;
 }
@@ -343,12 +344,14 @@ export interface ScoutingSession {
   created_at: Generated<Timestamp>;
   event_id: string | null;
   id: string;
+  kind: Generated<string>;
   match_id: string | null;
   match_label: string | null;
   member_id: string;
   organization_id: string;
   reextraction: Generated<boolean>;
   replaces_revision_id: string | null;
+  specification_season: number | null;
   specification_version: string;
   status: Generated<string>;
   team_number: number | null;

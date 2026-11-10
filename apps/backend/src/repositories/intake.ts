@@ -1,5 +1,6 @@
+import type { ObservationKind } from "@ai-scouting/scouting";
 import { activeEvent, lockEventContext } from "./events.ts";
-import { sessionSpecification } from "./observations.ts";
+import { publishedContract } from "./observations.ts";
 import { withTenant } from "./tenant.ts";
 
 interface IncomingNote {
@@ -13,13 +14,23 @@ interface IncomingNote {
   eventId?: string;
   correctionRevisionId?: string;
   reextract?: boolean;
+  // Explicit kind for a new note (/pit, /general). Replies and corrections keep their session's kind.
+  kind?: ObservationKind;
 }
-type Rejection = "no_active_event" | "invalid_event" | "legacy_session" | "completed_session";
+type Rejection =
+  | "no_active_event"
+  | "invalid_event"
+  | "legacy_session"
+  | "completed_session"
+  | "kind_unassigned";
 // Context validation, deduplication and persistence share one transaction.
 export function saveIncomingNote(
   note: IncomingNote,
 ): Promise<
-  "unknown" | "duplicate" | Rejection | { status: "saved"; sessionId: string; eventName: string }
+  | "unknown"
+  | "duplicate"
+  | Rejection
+  | { status: "saved"; sessionId: string; eventName: string; kind: ObservationKind }
 > {
   return withTenant(note.organizationId, async (tx) => {
     const identity = await tx
@@ -117,7 +128,11 @@ export function saveIncomingNote(
     if (parents.length > 1) return reject("completed_session");
     const parent = parents[0];
     if (parent?.status === "done") return reject("completed_session");
-    let eventId: string, eventName: string, specificationVersion: string;
+    let eventId: string,
+      eventName: string,
+      season: number,
+      kind: ObservationKind,
+      specificationVersion: string;
     if (correction) {
       const event = await tx
         .selectFrom("event")
@@ -127,6 +142,8 @@ export function saveIncomingNote(
         .executeTakeFirstOrThrow();
       eventId = event.id;
       eventName = event.name;
+      season = correction.season;
+      kind = correction.kind as ObservationKind;
       specificationVersion = correction.specification_version;
     } else if (parent) {
       const context = await tx
@@ -136,13 +153,23 @@ export function saveIncomingNote(
             .onRef("event.id", "=", "scouting_session.event_id")
             .onRef("event.organization_id", "=", "scouting_session.organization_id"),
         )
-        .select(["event.id", "event.name", "scouting_session.specification_version"])
+        .select([
+          "event.id",
+          "event.name",
+          "event.season",
+          "scouting_session.kind",
+          "scouting_session.specification_season",
+          "scouting_session.specification_version",
+        ])
         .where("scouting_session.organization_id", "=", note.organizationId)
         .where("scouting_session.id", "=", parent.id)
         .executeTakeFirst();
       if (!context) return reject("legacy_session");
       eventId = context.id;
       eventName = context.name;
+      // The session keeps its pinned publication, even if the event's assignment changed.
+      season = context.specification_season ?? context.season;
+      kind = context.kind as ObservationKind;
       specificationVersion = context.specification_version;
     } else {
       const active = await activeEvent(tx, note.organizationId);
@@ -158,9 +185,25 @@ export function saveIncomingNote(
       if (!selected || selected.archived) return reject("invalid_event");
       eventId = selected.id;
       eventName = selected.name;
-      specificationVersion = selected.specification_version;
+      season = selected.season;
+      kind = note.kind ?? "match";
+      if (kind === "match") specificationVersion = selected.specification_version;
+      else {
+        // Pit and general need an explicit assignment. Intake never guesses a contract.
+        const assignment = await tx
+          .selectFrom("event_specification_assignment")
+          .select(["season", "version"])
+          .where("organization_id", "=", note.organizationId)
+          .where("event_id", "=", selected.id)
+          .where("kind", "=", kind)
+          .executeTakeFirst();
+        if (!assignment) return reject("kind_unassigned");
+        season = assignment.season;
+        specificationVersion = assignment.version;
+      }
     }
-    await sessionSpecification(tx, note.organizationId, eventId, specificationVersion);
+    // Fail closed if the pinned publication cannot be read.
+    await publishedContract(tx, note.organizationId, season, kind, specificationVersion);
     const entry = await tx
       .insertInto("raw_entry")
       .values({
@@ -193,11 +236,13 @@ export function saveIncomingNote(
           organization_id: note.organizationId,
           member_id: identity.member_id,
           event_id: eventId,
+          kind,
+          specification_season: season,
           specification_version: specificationVersion,
           replaces_revision_id: correction?.id ?? null,
           reextraction: !!note.reextract,
         })
         .execute();
-    return { status: "saved", sessionId: parent?.id ?? entry.id, eventName };
+    return { status: "saved", sessionId: parent?.id ?? entry.id, eventName, kind };
   });
 }

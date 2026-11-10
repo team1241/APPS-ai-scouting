@@ -105,6 +105,6 @@ export async function telegramCommand(input: {
   }
   const membership = await memberRole(organizationId, userId);
   return membership
-    ? `Send a scouting note with match and team number. Use /flag <team-number> [match-number] [note] to request a review, /flags to see team requests, /event to check context, /events to list events, or /scout <event-id> <note> for a delayed note. An active event is required for new notes.${membership.role === "admin" ? "\nAdmin commands: /invite [label], /invites, /revokeinvite <id>, /event set <season> <FRC code>, /event off" : ""}`
+    ? `Send a scouting note with match and team number. Use /flag <team-number> [match-number] [note] to request a review, /flags to see team requests, /event to check context, /events to list events, /pit <note> for pit scouting, /general <note> for a general note, or /scout <event-id> [pit|general] <note> for a delayed note. An active event is required for new notes.${membership.role === "admin" ? "\nAdmin commands: /invite [label], /invites, /revokeinvite <id>, /event set <season> <FRC code>, /event off" : ""}`
     : "Open your team's invitation link to enroll, then send a scouting note.";
 }

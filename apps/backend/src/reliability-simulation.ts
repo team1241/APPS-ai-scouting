@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
 import { performance } from "node:perf_hooks";
-import { finalizeExtraction } from "@ai-scouting/scouting";
 import { db } from "./db.ts";
+import { stated } from "./extraction-fixture.ts";
 import { runExtractionPass } from "./extraction-worker.ts";
 import { normalizeFrcEvent } from "./frc-events.ts";
 import { drainOutbound } from "./outbound-worker.ts";
@@ -69,9 +69,7 @@ try {
   const queueBefore = await operationSnapshot(org, "1");
   globalThis.fetch = async () => {
     modelCalls++;
-    return Response.json(
-      finalizeExtraction({ match: "Q1", team_number: 1241, climbed: false, notes: null }),
-    );
+    return Response.json(stated({ match: "Q1", team_number: 1241, climbed: false, notes: null }));
   };
   while (await runExtractionPass(org, "http://localhost:4111")) {
     /* Deterministic fake model boundary. */

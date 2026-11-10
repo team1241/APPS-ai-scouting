@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { after, test } from "node:test";
-import { finalizeExtraction } from "@ai-scouting/scouting";
 import { sql } from "kysely";
 import { db } from "./db.ts";
 import { eventCommand } from "./event-commands.ts";
 import { parseEventConfig } from "./event-config.ts";
+import { stated } from "./extraction-fixture.ts";
 import { cleanupPublished } from "./published-test-cleanup.ts";
 import { changeEvent, readEvents } from "./repositories/events.ts";
 import { claimExtraction, finishExtraction } from "./repositories/extraction.ts";
@@ -197,7 +197,7 @@ test("sessions bind at intake and follow-ups keep the original event after activ
       org,
       claim.id,
       claim.lease,
-      finalizeExtraction({ match: "Q42", team_number: 1241, climbed: null, notes: null }),
+      stated({ match: "Q42", team_number: 1241, climbed: null, notes: null }),
       "888",
     );
     await changeEvent(org, "1", next(), { kind: "activate", eventId: null });
@@ -219,7 +219,7 @@ test("sessions bind at intake and follow-ups keep the original event after activ
       org,
       resumed.id,
       resumed.lease,
-      finalizeExtraction({ match: "Q42", team_number: 1241, climbed: false, notes: null }),
+      stated({ match: "Q42", team_number: 1241, climbed: false, notes: null }),
       null,
     );
     const unchanged = await withTenant(org, (tx) =>
@@ -243,7 +243,7 @@ test("sessions bind at intake and follow-ups keep the original event after activ
     assert.equal(delayed.eventName, "A");
     const delayedClaim = await claimExtraction(org);
     assert.ok(delayedClaim);
-    assert.equal(JSON.parse(delayedClaim.text).original, "Q41 team 1241 climbed");
+    assert.equal(delayedClaim.messages[0]?.text, "Q41 team 1241 climbed");
     assert.equal((await readEvents(org, "1"))?.active?.id, bid);
   } finally {
     await cleanup(org);

@@ -1,6 +1,7 @@
 import type { Transaction } from "kysely";
 import type { DB } from "../db.generated.ts";
 import {
+  type ParticipationValidation,
   type ScheduledMatch,
   scheduleState,
   type ValidationMode,
@@ -79,17 +80,27 @@ export async function validateSessionInTransaction(
       "scouting_session.created_at",
       "scouting_session.validation_result",
       "scouting_session.event_id",
+      "scouting_session.kind",
       "event.validation_mode",
     ])
     .where("scouting_session.organization_id", "=", organizationId)
     .where("event.organization_id", "=", organizationId)
     .where("scouting_session.id", "=", sessionId)
     .executeTakeFirstOrThrow();
-  const schedule = await scheduleInTransaction(tx, organizationId, session.event_id as string);
   const mode: ValidationMode =
     session.validation_mode === "off" || session.validation_mode === "strict"
       ? session.validation_mode
       : "warn";
+  if (session.kind !== "match") {
+    const validation: ParticipationValidation = {
+      mode,
+      status: "not_applicable",
+      message: null,
+      matchId: null,
+    };
+    return { session, validation };
+  }
+  const schedule = await scheduleInTransaction(tx, organizationId, session.event_id as string);
   const validation = validateParticipation(
     mode,
     schedule.state,

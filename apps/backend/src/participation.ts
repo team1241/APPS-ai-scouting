@@ -19,7 +19,9 @@ export interface ParticipationValidation {
     | "ambiguous_match"
     | "unknown_match"
     | "invalid_pairing"
-    | "incomplete_participants";
+    | "incomplete_participants"
+    // Pit and general observations are not checked against the match schedule.
+    | "not_applicable";
   matchId: string | null;
   message: string | null;
 }

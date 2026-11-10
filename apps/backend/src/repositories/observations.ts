@@ -1,5 +1,8 @@
 import {
+  type Contract,
   ContractError,
+  type ObservationKind,
+  readContract,
   requirements,
   type Specification,
   specificationSchema,
@@ -11,25 +14,22 @@ import type { DB } from "../db.generated.ts";
 import { lockEventContext } from "./events.ts";
 import { withTenant } from "./tenant.ts";
 
-export async function sessionSpecification(
+// Read the publication a session is pinned to. Publications are immutable, so the
+// season, kind and version identify the document. Format 1 keeps its original semantics.
+export async function publishedContract(
   tx: Transaction<DB>,
   organizationId: string,
-  eventId: string,
+  season: number,
+  kind: ObservationKind,
   version: string,
-) {
-  const event = await tx
-    .selectFrom("event")
-    .select("season")
-    .where("organization_id", "=", organizationId)
-    .where("id", "=", eventId)
-    .executeTakeFirstOrThrow();
+): Promise<Contract> {
   // Bootstrap only the known starter document. Existing publications are never overwritten.
-  if (version === requirements.version)
+  if (kind === "match" && version === requirements.version)
     await tx
       .insertInto("published_specification")
       .values({
         organization_id: organizationId,
-        season: event.season,
+        season,
         kind: "match",
         version,
         document: JSON.stringify(requirements),
@@ -40,11 +40,27 @@ export async function sessionSpecification(
     .selectFrom("published_specification")
     .select("document")
     .where("organization_id", "=", organizationId)
-    .where("season", "=", event.season)
-    .where("kind", "=", "match")
+    .where("season", "=", season)
+    .where("kind", "=", kind)
     .where("version", "=", version)
     .executeTakeFirstOrThrow();
-  return specificationSchema.parse(row.document);
+  return readContract(row.document, kind);
+}
+
+export async function sessionSpecification(
+  tx: Transaction<DB>,
+  organizationId: string,
+  eventId: string,
+  version: string,
+  kind: ObservationKind = "match",
+) {
+  const event = await tx
+    .selectFrom("event")
+    .select("season")
+    .where("organization_id", "=", organizationId)
+    .where("id", "=", eventId)
+    .executeTakeFirstOrThrow();
+  return publishedContract(tx, organizationId, event.season, kind, version);
 }
 
 export function publishSpecification(

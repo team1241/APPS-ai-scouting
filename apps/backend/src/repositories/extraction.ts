@@ -1,11 +1,51 @@
 import { createHash } from "node:crypto";
-import { type ExtractionResult, finalizeExtraction } from "@ai-scouting/scouting";
-import { sql } from "kysely";
+import {
+  type ExtractionMessage,
+  type ExtractionResult,
+  finalizeTurns,
+  LIMITS_EXTRACTION,
+  type ModelExtraction,
+  type ObservationKind,
+} from "@ai-scouting/scouting";
+import { type Selectable, sql, type Transaction } from "kysely";
+import type { DB, ScoutingSession } from "../db.generated.ts";
 import { extractionReply } from "../extraction-reply.ts";
-import { sessionSpecification } from "./observations.ts";
+import { publishedContract } from "./observations.ts";
 import { enqueueDelivery } from "./outbound.ts";
 import { validateSessionInTransaction } from "./participation.ts";
 import { withTenant } from "./tenant.ts";
+
+// Keep the immutable transport envelope in raw_entry, but do not send command words or the
+// event UUID as scouting content.
+export const noteText = (text: string) =>
+  /^\/(?:scout(?:@\w+)?\s+[0-9a-f-]{36}(?:\s+(?:match|pit|general)(?=\s))?|(?:match|pit|general)(?:@\w+)?)\s+([\s\S]+)$/i.exec(
+    text.trim(),
+  )?.[1] ?? text;
+
+// The publication pinned at intake. Sessions from before #48 have no season; use the event's.
+async function pinnedContract(
+  tx: Transaction<DB>,
+  organizationId: string,
+  session: Selectable<ScoutingSession>,
+) {
+  let season = session.specification_season;
+  if (season === null) {
+    const event = await tx
+      .selectFrom("event")
+      .select("season")
+      .where("organization_id", "=", organizationId)
+      .where("id", "=", session.event_id as string)
+      .executeTakeFirstOrThrow();
+    season = event.season;
+  }
+  return publishedContract(
+    tx,
+    organizationId,
+    season,
+    session.kind as ObservationKind,
+    session.specification_version,
+  );
+}
 
 export function claimExtraction(organizationId: string) {
   return withTenant(organizationId, async (tx) => {
@@ -49,7 +89,7 @@ export function claimExtraction(organizationId: string) {
       .executeTakeFirstOrThrow();
     const replies = await tx
       .selectFrom("raw_entry")
-      .select("text")
+      .select(["text", "received_at"])
       .where("organization_id", "=", organizationId)
       .where("parent_entry_id", "=", row.id)
       .orderBy("received_at")
@@ -61,15 +101,21 @@ export function claimExtraction(organizationId: string) {
       .where("organization_id", "=", organizationId)
       .where("id", "=", row.id)
       .executeTakeFirstOrThrow();
-    const specification = await sessionSpecification(
-      tx,
-      organizationId,
-      session.event_id as string,
-      session.specification_version,
-    );
-    // Keep the immutable transport envelope in raw_entry, but do not send its UUID as scouting content.
-    const original =
-      /^\/scout(?:@\w+)?\s+[0-9a-f-]{36}\s+([\s\S]+)$/i.exec(row.text.trim())?.[1] ?? row.text;
+    const contract = await pinnedContract(tx, organizationId, session);
+    // The follow-up each reply answered gives the model context for short replies like "yes".
+    const questions = await tx
+      .selectFrom("outbound_delivery")
+      .select(["text", "created_at"])
+      .where("organization_id", "=", organizationId)
+      .where("session_id", "=", row.id)
+      .where("question", "=", true)
+      .orderBy("created_at")
+      .execute();
+    const askedBefore = (time: Date) =>
+      questions
+        .filter((q) => new Date(q.created_at) <= new Date(time))
+        .at(-1)
+        ?.text.slice(0, LIMITS_EXTRACTION.asked);
     const reextractionSources: { id: string; text: string }[] = [];
     let revisionId = session.reextraction ? session.replaces_revision_id : null;
     const seen = new Set<string>();
@@ -100,13 +146,16 @@ export function claimExtraction(organizationId: string) {
         .executeTakeFirstOrThrow();
       revisionId = sourceSession.reextraction ? source.replaces_revision_id : null;
     }
-    const text = JSON.stringify({
-      original,
-      followUps: replies.map((r) => r.text),
-      ...(session.reextraction
-        ? { explicitReextractionOf: session.replaces_revision_id, reextractionSources }
-        : {}),
-    });
+    // One message per turn, in order. An explicit re-extraction replays its sources first.
+    const messages: ExtractionMessage[] = [
+      ...reextractionSources.map((r) => ({ role: "note" as const, text: noteText(r.text) })),
+      { role: "note" as const, text: noteText(row.text) },
+      ...replies.map((r) => {
+        const asked = askedBefore(r.received_at);
+        return { role: "reply" as const, ...(asked ? { asked } : {}), text: r.text };
+      }),
+    ].slice(-LIMITS_EXTRACTION.messages);
+    const text = JSON.stringify({ version: contract.version, messages });
     const lease = new Date();
     await tx
       .updateTable("raw_entry")
@@ -119,11 +168,11 @@ export function claimExtraction(organizationId: string) {
       .where("id", "=", row.id)
       .execute();
     return {
-      specification,
+      contract,
+      messages,
       id: row.id,
       lease,
       chatId: identity.external_id,
-      text,
       turnId: createHash("sha256").update(text).digest("hex"),
     };
   });
@@ -133,7 +182,7 @@ export function finishExtraction(
   organizationId: string,
   id: string,
   lease: Date,
-  result: ExtractionResult,
+  extracted: ModelExtraction,
   messageId: string | null,
 ) {
   return withTenant(organizationId, async (tx) => {
@@ -145,22 +194,20 @@ export function finishExtraction(
       .where("processing_started_at", "=", lease)
       .forUpdate()
       .executeTakeFirst();
-    if (!raw) return { numUpdatedRows: 0n, result, notice: null };
+    if (!raw) return { numUpdatedRows: 0n, result: null, notice: null };
     const context = await tx
       .selectFrom("scouting_session")
       .selectAll()
       .where("organization_id", "=", organizationId)
       .where("id", "=", id)
       .executeTakeFirstOrThrow();
-    const specification = await sessionSpecification(
-      tx,
-      organizationId,
-      context.event_id as string,
-      context.specification_version,
-    );
-    if (result.specificationVersion !== specification.version)
-      throw Error("Specification mismatch");
-    result = finalizeExtraction(result.values, specification);
+    const contract = await pinnedContract(tx, organizationId, context);
+    if (extracted.specificationVersion !== contract.version) throw Error("Specification mismatch");
+    if (!extracted.turns.length || extracted.turns.length > LIMITS_EXTRACTION.messages)
+      throw Error("Extraction has no turns");
+    // The model reported statements. Validation, rules and completeness run here.
+    let result: ExtractionResult = finalizeTurns(contract, extracted.turns);
+    const kind = context.kind as ObservationKind;
     // Serialize identity resolution for this scout. Provisional notes remain independent.
     await sql`select pg_advisory_xact_lock(hashtextextended(${`${organizationId}:${raw.member_id}`}, 31))`.execute(
       tx,
@@ -193,9 +240,10 @@ export function finishExtraction(
     const unverifiedConsent =
       answer === "save unverified" || (sameIdentity && prior.unverifiedConsent === true);
     let notice = validation.message;
-    const blocked = validation.mode === "strict" && validation.status !== "valid";
+    const unverified = validation.status !== "valid" && validation.status !== "not_applicable";
+    const blocked = validation.mode === "strict" && unverified;
     // Warn preserves the draft and permits an explicit unverified finalization.
-    if (validation.mode === "warn" && validation.status !== "valid" && !unverifiedConsent) {
+    if (validation.mode === "warn" && unverified && !unverifiedConsent) {
       result = {
         ...result,
         status: "needs_review",
@@ -205,7 +253,7 @@ export function finishExtraction(
       result = { ...result, status: "needs_review", question: validation.message };
     }
     let conflict: string | null = null;
-    if (validation.matchId && typeof result.values.team_number === "number") {
+    if (kind === "match" && validation.matchId && typeof result.values.team_number === "number") {
       const existing = await tx
         .selectFrom("scouting_session")
         .select("id")
@@ -214,6 +262,7 @@ export function finishExtraction(
         .where("member_id", "=", session.member_id)
         .where("match_id", "=", validation.matchId)
         .where("team_number", "=", result.values.team_number)
+        .where("kind", "=", "match")
         .where("status", "=", "collecting")
         .where("created_at", "<", session.created_at)
         .where("id", "!=", id)
@@ -225,6 +274,8 @@ export function finishExtraction(
       notice = `Another open session (${conflict}) already targets this event, match and team. This note is stored separately and has not been merged. Reply “keep separate” to continue this independent note. To add to the earlier session, reply to its original question explicitly.`;
       result = { ...result, status: "needs_review", question: notice };
     }
+    const teamNumber =
+      typeof result.values.team_number === "number" ? result.values.team_number : null;
     let staleCorrection = false;
     if (result.status === "complete") {
       if (context.replaces_revision_id) {
@@ -247,7 +298,7 @@ export function finishExtraction(
           result = {
             ...result,
             status: "needs_review",
-            question: `Correction target is no longer current. Your draft is retained. Use /flag ${result.values.team_number} to request an investigation.`,
+            question: `Correction target is no longer current. Your draft is retained. Use /flag ${teamNumber ?? "<team-number>"} to request an investigation.`,
           };
         }
       }
@@ -275,20 +326,26 @@ export function finishExtraction(
           member_id: raw.member_id,
           event_id: context.event_id as string,
           match_id: validation.matchId,
-          team_number: result.values.team_number as number,
-          specification_version: specification.version,
-          season: event.season,
+          team_number: teamNumber,
+          kind,
+          specification_version: contract.version,
+          season: context.specification_season ?? event.season,
           values: JSON.stringify(result.values),
+          applicability: JSON.stringify({ fields: result.fields, inactive: result.inactive }),
           validation: JSON.stringify(validation),
           outcome:
             validation.mode === "off"
               ? "unchecked"
-              : validation.status === "valid"
-                ? "validated"
-                : "warning_acknowledged",
+              : validation.status === "not_applicable"
+                ? "unchecked"
+                : validation.status === "valid"
+                  ? "validated"
+                  : "warning_acknowledged",
           provenance: JSON.stringify({
             rawEntryIds: sources.map((r) => r.id),
             reextraction: context.reextraction,
+            turns: result.turns,
+            history: result.history,
           }),
           replaces_revision_id: context.replaces_revision_id,
         })
@@ -324,8 +381,7 @@ export function finishExtraction(
             teamNumber: result.values.team_number,
           }),
           match_label: typeof result.values.match === "string" ? result.values.match : null,
-          team_number:
-            typeof result.values.team_number === "number" ? result.values.team_number : null,
+          team_number: teamNumber,
           status: staleCorrection
             ? "superseded"
             : result.status === "complete"
@@ -344,7 +400,7 @@ export function finishExtraction(
       .where("session_id", "=", id)
       .executeTakeFirst();
     if (revision)
-      notice = `${revision.outcome}. Revision ${revision.id}. To request an investigation: /flag ${result.values.team_number} [match-number] [note]. Team requests: /flags.`;
+      notice = `${revision.outcome}. Revision ${revision.id}. To request an investigation: /flag ${teamNumber ?? "<team-number>"} [match-number] [note]. Team requests: /flags.`;
     const identity = await tx
       .selectFrom("channel_identity")
       .select("external_id")

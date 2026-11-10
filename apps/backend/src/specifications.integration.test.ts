@@ -375,10 +375,10 @@ test("assignment is per event and kind, checks season and keeps match on the exi
     (await assignSpecification(org, admin, eventId, "pit", "v99"))?.outcome,
     "publication_not_found",
   );
-  // Match intake keeps format 1 until custom extraction (#48), and match cannot be cleared.
+  // Format 2 match publications drive Telegram extraction (#48). Match cannot be cleared.
   assert.equal(
     (await assignSpecification(org, admin, eventId, "match", match))?.outcome,
-    "unsupported_by_intake",
+    "assigned",
   );
   assert.equal(
     (await assignSpecification(org, admin, eventId, "match", null))?.outcome,

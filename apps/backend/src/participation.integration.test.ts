@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { after, test } from "node:test";
-import { finalizeExtraction } from "@ai-scouting/scouting";
 import { sql } from "kysely";
 import { db } from "./db.ts";
 import { eventCommand } from "./event-commands.ts";
 import { parseEventConfig } from "./event-config.ts";
+import { stated } from "./extraction-fixture.ts";
 import { cleanupPublished } from "./published-test-cleanup.ts";
 import type { ReferenceProvider } from "./reference-provider.ts";
 import { changeEvent } from "./repositories/events.ts";
@@ -138,7 +138,7 @@ async function finish(
     org,
     claimed.id,
     claimed.lease,
-    finalizeExtraction({ match, team_number: team, climbed, notes: null }),
+    stated({ match, team_number: team, climbed, notes: null }),
     question,
   );
   return { id: claimed.id, question, ...saved };
@@ -157,17 +157,17 @@ test("strict preserves intake, handles missing/stale schedules, and finalizes ex
     const id = await note(org);
     let saved = await finish(org);
     assert.equal(saved.id, id);
-    assert.equal(saved.result.status, "needs_review");
-    assert.match(saved.result.question ?? "", /No schedule/);
+    assert.equal(saved.result?.status, "needs_review");
+    assert.match(saved.result?.question ?? "", /No schedule/);
     await syncReference(org, "1", event, provider);
     await note(org, "1", saved.question);
     saved = await finish(org, 9999);
-    assert.equal(saved.result.status, "needs_review");
-    assert.match(saved.result.question ?? "", /not scheduled/);
+    assert.equal(saved.result?.status, "needs_review");
+    assert.match(saved.result?.question ?? "", /not scheduled/);
     const deliveredQuestion = saved.question;
     await note(org, "1", deliveredQuestion);
     saved = await finish(org);
-    assert.equal(saved.result.status, "complete");
+    assert.equal(saved.result?.status, "complete");
     const replay = await saveIncomingNote({
       organizationId: org,
       channel: "telegram",
@@ -179,7 +179,7 @@ test("strict preserves intake, handles missing/stale schedules, and finalizes ex
     assert.equal(replay, "completed_session");
     for (const p of participants) {
       await note(org);
-      assert.equal((await finish(org, p.number, false, "P14")).result.status, "complete");
+      assert.equal((await finish(org, p.number, false, "P14")).result?.status, "complete");
     }
     await syncReference(org, "1", event, {
       ...provider,
@@ -189,7 +189,7 @@ test("strict preserves intake, handles missing/stale schedules, and finalizes ex
     });
     await note(org);
     saved = await finish(org);
-    assert.match(saved.result.question ?? "", /unverified|incomplete\/failed/);
+    assert.match(saved.result?.question ?? "", /unverified|incomplete\/failed/);
     await withTenant(org, async (tx) => {
       const rows = await tx
         .selectFrom("raw_entry")
@@ -209,9 +209,9 @@ test("warn permits explicit unverified save; off bypasses checks; only admins ca
     );
     await note(org);
     const saved = await finish(org);
-    assert.match(saved.result.question ?? "", /save unverified/);
+    assert.match(saved.result?.question ?? "", /save unverified/);
     await note(org, "1", saved.question, "save unverified");
-    assert.equal((await finish(org)).result.status, "complete");
+    assert.equal((await finish(org)).result?.status, "complete");
     const { readObservationHistory } = await import("./repositories/observations.ts");
     const records = await readObservationHistory(org, "1");
     assert.equal(records[0]?.outcome, "warning_acknowledged");
@@ -220,7 +220,7 @@ test("warn permits explicit unverified save; off bypasses checks; only admins ca
     assert.equal((records[0].provenance as { rawEntryIds: string[] }).rawEntryIds.length, 2);
     await mode(org, event, "off");
     await note(org);
-    assert.equal((await finish(org)).result.status, "complete");
+    assert.equal((await finish(org)).result?.status, "complete");
     assert.match(
       (await eventCommand({
         organizationId: org,
@@ -238,11 +238,11 @@ test("provisional sessions, separate scouts and multiple teams remain independen
     const a = await note(org);
     const b = await note(org);
     assert.notEqual(a, b);
-    assert.equal((await finish(org, null, null, null)).result.status, "needs_review");
+    assert.equal((await finish(org, null, null, null)).result?.status, "needs_review");
     const first = await finish(org, 1241, null);
     await note(org);
     const conflict = await finish(org, 1241, null);
-    assert.match(conflict.result.question ?? "", /Another open session/);
+    assert.match(conflict.result?.question ?? "", /Another open session/);
     assert.notEqual(conflict.id, first.id);
     const context = await eventCommand({
       organizationId: org,
@@ -254,17 +254,17 @@ test("provisional sessions, separate scouts and multiple teams remain independen
     assert.ok(context?.includes(event));
     await note(org, "1", conflict.question, "keep separate");
     const independent = await finish(org, 1241, null);
-    assert.equal(independent.result.status, "needs_review");
-    assert.doesNotMatch(independent.result.question ?? "", /Another open session/);
+    assert.equal(independent.result?.status, "needs_review");
+    assert.doesNotMatch(independent.result?.question ?? "", /Another open session/);
     await note(org, "1", independent.question, "No climb");
-    assert.equal((await finish(org)).result.status, "complete");
+    assert.equal((await finish(org)).result?.status, "complete");
     await note(org, "2");
-    assert.equal((await finish(org)).result.status, "complete");
+    assert.equal((await finish(org)).result?.status, "complete");
     await note(org);
-    assert.equal((await finish(org, 1242)).result.status, "complete");
+    assert.equal((await finish(org, 1242)).result?.status, "complete");
     await note(org, "1", first.question, "They did not climb");
     assert.equal(
-      (await finish(org)).result.status,
+      (await finish(org)).result?.status,
       "complete",
       "older open session is not blocked by a newer independent note",
     );
@@ -292,7 +292,7 @@ test("switching or clearing active events between question and reply preserves o
     });
     assert.ok(second.eventId);
     assert.equal(await note(org, "1", first.question, "No climb"), id);
-    assert.equal((await finish(org)).result.status, "complete");
+    assert.equal((await finish(org)).result?.status, "complete");
     await withTenant(org, async (tx) => {
       const session = await tx
         .selectFrom("scouting_session")
@@ -311,14 +311,14 @@ test("question delivery retries retain validation and a concurrent reply invalid
     const id = await note(org);
     const claimed = await claimExtraction(org);
     assert.ok(claimed);
-    const complete = finalizeExtraction({
+    const complete = stated({
       match: "Q1",
       team_number: 1241,
       climbed: false,
       notes: null,
     });
     const saved = await finishExtraction(org, id, claimed.lease, complete, null);
-    assert.equal(saved.result.status, "needs_review");
+    assert.equal(saved.result?.status, "needs_review");
     await failExtraction(org, id, claimed.lease);
     await withTenant(org, async (tx) => {
       const raw = await tx
@@ -351,7 +351,7 @@ test("question delivery retries retain validation and a concurrent reply invalid
     const current = await claimExtraction(org);
     assert.ok(current);
     assert.equal(current.id, id);
-    assert.match(current.text, /Corrected team 1242/);
+    assert.match(JSON.stringify(current.messages), /Corrected team 1242/);
   }));
 
 test("validation uses primary participants despite supplemental conflicts or time overrides, with event-scoped match foreign keys", async () =>
@@ -372,7 +372,7 @@ test("validation uses primary participants despite supplemental conflicts or tim
       },
     });
     await note(org);
-    assert.equal((await finish(org)).result.status, "complete");
+    assert.equal((await finish(org)).result?.status, "complete");
     const reference = await readReference(org, "1", event);
     const match = reference.matches.find((m) => m.key === "qm:1");
     assert.ok(match);
@@ -381,9 +381,9 @@ test("validation uses primary participants despite supplemental conflicts or tim
     });
     await note(org);
     const invalid = await finish(org, 11241);
-    assert.match(invalid.result.question ?? "", /not scheduled/);
+    assert.match(invalid.result?.question ?? "", /not scheduled/);
     await note(org, "1", invalid.question, "Team 1241");
-    assert.equal((await finish(org)).result.status, "complete");
+    assert.equal((await finish(org)).result?.status, "complete");
     const other = await changeEvent(org, "1", next(), {
       kind: "import-frc",
       config: parseEventConfig({
@@ -439,7 +439,7 @@ test("automatically acquired rosters and schedules validate; legacy roster backf
     };
     assert.equal((await runScheduleJob(org, "mock", options)).received, 1);
     await note(org);
-    assert.equal((await finish(org)).result.status, "complete");
+    assert.equal((await finish(org)).result?.status, "complete");
     const before = await readReference(org, "1", event);
     assert.equal(before.teams.length, 6);
     assert.ok(before.schedulePoll?.roster_received_at);
@@ -459,7 +459,7 @@ test("automatically acquired rosters and schedules validate; legacy roster backf
     assert.deepEqual(after.matches, before.matches);
     assert.deepEqual(after.schedulePoll?.received_at, before.schedulePoll?.received_at);
     await note(org);
-    assert.equal((await finish(org)).result.status, "complete");
+    assert.equal((await finish(org)).result?.status, "complete");
     assert.equal(
       (await runScheduleJob(org, "mock", { ...options, now: new Date("2026-11-08T00:20:00Z") }))
         .attempted,
@@ -498,10 +498,10 @@ test("published versions survive selection changes; finalization is concurrent a
     const claim = await claimExtraction(org);
     assert.ok(claim);
     assert.equal(claim.id, original);
-    assert.equal(claim.specification.version, requirements.version);
-    const complete = finalizeExtraction(
+    assert.equal(claim.contract.version, requirements.version);
+    const complete = stated(
       { match: "Q1", team_number: 1241, climbed: false, notes: null },
-      claim.specification,
+      claim.contract.version,
     );
     const results = await Promise.all([
       finishExtraction(org, claim.id, claim.lease, complete, null),
@@ -535,13 +535,13 @@ test("published versions survive selection changes; finalization is concurrent a
     await note(org);
     const newer = await claimExtraction(org);
     assert.ok(newer);
-    assert.equal(newer.specification.version, "test-v2");
-    const incomplete = finalizeExtraction(
+    assert.equal(newer.contract.version, "test-v2");
+    const incomplete = stated(
       { match: "Q1", team_number: 1241, climbed: false, notes: null, extra: null },
-      newer.specification,
+      newer.contract.version,
     );
     assert.equal(
-      (await finishExtraction(org, newer.id, newer.lease, incomplete, "v2question")).result.status,
+      (await finishExtraction(org, newer.id, newer.lease, incomplete, "v2question")).result?.status,
       "needs_review",
     );
     history = await readObservationHistory(org, "1");
@@ -591,11 +591,11 @@ test("corrections retain history and original event, deny foreign/stale targets,
     assert.equal(typeof a, "object");
     assert.equal(typeof b, "object");
     const invalid = await finish(org, 9999);
-    assert.equal(invalid.result.status, "needs_review");
+    assert.equal(invalid.result?.status, "needs_review");
     await note(org, "1", invalid.question, "team 1242");
     // The second independent correction can finish first. The stale contender cannot replace it.
     await finish(org, 1242);
-    assert.match((await finish(org, 1242)).result.question ?? "", /no longer current/);
+    assert.match((await finish(org, 1242)).result?.question ?? "", /no longer current/);
     history = await readObservationHistory(org, "1");
     assert.equal(history.length, 2);
     assert.equal(history.filter((r) => r.current).length, 1);
@@ -608,12 +608,12 @@ test("corrections retain history and original event, deny foreign/stale targets,
     // Skip the stale failed contender when claiming the explicit re-extraction.
     const pending = await claimExtraction(org);
     assert.ok(pending);
-    assert.match(pending.text, /explicitReextractionOf/);
+    assert.ok(pending.messages.length > 1, "re-extraction replays its sources");
     await finishExtraction(
       org,
       pending.id,
       pending.lease,
-      finalizeExtraction({ match: "Q1", team_number: 1242, climbed: false, notes: null }),
+      stated({ match: "Q1", team_number: 1242, climbed: false, notes: null }),
       null,
     );
     history = await readObservationHistory(org, "1");
@@ -826,7 +826,7 @@ test("an accepted question with lost delivery persistence routes by its referenc
       org,
       id,
       claim.lease,
-      finalizeExtraction({ match: "Q1", team_number: 1241, climbed: null, notes: null }),
+      stated({ match: "Q1", team_number: 1241, climbed: null, notes: null }),
       null,
     );
     const delivery = await claimDelivery(org);
@@ -854,7 +854,7 @@ test("an accepted question with lost delivery persistence routes by its referenc
     const resumed = await claimExtraction(org);
     assert.ok(resumed);
     assert.equal(resumed.id, id);
-    const completed = finalizeExtraction({
+    const completed = stated({
       match: "Q1",
       team_number: 1241,
       climbed: false,

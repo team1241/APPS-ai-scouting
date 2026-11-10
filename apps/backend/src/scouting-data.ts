@@ -1,5 +1,13 @@
 import { createHash } from "node:crypto";
-import { specificationSchema } from "@ai-scouting/scouting";
+import {
+  type Contract,
+  checkAnswer,
+  evaluateAnswers,
+  type ObservationKind,
+  type QuestionState,
+  type Requirement,
+  readContract,
+} from "@ai-scouting/scouting";
 import { uuidPattern } from "./event-config.ts";
 
 export interface PageRequest {
@@ -63,6 +71,7 @@ export interface ExportRow {
   event_id: string;
   event_code: string | null;
   event_label: string;
+  kind?: string;
   team_number: number | null;
   match_id: string | null;
   match_label: string | null;
@@ -79,6 +88,61 @@ const object = (input: unknown): Record<string, unknown> =>
     ? (input as Record<string, unknown>)
     : {};
 
+// Per-question state for consumers. Only the state vocabulary is exported, never problems,
+// statements, history or inactive values.
+export interface ExportedField {
+  state: QuestionState;
+  requirement: Requirement;
+}
+const states: readonly QuestionState[] = [
+  "answered",
+  "unanswered",
+  "missing",
+  "invalid",
+  "pending",
+  "inactive",
+];
+const requirements: readonly Requirement[] = ["required", "optional", "unknown", "not_applicable"];
+
+// Results stored since #48 carry the evaluation. Older results are re-evaluated against their
+// own publication, which has no rules, so the outcome matches what was recorded.
+function evaluation(contract: Contract, result: Record<string, unknown>) {
+  if (result.resultFormat === 2) {
+    const fields = object(result.fields);
+    const current = object(result.values);
+    return {
+      current,
+      fields: Object.fromEntries(
+        contract.questions.map((q) => {
+          const field = object(fields[q.key]);
+          return [
+            q.key,
+            {
+              state: states.includes(field.state as QuestionState)
+                ? (field.state as QuestionState)
+                : "unanswered",
+              requirement: requirements.includes(field.requirement as Requirement)
+                ? (field.requirement as Requirement)
+                : "unknown",
+            },
+          ];
+        }),
+      ),
+      missing: Array.isArray(result.missing)
+        ? result.missing.filter((k): k is string => typeof k === "string")
+        : [],
+    };
+  }
+  const evaluated = evaluateAnswers(contract, object(result.values));
+  return {
+    current: evaluated.current as Record<string, unknown>,
+    fields: Object.fromEntries(
+      evaluated.questions.map((q) => [q.key, { state: q.state, requirement: q.requirement }]),
+    ),
+    missing: evaluated.missing,
+  };
+}
+
 // Normalize display labels only; qualification formatting does not resolve a match.
 function matchLabel(row: ExportRow): string | null {
   if (row.match_stage === "qualification" && row.match_number !== null)
@@ -90,20 +154,18 @@ function matchLabel(row: ExportRow): string | null {
   return qualification ? `Q${qualification[1]}` : label;
 }
 
-// Explicit allowlist: never serialize extraction questions, provenance or internal validation details.
+// Explicit allowlist: never serialize extraction questions, statements, history, inactive
+// values, provenance or internal validation details.
 export function exportObservation(org: string, row: ExportRow) {
-  const specification = specificationSchema.parse(row.document);
+  const kind = (row.kind ?? "match") as ObservationKind;
+  const contract = readContract(row.document, kind);
   const result = object(row.extraction_result);
-  const source = object(result.values);
-  const values = Object.fromEntries(
-    specification.fields.map((field) => {
-      const value = source[field.key];
-      const valid =
-        value === null ||
-        (field.type === "text" && typeof value === "string") ||
-        (field.type === "boolean" && typeof value === "boolean") ||
-        (field.type === "integer" && typeof value === "number" && Number.isSafeInteger(value));
-      return [field.key, valid ? value : null];
+  const { current, fields, missing } = evaluation(contract, result);
+  // Only current answers that still pass their checks. Unknown, hidden and invalid are null.
+  const values: Record<string, unknown> = Object.fromEntries(
+    contract.questions.map((q) => {
+      const check = checkAnswer(q, Object.hasOwn(current, q.key) ? current[q.key] : null);
+      return [q.key, check.status === "known" ? check.value : null];
     }),
   );
   const label = matchLabel(row);
@@ -119,21 +181,21 @@ export function exportObservation(org: string, row: ExportRow) {
     "unknown_match",
     "invalid_pairing",
     "incomplete_participants",
+    "not_applicable",
   ];
   return {
     id: `obs_${createHash("sha256").update(`${org}:${row.root_id}`).digest("hex")}`,
     event: { id: row.event_id, code: row.event_code, label: row.event_label },
     teamNumber: row.team_number,
-    kind: "match" as const,
+    kind,
     match: { id: row.match_id, label, resolved: row.match_id !== null },
     updatedAt: row.extracted_at.toISOString(),
     specificationVersion: row.specification_version,
     values,
+    fields,
     completeness: {
       status: result.status === "complete" ? "complete" : "incomplete",
-      missing: specification.fields
-        .filter((field) => field.required && values[field.key] === null)
-        .map((field) => field.key),
+      missing,
     },
     validation: {
       mode:

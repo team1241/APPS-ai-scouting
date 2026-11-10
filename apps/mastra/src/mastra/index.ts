@@ -1,3 +1,4 @@
+import { validateContract } from "@ai-scouting/scouting";
 import { Mastra } from "@mastra/core/mastra";
 import { registerApiRoute, SimpleAuth } from "@mastra/core/server";
 import { PostgresStore } from "@mastra/pg";
@@ -43,6 +44,9 @@ export const mastra = new Mastra({
           const turn = sessionTurnSchema.safeParse(await c.req.json().catch(() => null));
           if (!runId.success || !turn.success)
             return c.json({ error: "Invalid session turn" }, 400);
+          // The contract is trusted only after the same validation used at publication.
+          if (!validateContract(turn.data.contract, turn.data.contract.kind).ok)
+            return c.json({ error: "Invalid scouting contract" }, 400);
           // Configured storage is mandatory: a suspended session must survive restarts.
           if (!process.env.MASTRA_DATABASE_URL)
             return c.json({ error: "Session storage required" }, 503);

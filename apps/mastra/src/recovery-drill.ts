@@ -1,7 +1,7 @@
 // Exercise the actual Postgres snapshot adapter without any model/provider request.
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { finalizeExtraction } from "@ai-scouting/scouting";
+import { finalizeTurns, readContract, requirements } from "@ai-scouting/scouting";
 import { Mastra } from "@mastra/core/mastra";
 import { PostgresStore } from "@mastra/pg";
 import { advanceSession, createSessionWorkflow } from "./mastra/workflows/session.ts";
@@ -18,31 +18,34 @@ const store = new PostgresStore({
   schemaName: "mastra",
 });
 let calls = 0;
-const workflow = createSessionWorkflow(async (text) => {
+const contract = readContract(requirements);
+const workflow = createSessionWorkflow(async ({ messages }) => {
   calls++;
-  return finalizeExtraction({
-    match: "Q1",
-    team_number: 1241,
-    climbed: text === "completed" ? false : null,
-    notes: null,
-  });
+  return {
+    turns: messages.map((m) =>
+      m.text === "completed" ? { climbed: false } : { match: "Q1", team_number: 1241 },
+    ),
+  };
 });
 new Mastra({ storage: store, workflows: { "scouting-session": workflow } });
 const id = "10000000-0000-4000-8000-000000000010";
-const turn = (text: string) => ({
-  text,
-  turnId: createHash("sha256").update(text).digest("hex"),
-  deferFinalization: true,
+const turn = (...texts: string[]) => ({
+  contract,
+  messages: texts.map((text, i) => ({ role: i ? ("reply" as const) : ("note" as const), text })),
+  turnId: createHash("sha256").update(texts.join("\n")).digest("hex"),
 });
+// The backend owns completeness; the drill applies the same deterministic evaluation.
+const status = async (texts: string[]) =>
+  finalizeTurns(contract, (await advanceSession(workflow, id, turn(...texts))).turns).status;
 try {
   if (process.argv[2] === "seed") {
-    assert.equal((await advanceSession(workflow, id, turn("initial"))).status, "needs_review");
+    assert.equal(await status(["initial"]), "needs_review");
     assert.equal(calls, 1);
   } else if (process.argv[2] === "verify") {
     assert.equal((await workflow.getWorkflowRunById(id))?.status, "suspended");
-    assert.equal((await advanceSession(workflow, id, turn("initial"))).status, "needs_review");
+    assert.equal(await status(["initial"]), "needs_review");
     assert.equal(calls, 0, "Restored turn must be cached");
-    assert.equal((await advanceSession(workflow, id, turn("completed"))).status, "complete");
+    assert.equal(await status(["initial", "completed"]), "complete");
     assert.equal(
       (await workflow.getWorkflowRunById(id))?.status,
       "suspended",

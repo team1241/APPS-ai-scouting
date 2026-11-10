@@ -1,4 +1,9 @@
-import { specificationSchema } from "@ai-scouting/scouting";
+import {
+  contractFormat,
+  type ObservationKind,
+  readContract,
+  specificationSchema,
+} from "@ai-scouting/scouting";
 import { sql } from "kysely";
 import {
   type ExportRow,
@@ -22,8 +27,9 @@ const current = (org: string, eventId?: string) => sql`
     JOIN observation_revision v ON v.session_id = l.id AND v.organization_id = ${org}
     JOIN scouting_session child ON child.replaces_revision_id = v.id AND child.organization_id = ${org}
   ), current_records AS (
-    SELECT DISTINCT ON (l.root_id) l.root_id, s.event_id, s.team_number, s.match_id,
-      s.match_label, s.specification_version, r.extracted_at, r.extraction_result,
+    SELECT DISTINCT ON (l.root_id) l.root_id, s.event_id, s.kind, s.specification_season,
+      s.team_number, s.match_id, s.match_label, s.specification_version, r.extracted_at,
+      r.extraction_result,
       s.validation_result
     FROM lineage l
     JOIN scouting_session s ON s.id = l.id AND s.organization_id = ${org}
@@ -73,15 +79,17 @@ export function readScoutingObservations(scope: ReadScope, page: PageRequest) {
     const { rows } = await sql<ExportRow>`
       ${current(scope.organizationId, scope.eventId)}
       SELECT c.root_id, c.event_id, coalesce(e.frc_event_code, e.tba_event_key) AS event_code, e.name AS event_label,
-        c.team_number, c.match_id, c.match_label, m.stage AS match_stage, m.match_number,
+        c.kind, c.team_number, c.match_id, c.match_label, m.stage AS match_stage, m.match_number,
         c.specification_version, c.extracted_at, c.extraction_result, c.validation_result, p.document
       FROM current_records c
       JOIN event e ON e.id = c.event_id AND e.organization_id = ${scope.organizationId}
       LEFT JOIN event_match m ON m.id = c.match_id AND m.event_id = c.event_id
         AND m.organization_id = ${scope.organizationId}
       JOIN published_specification p ON p.organization_id = ${scope.organizationId}
-        AND p.season = e.season AND p.kind = 'match' AND p.version = c.specification_version
-      WHERE c.team_number IS NOT NULL
+        AND p.season = coalesce(c.specification_season, e.season) AND p.kind = c.kind
+        AND p.version = c.specification_version
+      -- Match and pit records need a team. General notes may have none.
+      WHERE (c.team_number IS NOT NULL OR c.kind = 'general')
         ${scope.teamNumber ? sql`AND c.team_number = ${scope.teamNumber}` : sql``}
         ${page.after ? sql`AND c.root_id > ${page.after}::uuid` : sql``}
       ORDER BY c.root_id LIMIT ${page.limit + 1}
@@ -94,7 +102,14 @@ export function readScoutingObservations(scope: ReadScope, page: PageRequest) {
   });
 }
 
-export function readScoutingSpecification(org: string, eventId: string, version: string) {
+// Publication for consumers: codes, labels, requirement, answer constraints and rules, so they
+// can interpret per-question state. Model guidance and scout prompts are not exported.
+export function readScoutingSpecification(
+  org: string,
+  eventId: string,
+  version: string,
+  kind: ObservationKind = "match",
+) {
   return withTenant(org, async (tx) => {
     const row = await tx
       .selectFrom("event as e")
@@ -107,20 +122,35 @@ export function readScoutingSpecification(org: string, eventId: string, version:
       .where("e.organization_id", "=", org)
       .where("e.id", "=", eventId)
       .where("p.organization_id", "=", org)
-      .where("p.kind", "=", "match")
+      .where("p.kind", "=", kind)
       .where("p.version", "=", version)
       .executeTakeFirst();
     if (!row) return null;
-    const spec = specificationSchema.parse(row.document);
+    const contract = readContract(row.document, kind);
+    const legacy = specificationSchema.safeParse(row.document);
     return {
-      version: spec.version,
-      description: spec.description,
-      fields: spec.fields.map(({ key, type, required, description }) => ({
+      version: contract.version,
+      kind,
+      formatVersion: contractFormat(row.document),
+      description: contract.description,
+      questions: contract.questions.map(({ key, label, required, answer, rules }) => ({
         key,
-        type,
+        label,
         required,
-        description,
+        answer,
+        ...(rules?.length ? { rules } : {}),
       })),
+      // Format 1 shape, kept for existing integrations.
+      ...(legacy.success
+        ? {
+            fields: legacy.data.fields.map(({ key, type, required, description }) => ({
+              key,
+              type,
+              required,
+              description,
+            })),
+          }
+        : {}),
     };
   });
 }

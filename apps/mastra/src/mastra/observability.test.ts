@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { test } from "node:test";
-import { finalizeExtraction } from "@ai-scouting/scouting";
+import { readContract, requirements } from "@ai-scouting/scouting";
 import { Mastra } from "@mastra/core/mastra";
 import { type AnyExportedSpan, SpanType, TracingEventType } from "@mastra/core/observability";
 import { InMemoryStore } from "@mastra/core/storage";
@@ -14,14 +14,15 @@ test("extraction persists recovery state with content-free traces", async () => 
   assert.equal(observability.listInstances().size, 1);
   const workflow = createSessionWorkflow(async (_text, context) => {
     assert.ok(context?.currentSpan);
-    return finalizeExtraction({ match: "Q1", team_number: 1241, climbed: false, notes: null });
+    return { turns: [{ match: "Q1", team_number: 1241, climbed: false }] };
   });
   new Mastra({ storage, observability, workflows: { "scouting-session": workflow } });
   const runId = randomUUID();
   try {
     await advanceSession(workflow, runId, {
       turnId: "a".repeat(64),
-      text: "Q1 1241 no climb. Private scout: Alice +1-416-555-0101",
+      contract: readContract(requirements),
+      messages: [{ role: "note", text: "Q1 1241 no climb. Private scout: Alice +1-416-555-0101" }],
     });
     await observability.flush();
     const domain = await storage.getStore("observability");

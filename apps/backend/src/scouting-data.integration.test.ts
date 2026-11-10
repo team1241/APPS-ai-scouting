@@ -5,6 +5,7 @@ import { requirements } from "@ai-scouting/scouting";
 import { sql } from "kysely";
 import { dataApiRoutes } from "./data-api.ts";
 import { db } from "./db.ts";
+import { stated } from "./extraction-fixture.ts";
 import { finishExtraction } from "./repositories/extraction.ts";
 import { enrollMember } from "./repositories/members.ts";
 import { scoutingReads } from "./repositories/scouting-data.ts";
@@ -168,7 +169,7 @@ test("current scouting reads isolate tenants, publish drafts, retain logical IDs
   );
   assert.equal(await scoutingReads.specification(org, foreignEvent, requirements.version), null);
   assert.equal(
-    (await scoutingReads.specification(org, eventId, requirements.version))?.fields.length,
+    (await scoutingReads.specification(org, eventId, requirements.version))?.fields?.length,
     requirements.fields.length,
   );
 
@@ -303,7 +304,7 @@ test("current scouting reads isolate tenants, publish drafts, retain logical IDs
     .set({ status: "processing", processing_started_at: lease })
     .where("id", "=", pending)
     .execute();
-  await finishExtraction(org, pending, lease, JSON.parse(extraction(null)), null);
+  await finishExtraction(org, pending, lease, stated(JSON.parse(extraction(null)).values), null);
   const saved = await db
     .selectFrom("raw_entry")
     .select("extracted_at")

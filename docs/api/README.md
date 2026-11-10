@@ -11,9 +11,11 @@ All responses, including errors, use `Cache-Control: private, no-store`.
 2. `GET /v1/teams/1241/events` discovers events with current extracted data for that team.
 3. `GET /v1/events/{eventId}/teams/1241/observations` reads that team's current observations.
 4. `GET /v1/events/{eventId}/observations` reads all teams at that event.
-5. `GET /v1/events/{eventId}/specifications/{specificationVersion}` describes the
-   fields, types, required flags and semantics for a returned record's version.
-   This currently serves match specifications; every record declares `kind: "match"`.
+5. `GET /v1/events/{eventId}/specifications/{specificationVersion}?kind=<kind>` describes
+   the questions of a returned record's publication: codes, labels, base requirement,
+   answer constraints and rules. Records declare `kind` (`match`, `pit` or `general`).
+   Versions are numbered per kind, so pass the record's kind. It defaults to `match`.
+   Format 1 publications also return the original `fields` list.
 
 ```sh
 # Supply API_BASE (HTTPS backend origin) and SCOUTING_API_KEY in your environment.
@@ -45,7 +47,9 @@ Telegram receipt queues asynchronous extraction. Pending entries do not appear
 as empty or completed observations. Once extraction supplies event and team
 identity, the result appears even if required fields or match resolution are
 missing, validation fails, or a scout has not finalized it. Until team identity
-is available, it is omitted from both team and event-wide reads.
+is available, a match or pit record is omitted from both team and event-wide reads.
+A general note can have no team (`teamNumber: null`). It appears in event-wide reads only.
+Pit records never have a match.
 
 Each observation includes `event: { id, code, label }`. The label is the event
 name; the code is the FIRST event code, falling back to the TBA event key, or
@@ -59,10 +63,28 @@ Each record includes a stable `id`, `updatedAt` (last successful extraction),
 `specificationVersion`, derived `values`, `completeness`, and validation
 mode/status. `match.resolved: false` and `match.id: null` explicitly indicate
 unresolved match identity; the submitted match label can still be present.
-Missing values remain null; explicit false and integer values are preserved.
-`completeness.missing` lists missing required specification fields. A record
-can have all required fields yet remain incomplete because validation or an
-identity conflict still needs attention.
+`values` has one entry per question. Only current answers have a value. Unknown,
+invalid and inactive answers are null. Explicit false, numeric 0 and `[]` are
+answers. Choice answers are option codes.
+
+`fields` gives the state of each question, so consumers can tell nulls apart:
+
+| `state`      | Meaning                                                            |
+| ------------ | ------------------------------------------------------------------ |
+| `answered`   | Current answer in `values`.                                        |
+| `unanswered` | Unknown, and known not to be required.                             |
+| `missing`    | Unknown and required.                                              |
+| `invalid`    | The answer did not pass its constraints. The scout is asked again. |
+| `pending`    | Applicability is unknown until another answer is known.            |
+| `inactive`   | Hidden by a rule. Any earlier answer is excluded from `values`.    |
+
+`requirement` is `required`, `optional`, `unknown` or `not_applicable` (hidden).
+Records recorded before conditional contracts are evaluated against their own
+publication, which has no rules. `completeness.missing` lists the questions that
+block completion. A record can have all required answers yet remain incomplete
+because validation or an identity conflict still needs attention. Pit and general
+records have validation status `not_applicable`: they are not checked against the
+match schedule.
 
 Explicit correction sessions update the original logical record after their
 first successful extraction, including incomplete corrections. Until then the
@@ -73,7 +95,8 @@ Older drafts without a recorded extraction time receive migration time as their
 first export update; finalized records use their publication time.
 
 Only specification-defined derived values are exported. Raw messages, scout and
-account identifiers, extraction questions, revision history, internal provenance,
+account identifiers, extraction questions, per-message statements, inactive values,
+revision history, internal provenance,
 validation messages and conflict diagnostics are excluded. Extracted notes are
 included and may contain incidental personal information; they are not anonymous.
 

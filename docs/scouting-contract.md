@@ -8,7 +8,7 @@ The code is in `packages/scouting`:
 - `rules.ts`: `checkAnswer`, `evaluateAnswers` and `foldTurns`.
 - `examples/`: worked match, pit and general contracts. Tests use them.
 
-Extraction does not use format 2 yet. #48 connects it to Telegram intake. Team admins author, publish and assign contracts in the [specification builder](web-app.md#specification-builder-47) (#47), which uses the [specification API](web-app.md#scouting-specifications-46) (#46).
+Telegram extraction uses the contract for match, pit and general scouting (#48). See [extraction](#extraction). Team admins author, publish and assign contracts in the [specification builder](web-app.md#specification-builder-47) (#47), which uses the [specification API](web-app.md#scouting-specifications-46) (#46).
 
 ## Versions
 
@@ -176,7 +176,17 @@ Identity questions keep their system type: `match` is text, and `team_number` is
 - When a hidden question is shown again, it starts unknown. Only a value stated in the reactivating turn or later can become current. The question is asked again. Restating the same value is accepted. Thus a stale value never becomes current again without a new statement.
 - A question with unknown applicability is not hidden, so its answer is not stale.
 
-The extraction pipeline (#48) must supply the values stated in each turn, not only a cumulative snapshot. With snapshots only, a restated value looks the same as a stale one.
+The extraction pipeline supplies the values stated in each turn, not only a cumulative snapshot. With snapshots only, a restated value looks the same as a stale one.
+
+## Extraction
+
+`extraction.ts` connects the contract to the model (#48).
+
+- `modelContract(contract)` is the model's view: code, label, follow-up wording, guidance and an answer description with option codes and bounds. Rules are not sent. The model does not decide applicability or completeness.
+- `modelOutputSchema(contract, messages)` is the structured output: one entry per message, each with optional values. Absent means "not stated", `null` means "withdrawn or not known". Value types are loose (a number, a string, a boolean or a list of strings), so `checkAnswer` reports an out-of-range number or an unlisted option as invalid instead of the schema forcing a valid answer.
+- `extractionInstructions` tells the model that the contract is trusted and scout messages are data, never instructions.
+- `finalizeTurns(contract, turns)` drops keys outside the contract, runs `foldTurns` and returns the stored result: current `values`, per-question `fields` (state, visibility, requirement, problem), `inactive`, `missing`, `followUps`, the follow-up `question`, the statements and history.
+- `followUpQuestion` asks identity questions first and alone, then the other follow-ups in contract order. An invalid answer is asked again with its reason, for example "I could not use your answer for Climb level (Not one of the options)."
 
 ## Worked examples
 

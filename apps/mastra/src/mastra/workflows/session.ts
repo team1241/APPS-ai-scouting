@@ -1,30 +1,27 @@
 import {
-  extractionInputSchema,
-  extractionResultSchema,
-  type Specification,
-  specificationSchema,
+  type Contract,
+  type ExtractionMessage,
+  extractionRequestSchema,
+  modelExtractionSchema,
 } from "@ai-scouting/scouting";
 import type { TracingContext } from "@mastra/core/observability";
 import { createStep, createWorkflow, createWorkflowStateReader } from "@mastra/core/workflows";
 import { z } from "zod";
 
-export const sessionTurnSchema = extractionInputSchema.extend({
-  specification: specificationSchema.optional(),
-  deferFinalization: z.boolean().optional(),
-  turnId: z.string().regex(/^[a-f0-9]{64}$/),
-});
+export const sessionTurnSchema = extractionRequestSchema;
 const suspensionSchema = z.object({
   turnId: z.string(),
-  result: extractionResultSchema.nullable(),
+  result: modelExtractionSchema.nullable(),
 });
-const turnResultSchema = z.object({ turnId: z.string(), result: extractionResultSchema });
+const turnResultSchema = z.object({ turnId: z.string(), result: modelExtractionSchema });
 type Extract = (
-  text: string,
+  request: { contract: Contract; messages: ExtractionMessage[] },
   tracingContext?: TracingContext,
-  specification?: Specification,
-) => Promise<z.infer<typeof extractionResultSchema>>;
+) => Promise<{ turns: Record<string, unknown>[] }>;
 
 // Inject the extractor so persistence/resumption can be tested without model calls.
+// The run stays suspended after every turn: the backend decides completeness, so a linked
+// reply or a validation question can always resume the same run.
 export function createSessionWorkflow(extract: Extract) {
   const collect = createStep({
     id: "collect-scouting-data",
@@ -34,16 +31,19 @@ export function createSessionWorkflow(extract: Extract) {
     outputSchema: turnResultSchema,
     execute: async ({ inputData, resumeData, suspend, tracingContext }) => {
       const turn = resumeData ?? inputData;
-      let result: z.infer<typeof extractionResultSchema>;
+      let result: z.infer<typeof modelExtractionSchema>;
       try {
-        result = await extract(turn.text, tracingContext, turn.specification);
+        const { turns } = await extract(
+          { contract: turn.contract, messages: turn.messages },
+          tracingContext,
+        );
+        if (turns.length !== turn.messages.length) throw Error("Turn count mismatch");
+        result = { specificationVersion: turn.contract.version, turns };
       } catch {
         // Preserve the run on provider failure so the backend can retry this turn.
         return await suspend({ turnId: turn.turnId, result: null });
       }
-      const output = { turnId: turn.turnId, result };
-      if (turn.deferFinalization || result.status !== "complete") return await suspend(output);
-      return output;
+      return await suspend({ turnId: turn.turnId, result });
     },
   });
   return createWorkflow({

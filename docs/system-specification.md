@@ -30,10 +30,10 @@ The initial bot processes private chats. Group/channel intake is not implemented
 2. Resolve the configured organization and enrolled Telegram identity.
 3. Persist the original text and delivery identifier before AI processing. Duplicate deliveries do not create duplicate entries.
 4. Acknowledge: “Received your scouting note. Processing it now…”
-5. The backend worker claims the entry and calls the hosted Mastra extraction workflow.
-6. Validate the structured result and determine missing fields in application code.
+5. The backend worker claims the entry and calls the hosted Mastra extraction workflow with the session's pinned contract and its messages.
+6. Validate each stated value, run the contract rules and determine completeness and follow-ups in application code.
 7. For a complete result, save the draft extraction and reply: “Your scouting data has been saved. Thanks!”
-8. For an incomplete result, ask for missing match/team details in a separate message first, only when those details are missing. Ask remaining specification questions afterward.
+8. For an incomplete result, ask for missing identity (match/team) in a separate message first, only when it is missing. Ask remaining contract questions afterward, in contract order with their authored wording.
 9. Link the scout's ForceReply answer to the original entry and reprocess the original plus its replies.
 
 “Saved” currently means the raw note and extraction JSON are persisted. A separate confirmed observation model is still planned. One note currently describes one team in one match; multiple observations in one message are outside the initial contract.
@@ -138,7 +138,7 @@ Each initial scouting submission creates a tenant/member-owned `scouting_session
 
 A session's turn ID is a hash of its original note and ordered replies. Replaying a persisted turn returns the cached result; concurrent identical requests in one Mastra process share execution. Provider errors suspend without a result so retry can resume the same run. A crashed execution left in a running/failed state needs operator recovery rather than silently starting another run. Snapshot storage must be configured. The backend rejects replies to completed sessions; scouts use /flag for investigation requests. Legacy workflow clients without deferred finalization still complete their run and reject new turns.
 
-Sessions pin the current specification version. Processing refuses a version mismatch rather than silently changing an open session's requirements. Full multi-version schema support remains planned. Event context is pinned at intake. The session boundary is one initial submission and its explicitly linked replies. Provisional submissions remain independent. Once event/match/scout/team resolve, a newer note targeting an earlier open session requires an explicit “keep separate” reply; notes are never silently merged. Separate scouts and different scouted teams remain independent.
+Sessions pin the publication (season, kind and version) assigned at intake. Processing refuses a version mismatch rather than silently changing an open session's requirements. Event context is pinned at intake. The session boundary is one initial submission and its explicitly linked replies. Provisional submissions remain independent. Once event/match/scout/team resolve, a newer note targeting an earlier open session requires an explicit “keep separate” reply; notes are never silently merged. Separate scouts and different scouted teams remain independent.
 
 The session endpoint is `POST /scouting/sessions/:runId/turn`, authenticated with the backend service token. The stateless extraction workflow has been removed; the worker uses sessions exclusively. Run the database migration, deploy Mastra with the new endpoint, then deploy the backend. Do not switch the worker before the endpoint is available. Telegram outbound delivery still has the documented non-atomic send/commit limitation.
 
@@ -162,11 +162,21 @@ The [scouting contract](scouting-contract.md) defines format 2, the agreed share
 - Turn history: hidden answers stay as inactive history, are excluded from current values, completeness and export, and are not restored on reactivation without a new statement.
 - `formatVersion` is separate from the publication identity. `readContract` reads existing format 1 publications with their original semantics.
 
-Publication validation now uses the shared contract validator for duplicate codes and protected identity. Telegram extraction, follow-ups and the data API still use the format 1 path; #48 connects format 2 to them. Team admins edit, publish and assign specifications in the [specification builder](web-app.md#specification-builder-47) (#47). Preview is #49.
+Publication validation uses the shared contract validator for duplicate codes and protected identity. Telegram extraction, follow-ups and the data API use the contract (#48). Team admins edit, publish and assign specifications in the [specification builder](web-app.md#specification-builder-47) (#47). Preview is #49.
 
 ### Drafts, publication and assignment (#46)
 
-Team admins create drafts, publish immutable versions and assign them to events through the web admin API. See [scouting specifications](web-app.md#scouting-specifications-46). Publication and assignment are separate actions. Match assignment stays on `event.specification_version` and accepts format 1 until #48. Pit and general assignments are stored per event and kind for #48 intake.
+Team admins create drafts, publish immutable versions and assign them to events through the web admin API. See [scouting specifications](web-app.md#scouting-specifications-46). Publication and assignment are separate actions. Match assignment stays on `event.specification_version` and accepts format 1 and format 2 publications. Pit and general assignments are stored per event and kind.
+
+### Contract extraction in Telegram (#48)
+
+- **Kind selection.** A plain note is match scouting, as before. `/pit <note>` and `/general <note>` start pit and general notes. `/scout <event-id> [pit|general] <note>` does the same for another event. The model never chooses the kind or the contract. A pit or general note at an event without an assignment for that kind is refused (`kind_unassigned`) and not stored.
+- **Pinning.** Intake resolves the event's publication for the kind and stores its season, kind and version on the session. Replies and corrections keep the session's publication, even after the event's assignment changes. A new assignment affects new sessions only. Nothing is migrated or extracted again.
+- **Extraction.** The backend sends the pinned contract and the ordered scout messages to Mastra. Each reply carries the follow-up it answered. The model input lists each question's code, label, follow-up wording, guidance and answer description, but not the rules. Structured output is derived from the contract: one entry per message, each with only the values that message states. Values are loosely typed so that an out-of-range number or an unlisted option comes back as stated and is checked by the application.
+- **Evaluation.** After every extraction the backend folds the per-message statements (`foldTurns`), validates values and runs the rules. It decides completeness and asks for missing or invalid required answers and unresolved prerequisites. Hidden answers stay in history and inactive values. The Mastra run stays suspended after every turn; the backend is the only finalization authority.
+- **Persistence.** Observations record kind, season, version, current values and per-question applicability (`state`, `requirement`), plus inactive values. Per-message statements and history go to internal provenance. General notes may have no team. Pit and general are not checked against the match schedule (`not_applicable`).
+- **Data API.** Records include `kind` and `fields`. The specification route takes `?kind=`. See the [data API](api/README.md).
+- **Deployment.** The turn request and response changed shape, so an old backend and a new Mastra (or the reverse) cannot talk to each other. Run the migration, set `EXTRACTION_ENABLED=false` on the backend, deploy Mastra, deploy the backend, then enable extraction again. Notes received meanwhile wait in the queue. In-flight Mastra runs resume with the new turn shape.
 
 ## 7. Event configuration and external data
 

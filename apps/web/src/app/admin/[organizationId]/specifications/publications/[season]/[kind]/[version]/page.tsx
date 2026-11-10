@@ -157,7 +157,6 @@ export default async function PublicationPage({
           kind={kind}
           season={season}
           version={version}
-          formatVersion={publication.formatVersion}
           events={events}
         />
         <section aria-labelledby="questions-title" className="space-y-3">

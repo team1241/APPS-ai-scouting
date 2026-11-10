@@ -1,4 +1,5 @@
 import { timingSafeEqual } from "node:crypto";
+import type { ObservationKind } from "@ai-scouting/scouting";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { uuidPattern } from "./event-config.ts";
@@ -140,15 +141,34 @@ export function telegramRoutes(secret: string) {
       if (!boundOrganization)
         return reply("This update could not be routed. Send your message again.");
       organizationId = boundOrganization;
+      // Scouts choose the kind explicitly: a plain note is match scouting, /pit and /general
+      // start pit and general notes. Intake never asks the model to choose a contract.
+      const kindCommand = /^\/(match|pit|general)(?:@\w+)?(?:\s+([\s\S]*))?$/i.exec(
+        message.text.trim(),
+      );
+      if (kindCommand && !kindCommand[2]?.trim())
+        return reply(
+          kindCommand[1]?.toLowerCase() === "general"
+            ? "Use /general <note>, for example /general the field lights flickered in Q12."
+            : kindCommand[1]?.toLowerCase() === "pit"
+              ? "Use /pit <note>, for example /pit 1241 swerve drive, can climb."
+              : "Use /match <note>, or send the note without a command.",
+        );
       const override = /^\/scout(?:@\w+)?(?:\s+([\s\S]*))?$/i.exec(message.text.trim());
-      const explicit = override ? /^(\S+)\s+([\s\S]+)$/.exec(override[1] ?? "") : null;
-      if (override && (!explicit || !uuidPattern.test(explicit[1] ?? "") || !explicit[2]?.trim()))
+      const explicit = override
+        ? /^(\S+)(?:\s+(match|pit|general)(?=\s))?\s+([\s\S]+)$/i.exec(override[1] ?? "")
+        : null;
+      if (override && (!explicit || !uuidPattern.test(explicit[1] ?? "") || !explicit[3]?.trim()))
         return c.json({
           method: "sendMessage",
           chat_id: chat.id,
-          text: "Use /scout <event-id> <note>. Find event IDs with /events.",
+          text: "Use /scout <event-id> [pit|general] <note>. Find event IDs with /events.",
         });
-      const commandReply = override
+      const kind = (kindCommand?.[1] ?? explicit?.[2])?.toLowerCase() as
+        | ObservationKind
+        | undefined;
+      const newNote = Boolean(override || kindCommand);
+      const commandReply = newNote
         ? null
         : await telegramCommand({
             organizationId,
@@ -172,6 +192,7 @@ export function telegramRoutes(secret: string) {
         externalUpdateId: String(update.update_id),
         text: message.text,
         eventId: explicit?.[1],
+        kind,
         replyDeliveryId:
           typeof object(message.reply_to_message)?.text === "string"
             ? /Session reference: ([0-9a-f-]{36})$/.exec(
@@ -179,7 +200,7 @@ export function telegramRoutes(secret: string) {
               )?.[1]
             : undefined,
         replyToMessageId:
-          !override && Number.isSafeInteger(object(message.reply_to_message)?.message_id)
+          !newNote && Number.isSafeInteger(object(message.reply_to_message)?.message_id)
             ? String(object(message.reply_to_message)?.message_id)
             : undefined,
       });
@@ -199,7 +220,9 @@ export function telegramRoutes(secret: string) {
                   ? "That completed submission cannot accept this reply. Use /flag <team-number> [match-number] [note] to request an investigation."
                   : result === "legacy_session"
                     ? "This older session has no event. Your reply was not submitted. Check /event, then resend the complete note as a new message."
-                    : `Received your scouting note. Processing it now…\nEvent: ${result.eventName}`,
+                    : result === "kind_unassigned"
+                      ? `Your note was not submitted because ${kind} scouting is not set up for this event. Ask a team admin to choose a ${kind} specification for the event, then resend your note.`
+                      : `Received your ${result.kind === "match" ? "" : `${result.kind} `}scouting note. Processing it now…\nEvent: ${result.eventName}`,
       });
     } catch {
       console.error("Telegram intake database transaction failed");
