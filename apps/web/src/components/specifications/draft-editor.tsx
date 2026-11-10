@@ -36,12 +36,14 @@ import {
   duplicateQuestion,
   type EditorIssue,
   type EditorQuestion,
+  editorIssue,
   editorIssues,
   identityPolicies,
   kindLabels,
   serializeQuestions,
   toEditorQuestion,
   toEditorQuestions,
+  validatedDraft,
 } from "@/lib/specification-model";
 import {
   type Draft,
@@ -50,8 +52,11 @@ import {
   specificationsPath,
 } from "@/lib/specifications";
 import { cn } from "@/lib/utils";
+import { AnswerPreview } from "./answer-preview";
 import { DeleteDraftButton } from "./delete-draft-button";
+import { ExtractionTest } from "./extraction-test";
 import { controlClass, Field } from "./fields";
+import { FixProblemsFirst } from "./preview-parts";
 import { QuestionFields } from "./question-fields";
 import { QuestionList } from "./question-list";
 
@@ -91,17 +96,31 @@ const statusView = (status: SaveStatus): [StatusTone, string] => {
   }
 };
 
-// Server issues only arrive on a refused publish; they are shown alongside the editor's own.
-function serverIssueMessages(issues: ContractIssue[], questions: EditorQuestion[]) {
-  return issues.map((issue) => {
-    const index = issue.path[0] === "questions" ? issue.path[1] : undefined;
-    const question = typeof index === "number" ? questions[index] : undefined;
-    return {
-      questionId: question?.id,
-      field: "questions",
-      message: question ? `${question.label || question.key}: ${issue.message}` : issue.message,
-    } satisfies EditorIssue;
-  });
+type View = "questions" | "preview" | "test";
+const views: [View, string][] = [
+  ["questions", "Edit"],
+  ["preview", "Preview answers"],
+  ["test", "Test extraction"],
+];
+
+// Server issues arrive on a refused publish or test. They sit on the field they are about,
+// next to the editor's own checks, unless the editor already reports the same problem.
+function serverIssueMessages(
+  issues: ContractIssue[],
+  questions: EditorQuestion[],
+  known: EditorIssue[],
+) {
+  return issues
+    .map((issue) => editorIssue(issue, questions))
+    .filter(
+      (issue) =>
+        !known.some(
+          (k) =>
+            k.questionId === issue.questionId &&
+            k.field === issue.field &&
+            k.message === issue.message,
+        ),
+    );
 }
 
 export function DraftEditor({
@@ -129,6 +148,8 @@ export function DraftEditor({
   const [publishError, setPublishError] = useState<string | null>(null);
   const [serverIssues, setServerIssues] = useState<EditorIssue[]>([]);
   const [summaryOpen, setSummaryOpen] = useState(false);
+  const [view, setView] = useState<View>("questions");
+  const [savedRevision, setSavedRevision] = useState(draft.revision);
 
   const revision = useRef(draft.revision);
   const latest = useRef(content);
@@ -143,7 +164,7 @@ export function DraftEditor({
   const blockedRef = useRef(blocked);
   blockedRef.current = blocked;
 
-  const issues = useMemo(
+  const localIssues = useMemo(
     () => [
       ...(content.name.trim()
         ? content.name.trim().length > 80
@@ -151,9 +172,14 @@ export function DraftEditor({
           : []
         : [{ field: "name", message: "Enter a name." }]),
       ...editorIssues(kind, content.description, content.questions),
-      ...serverIssues,
     ],
-    [kind, content, serverIssues],
+    [kind, content],
+  );
+  const issues = useMemo(() => [...localIssues, ...serverIssues], [localIssues, serverIssues]);
+  // The same validator publication uses. Preview and test run only when it passes.
+  const validation = useMemo(
+    () => validatedDraft(kind, content.description, content.questions),
+    [kind, content.description, content.questions],
   );
   const problemsByQuestion = useMemo(() => {
     const map = new Map<string, number>();
@@ -202,6 +228,7 @@ export function DraftEditor({
       }
       if (result.outcome === "saved") {
         revision.current = result.draft.revision;
+        setSavedRevision(result.draft.revision);
         savedEdits.current = sentEdits;
         if (edits.current === sentEdits) setStatus({ kind: "saved", at: result.draft.updatedAt });
         else setStatus({ kind: "unsaved" });
@@ -289,6 +316,7 @@ export function DraftEditor({
     );
     editQuestions((questions) => [template, ...questions]);
     setSelectedId(template.id);
+    focusBlock(template.id);
     setAnnouncement(`Added the ${template.label} identity question at the top.`);
   };
   const move = (question: EditorQuestion, by: -1 | 1) => {
@@ -335,6 +363,7 @@ export function DraftEditor({
 
   const jumpTo = (issue: EditorIssue) => {
     setPublishOpen(false);
+    setView("questions");
     if (issue.field === "name" || issue.field === "description") {
       document.getElementById(`draft-${issue.field}`)?.focus();
       return;
@@ -362,6 +391,7 @@ export function DraftEditor({
     if (status.kind !== "conflict") return;
     const theirs = status.theirs;
     revision.current = theirs.revision;
+    setSavedRevision(theirs.revision);
     savedEdits.current = edits.current;
     setContent({
       name: theirs.name,
@@ -391,7 +421,7 @@ export function DraftEditor({
         return;
       }
       if (result.outcome === "invalid")
-        setServerIssues(serverIssueMessages(result.issues, latest.current.questions));
+        setServerIssues(serverIssueMessages(result.issues, latest.current.questions, localIssues));
       else if (result.outcome === "conflict") {
         blockedRef.current = true;
         setStatus({ kind: "conflict", theirs: result.draft });
@@ -404,6 +434,23 @@ export function DraftEditor({
     }
   };
 
+  // A test runs against the stored draft, so pending edits are saved first.
+  const prepareTest = async (): Promise<number | { error: string }> => {
+    if (edits.current !== savedEdits.current) await save();
+    if (blockedRef.current)
+      return { error: "Resolve the message above the questions, then run the test." };
+    if (edits.current !== savedEdits.current)
+      return { error: "Your latest changes are not saved yet. Save them, then run the test." };
+    return revision.current;
+  };
+  const showProblems = () => {
+    setView("questions");
+    setSummaryOpen(true);
+    requestAnimationFrame(() =>
+      document.getElementById("problem-summary")?.scrollIntoView({ block: "center" }),
+    );
+  };
+
   const [tone, label] = statusView(status);
   const readOnly = status.kind === "published" || status.kind === "missing";
   const identities = identityPolicies(kind);
@@ -411,6 +458,8 @@ export function DraftEditor({
     (p) => p.policy !== "excluded" && !content.questions.some((q) => q.key === p.key),
   );
   const summary = issues.slice(0, 50);
+  // A short list is shown straight away; a long one waits behind "Show list".
+  const listShown = summaryOpen || issues.length <= 3;
   const issueContext = (issue: EditorIssue) => {
     const index = content.questions.findIndex((q) => q.id === issue.questionId);
     const question = content.questions[index];
@@ -505,245 +554,346 @@ export function DraftEditor({
           </div>
         ) : null}
 
-        <fieldset disabled={readOnly} className="space-y-6">
-          <legend className="sr-only">Draft details</legend>
-          <div className="grid gap-4 rounded-xl border bg-card p-5 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)]">
-            <Field
-              id="draft-name"
-              label="Name"
-              errors={issues.filter((i) => i.field === "name").map((i) => i.message)}
-            >
-              {(props) => (
-                <input
-                  {...props}
-                  className={`${controlClass} h-11`}
-                  value={content.name}
-                  onChange={(e) => edit((c) => ({ ...c, name: e.target.value }))}
-                />
+        <div
+          role="tablist"
+          aria-label="Draft views"
+          className="-mx-4 flex gap-1 overflow-x-auto border-b px-4 sm:mx-0 sm:px-0"
+        >
+          {views.map(([id, name]) => (
+            <button
+              key={id}
+              id={`tab-${id}`}
+              type="button"
+              role="tab"
+              aria-selected={view === id}
+              aria-controls={`panel-${id}`}
+              tabIndex={view === id ? 0 : -1}
+              onClick={() => setView(id)}
+              onKeyDown={(e) => {
+                const index = views.findIndex(([v]) => v === id);
+                const step = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
+                if (!step) return;
+                e.preventDefault();
+                const next = views[(index + step + views.length) % views.length]?.[0];
+                if (!next) return;
+                setView(next);
+                document.getElementById(`tab-${next}`)?.focus();
+              }}
+              className={cn(
+                "-mb-px inline-flex min-h-11 shrink-0 items-center gap-2 border-b-2 px-3 text-sm font-medium whitespace-nowrap outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50",
+                view === id
+                  ? "border-primary text-foreground"
+                  : "border-transparent text-muted-foreground hover:text-foreground",
               )}
-            </Field>
-            <Field
-              id="draft-description"
-              label="Description"
-              hint="For admins. Scouts do not see it."
-              errors={issues.filter((i) => i.field === "description").map((i) => i.message)}
             >
-              {(props) => (
-                <textarea
-                  {...props}
-                  rows={2}
-                  className={`${controlClass} min-h-11 py-2.5`}
-                  value={content.description}
-                  onChange={(e) => edit((c) => ({ ...c, description: e.target.value }))}
-                />
-              )}
-            </Field>
-          </div>
-
-          <details className="group rounded-xl border bg-card">
-            <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-4 rounded-xl px-5 py-3 text-sm font-medium outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 [&::-webkit-details-marker]:hidden">
-              <span>Identity for {kindLabels[kind].toLowerCase()} scouting</span>
-              <span className="text-primary group-open:hidden">Show</span>
-              <span className="hidden text-primary group-open:inline">Hide</span>
-            </summary>
-            <div className="space-y-3 border-t px-5 py-4 text-sm">
-              <p className="text-muted-foreground">
-                Identity questions say which match and team an observation is about. They are always
-                asked, and their codes and answer types are fixed. The event always comes from the
-                scouting session.
-              </p>
-              <ul className="space-y-2">
-                {identities.map((p) => (
-                  <li key={p.key}>
-                    <span className="font-medium">{p.label}</span>{" "}
-                    <code className="font-mono text-[0.8125rem] text-muted-foreground">
-                      {p.key}
-                    </code>
-                    {": "}
-                    {p.explanation}
-                  </li>
-                ))}
-              </ul>
-              {missingIdentity.length ? (
-                <div className="flex flex-wrap gap-2 pt-1">
-                  {missingIdentity.map((p) => (
-                    <Button
-                      key={p.key}
-                      type="button"
-                      variant="outline"
-                      className="h-11"
-                      onClick={() => addIdentity(p.key, p.policy === "required")}
-                    >
-                      <Plus aria-hidden="true" />
-                      Add {p.label.toLowerCase()} question
-                    </Button>
-                  ))}
-                </div>
+              {name}
+              {id === "questions" ? (
+                <span className="text-muted-foreground tabular-nums">
+                  {content.questions.length}
+                </span>
               ) : null}
-            </div>
-          </details>
-        </fieldset>
+            </button>
+          ))}
+        </div>
 
-        {issues.length ? (
-          <section
-            aria-labelledby="problem-summary"
-            className="rounded-xl border border-destructive/30 bg-destructive-soft/60 p-5"
-          >
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2
-                id="problem-summary"
-                className="flex items-center gap-2 font-semibold text-destructive"
+        <div
+          role="tabpanel"
+          id="panel-questions"
+          aria-labelledby="tab-questions"
+          hidden={view !== "questions"}
+          className="space-y-6"
+        >
+          <fieldset disabled={readOnly} className="space-y-6">
+            <legend className="sr-only">Draft details</legend>
+            <div className="grid gap-4 rounded-xl border bg-card p-5 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)]">
+              <Field
+                id="draft-name"
+                label="Name"
+                errors={issues.filter((i) => i.field === "name").map((i) => i.message)}
               >
-                <AlertTriangle aria-hidden="true" className="size-4" />
-                {issues.length === 1
-                  ? "1 problem to fix before publishing"
-                  : `${issues.length} problems to fix before publishing`}
-              </h2>
-              <Button
-                type="button"
-                variant="ghost"
-                className="h-11"
-                aria-expanded={summaryOpen}
-                aria-controls="problem-list"
-                onClick={() => setSummaryOpen(!summaryOpen)}
+                {(props) => (
+                  <input
+                    {...props}
+                    className={`${controlClass} h-11`}
+                    value={content.name}
+                    onChange={(e) => edit((c) => ({ ...c, name: e.target.value }))}
+                  />
+                )}
+              </Field>
+              <Field
+                id="draft-description"
+                label="Description"
+                hint="For admins. Scouts do not see it."
+                errors={issues.filter((i) => i.field === "description").map((i) => i.message)}
               >
-                {summaryOpen ? "Hide list" : "Show list"}
-              </Button>
+                {(props) => (
+                  <textarea
+                    {...props}
+                    rows={2}
+                    className={`${controlClass} min-h-11 py-2.5`}
+                    value={content.description}
+                    onChange={(e) => edit((c) => ({ ...c, description: e.target.value }))}
+                  />
+                )}
+              </Field>
             </div>
-            <p className="mt-1 text-sm">Drafts save with problems. Publishing needs none.</p>
-            {summaryOpen ? (
-              <ul id="problem-list" className="mt-3 space-y-1">
-                {summary.map((issue, index) => {
-                  return (
-                    // biome-ignore lint/suspicious/noArrayIndexKey: issues have no identity and are recomputed on each edit.
-                    <li key={index}>
-                      <button
-                        type="button"
-                        onClick={() => jumpTo(issue)}
-                        className="min-h-9 text-left text-sm underline-offset-4 hover:underline focus-visible:underline focus-visible:outline-none"
-                      >
-                        {issueContext(issue)}
-                        {issue.message}
-                      </button>
+
+            <details className="group rounded-xl border bg-card">
+              <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-4 rounded-xl px-5 py-3 text-sm font-medium outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 [&::-webkit-details-marker]:hidden">
+                <span>Identity for {kindLabels[kind].toLowerCase()} scouting</span>
+                <span className="text-primary group-open:hidden">Show</span>
+                <span className="hidden text-primary group-open:inline">Hide</span>
+              </summary>
+              <div className="space-y-3 border-t px-5 py-4 text-sm">
+                <p className="text-muted-foreground">
+                  Identity questions say which match and team an observation is about. They are
+                  always asked, and their codes and answer types are fixed. The event always comes
+                  from the scouting session.
+                </p>
+                <ul className="space-y-2">
+                  {identities.map((p) => (
+                    <li key={p.key}>
+                      <span className="font-medium">{p.label}</span>{" "}
+                      <code className="font-mono text-[0.8125rem] text-muted-foreground">
+                        {p.key}
+                      </code>
+                      {": "}
+                      {p.explanation}
                     </li>
-                  );
-                })}
-              </ul>
+                  ))}
+                </ul>
+                {missingIdentity.length ? (
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    {missingIdentity.map((p) => (
+                      <Button
+                        key={p.key}
+                        type="button"
+                        variant="outline"
+                        className="h-11"
+                        onClick={() => addIdentity(p.key, p.policy === "required")}
+                      >
+                        <Plus aria-hidden="true" />
+                        Add {p.label.toLowerCase()} question
+                      </Button>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            </details>
+          </fieldset>
+
+          {issues.length ? (
+            <section
+              aria-labelledby="problem-summary"
+              className="rounded-xl border border-destructive/30 bg-destructive-soft/60 p-5"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h2
+                  id="problem-summary"
+                  className="flex items-center gap-2 font-semibold text-destructive"
+                >
+                  <AlertTriangle aria-hidden="true" className="size-4" />
+                  {issues.length === 1
+                    ? "1 problem to fix before publishing"
+                    : `${issues.length} problems to fix before publishing`}
+                </h2>
+                {issues.length > 3 ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="h-11"
+                    aria-expanded={summaryOpen}
+                    aria-controls="problem-list"
+                    onClick={() => setSummaryOpen(!summaryOpen)}
+                  >
+                    {summaryOpen ? "Hide list" : "Show list"}
+                  </Button>
+                ) : null}
+              </div>
+              <p className="mt-1 text-sm">Drafts save with problems. Publishing needs none.</p>
+              {listShown ? (
+                <ul id="problem-list" className="mt-3 space-y-1">
+                  {summary.map((issue, index) => {
+                    return (
+                      // biome-ignore lint/suspicious/noArrayIndexKey: issues have no identity and are recomputed on each edit.
+                      <li key={index}>
+                        <button
+                          type="button"
+                          onClick={() => jumpTo(issue)}
+                          className="min-h-9 text-left text-sm underline-offset-4 hover:underline focus-visible:underline focus-visible:outline-none"
+                        >
+                          {issueContext(issue)}
+                          {issue.message}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : null}
+            </section>
+          ) : null}
+
+          <section aria-labelledby="questions-title" className="space-y-3">
+            <div className="flex flex-wrap items-end justify-between gap-2">
+              <h2 id="questions-title" className="text-lg font-semibold">
+                Questions{" "}
+                <span className="font-normal text-muted-foreground tabular-nums">
+                  ({content.questions.length})
+                </span>
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                In the order scouts are asked. Lines link questions that depend on an earlier
+                answer.
+              </p>
+            </div>
+            {content.questions.length ? (
+              <fieldset disabled={readOnly}>
+                <legend className="sr-only">Questions</legend>
+                <QuestionList
+                  kind={kind}
+                  questions={content.questions}
+                  selectedId={selectedId}
+                  onSelect={setSelectedId}
+                  problems={problemsByQuestion}
+                  renderBody={(question, index) => (
+                    <div className="space-y-6">
+                      <div className="flex flex-wrap gap-1 border-b pb-4">
+                        <Button
+                          id={`move-up-${question.id}`}
+                          type="button"
+                          variant="ghost"
+                          className="h-11"
+                          disabled={index === 0}
+                          onClick={() => move(question, -1)}
+                        >
+                          <ArrowUp aria-hidden="true" />
+                          Move up
+                        </Button>
+                        <Button
+                          id={`move-down-${question.id}`}
+                          type="button"
+                          variant="ghost"
+                          className="h-11"
+                          disabled={index === content.questions.length - 1}
+                          onClick={() => move(question, 1)}
+                        >
+                          <ArrowDown aria-hidden="true" />
+                          Move down
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          className="h-11"
+                          onClick={() => duplicate(question)}
+                        >
+                          <Copy aria-hidden="true" />
+                          Duplicate
+                        </Button>
+                        {identities.find((p) => p.key === question.key)?.policy === "required" ? (
+                          <span className="inline-flex min-h-11 items-center px-3 text-sm text-muted-foreground">
+                            Required identity questions cannot be removed.
+                          </span>
+                        ) : (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            className="h-11 text-destructive hover:text-destructive"
+                            onClick={() => setRemoving(question)}
+                          >
+                            <Trash2 aria-hidden="true" />
+                            Remove
+                          </Button>
+                        )}
+                      </div>
+                      <QuestionFields
+                        question={question}
+                        questions={content.questions}
+                        kind={kind}
+                        problems={fieldProblems(question.id)}
+                        onQuestionsChange={editQuestions}
+                      />
+                    </div>
+                  )}
+                />
+              </fieldset>
+            ) : (
+              <div className="rounded-xl border border-dashed bg-card px-6 py-10 text-center">
+                <p className="font-medium">No questions yet</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Add the first thing scouts should report. Each question needs a follow-up for when
+                  the answer is missing.
+                </p>
+                {!readOnly ? (
+                  <Button type="button" className="mt-4 h-11" onClick={addQuestion}>
+                    <Plus aria-hidden="true" />
+                    Add question
+                  </Button>
+                ) : null}
+              </div>
+            )}
+            {!readOnly ? (
+              <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+                {content.questions.length ? (
+                  <Button type="button" variant="outline" className="h-11" onClick={addQuestion}>
+                    <Plus aria-hidden="true" />
+                    Add question
+                  </Button>
+                ) : null}
+                <DeleteDraftButton
+                  organizationId={organizationId}
+                  draftId={draft.id}
+                  name={content.name || draft.name}
+                  redirectToList
+                />
+              </div>
             ) : null}
           </section>
-        ) : null}
+        </div>
 
-        <section aria-labelledby="questions-title" className="space-y-3">
-          <div className="flex flex-wrap items-end justify-between gap-2">
-            <h2 id="questions-title" className="text-lg font-semibold">
-              Questions{" "}
-              <span className="font-normal text-muted-foreground tabular-nums">
-                ({content.questions.length})
-              </span>
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              In the order scouts are asked. Lines link questions that depend on an earlier answer.
-            </p>
-          </div>
-          {content.questions.length ? (
-            <fieldset disabled={readOnly}>
-              <legend className="sr-only">Questions</legend>
-              <QuestionList
-                kind={kind}
-                questions={content.questions}
-                selectedId={selectedId}
-                onSelect={setSelectedId}
-                problems={problemsByQuestion}
-                renderBody={(question, index) => (
-                  <div className="space-y-6">
-                    <div className="flex flex-wrap gap-1 border-b pb-4">
-                      <Button
-                        id={`move-up-${question.id}`}
-                        type="button"
-                        variant="ghost"
-                        className="h-11"
-                        disabled={index === 0}
-                        onClick={() => move(question, -1)}
-                      >
-                        <ArrowUp aria-hidden="true" />
-                        Move up
-                      </Button>
-                      <Button
-                        id={`move-down-${question.id}`}
-                        type="button"
-                        variant="ghost"
-                        className="h-11"
-                        disabled={index === content.questions.length - 1}
-                        onClick={() => move(question, 1)}
-                      >
-                        <ArrowDown aria-hidden="true" />
-                        Move down
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        className="h-11"
-                        onClick={() => duplicate(question)}
-                      >
-                        <Copy aria-hidden="true" />
-                        Duplicate
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        className="h-11 text-destructive hover:text-destructive"
-                        disabled={
-                          identities.find((p) => p.key === question.key)?.policy === "required"
-                        }
-                        onClick={() => setRemoving(question)}
-                      >
-                        <Trash2 aria-hidden="true" />
-                        Remove
-                      </Button>
-                    </div>
-                    <QuestionFields
-                      question={question}
-                      questions={content.questions}
-                      kind={kind}
-                      problems={fieldProblems(question.id)}
-                      onQuestionsChange={editQuestions}
-                    />
-                  </div>
-                )}
-              />
-            </fieldset>
+        <div
+          role="tabpanel"
+          id="panel-preview"
+          aria-labelledby="tab-preview"
+          hidden={view !== "preview"}
+        >
+          {validation.ok ? (
+            <AnswerPreview
+              kind={kind}
+              contract={validation.contract}
+              questions={content.questions}
+            />
           ) : (
-            <div className="rounded-xl border border-dashed bg-card px-6 py-10 text-center">
-              <p className="font-medium">No questions yet</p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Add the first thing scouts should report. Each question needs a follow-up for when
-                the answer is missing.
-              </p>
-              {!readOnly ? (
-                <Button type="button" className="mt-4 h-11" onClick={addQuestion}>
-                  <Plus aria-hidden="true" />
-                  Add question
-                </Button>
-              ) : null}
-            </div>
+            <FixProblemsFirst
+              count={localIssues.length}
+              action="preview answers"
+              onShowProblems={showProblems}
+            />
           )}
-          {!readOnly ? (
-            <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
-              {content.questions.length ? (
-                <Button type="button" variant="outline" className="h-11" onClick={addQuestion}>
-                  <Plus aria-hidden="true" />
-                  Add question
-                </Button>
-              ) : null}
-              <DeleteDraftButton
-                organizationId={organizationId}
-                draftId={draft.id}
-                name={content.name || draft.name}
-                redirectToList
-              />
-            </div>
-          ) : null}
-        </section>
+        </div>
+        <div role="tabpanel" id="panel-test" aria-labelledby="tab-test" hidden={view !== "test"}>
+          {validation.ok ? (
+            <ExtractionTest
+              organizationId={organizationId}
+              draftId={draft.id}
+              kind={kind}
+              contract={validation.contract}
+              revision={savedRevision}
+              dirty={status.kind !== "saved"}
+              prepare={prepareTest}
+              onInvalid={(problems) =>
+                setServerIssues(
+                  serverIssueMessages(problems, latest.current.questions, localIssues),
+                )
+              }
+            />
+          ) : (
+            <FixProblemsFirst
+              count={localIssues.length}
+              action="test extraction"
+              onShowProblems={showProblems}
+            />
+          )}
+        </div>
       </div>
 
       <p role="status" aria-live="polite" className="sr-only">
@@ -791,7 +941,7 @@ export function DraftEditor({
               <Button
                 type="button"
                 variant="outline"
-                className="h-11 max-sm:hidden"
+                className={cn("h-11 max-sm:hidden", view !== "questions" && "hidden")}
                 onClick={addQuestion}
               >
                 <Plus aria-hidden="true" />

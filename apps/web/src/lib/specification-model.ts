@@ -727,11 +727,29 @@ const coveredCodes = new Set<ContractIssue["code"]>([
 ]);
 
 function issueField(issue: ContractIssue, question: EditorQuestion | undefined) {
-  const [, , field, index] = issue.path;
+  const [, , field, index, option] = issue.path;
   if (field === "rules" && typeof index === "number" && question?.rules[index])
     return `rule:${question.rules[index].id}`;
-  if (field === "answer") return "answer";
+  if (field === "answer") {
+    if (index === "options" && typeof option === "number" && question?.answer.options[option])
+      return `option:${question.answer.options[option].id}`;
+    if (index === "min" || index === "max" || index === "maxLength") return index;
+    return "answer";
+  }
   return typeof field === "string" ? field : "questions";
+}
+
+// Places one validator issue on the question, rule or option it is about, so a refused
+// publish or test links straight back to the field to fix.
+export function editorIssue(issue: ContractIssue, questions: EditorQuestion[]): EditorIssue {
+  const index = issue.path[0] === "questions" ? issue.path[1] : undefined;
+  const question =
+    typeof index === "number" ? questions[index] : questions.find((q) => q.key === issue.question);
+  return {
+    questionId: question?.id,
+    field: question ? issueField(issue, question) : "questions",
+    message: validatorMessage(issue, questions),
+  };
 }
 
 export function contractDocument(
@@ -766,16 +784,17 @@ export function editorIssues(
     if (coveredCodes.has(issue.code)) continue;
     // Structural problems are already described field by field, unless none was found.
     if (issue.code === "invalid_structure" && issues.length) continue;
-    const index = issue.path[0] === "questions" ? issue.path[1] : undefined;
-    const question =
-      typeof index === "number"
-        ? questions[index]
-        : questions.find((q) => q.key === issue.question);
-    issues.push({
-      questionId: question?.id,
-      field: question ? issueField(issue, question) : "questions",
-      message: validatorMessage(issue, questions),
-    });
+    issues.push(editorIssue(issue, questions));
   }
   return issues;
+}
+
+// The draft as the shared validator sees it. Preview and test run only on a valid contract,
+// the same check publication uses.
+export function validatedDraft(
+  kind: ObservationKind,
+  description: string,
+  questions: EditorQuestion[],
+) {
+  return validateContract(contractDocument(kind, description, questions), kind);
 }

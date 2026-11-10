@@ -5,8 +5,9 @@ import { apiKeyConfig } from "./api-keys.ts";
 import { clerkAccounts } from "./clerk-accounts.ts";
 import { dataApiRoutes } from "./data-api.ts";
 import { createWorkerControl, eventMode } from "./event-mode.ts";
-import { extractionConfig } from "./extraction-config.ts";
+import { extractionConfig, mastraConfig } from "./extraction-config.ts";
 import { runExtractionPass } from "./extraction-worker.ts";
+import { extractDraftTest } from "./mastra-client.ts";
 import { operatorRoutes } from "./operator-review.ts";
 import { drainOutbound } from "./outbound-worker.ts";
 import { saveAccessApplication } from "./repositories/access-applications.ts";
@@ -71,6 +72,7 @@ import { webSessionVerifier } from "./web-auth.ts";
 import { startWorkerLoop } from "./worker-loop.ts";
 
 const extraction = extractionConfig(process.env);
+const mastra = mastraConfig(process.env);
 const app = new Hono();
 app.route("/web/access-applications", accessApplicationRoutes({ save: saveAccessApplication }));
 const verifyWebSession = webSessionVerifier(process.env);
@@ -163,6 +165,10 @@ app.route(
       events: listEventAssignments,
       assignments: readEventAssignments,
       assign: assignSpecification,
+      draftTest: mastra
+        ? (contract, messages) =>
+            extractDraftTest(mastra.baseUrl, contract, messages, mastra.serviceToken)
+        : null,
     },
     apiKeys: apiKeys && {
       list: (org, subject) => listApiKeys(org, subject, apiKeys),

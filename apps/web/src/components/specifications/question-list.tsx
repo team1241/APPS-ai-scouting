@@ -182,7 +182,19 @@ export function QuestionList({
                 </span>
               </div>
               {open ? (
-                <div id={bodyId} className="border-t px-4 py-5 sm:pr-6 sm:pl-[4.75rem]">
+                // biome-ignore lint/a11y/noStaticElementInteractions: Escape closes the open question from any of its fields.
+                <div
+                  id={bodyId}
+                  className="border-t px-4 py-5 sm:pr-6 sm:pl-[4.75rem]"
+                  onKeyDown={(event) => {
+                    if (event.key !== "Escape" || event.defaultPrevented) return;
+                    event.preventDefault();
+                    onSelect(null);
+                    requestAnimationFrame(() =>
+                      document.querySelector<HTMLElement>(`[aria-controls="${bodyId}"]`)?.focus(),
+                    );
+                  }}
+                >
                   {renderBody(question, index)}
                 </div>
               ) : null}

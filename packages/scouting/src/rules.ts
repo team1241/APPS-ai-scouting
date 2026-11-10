@@ -82,6 +82,13 @@ export type QuestionState =
   | "inactive";
 export type FollowUpReason = "missing" | "invalid" | "prerequisite";
 
+// How one rule of a question evaluated: true, false, or null when an upstream answer is unknown.
+export interface RuleOutcome {
+  index: number;
+  effect: RuleEffect;
+  holds: boolean | null;
+}
+
 export interface QuestionResult {
   key: string;
   visibility: Visibility;
@@ -91,6 +98,8 @@ export interface QuestionResult {
   problem?: string;
   // True when this question stops the observation from being complete.
   blocking: boolean;
+  // Each rule of the question, in contract order. Explains visibility and requirement.
+  rules: RuleOutcome[];
 }
 
 export interface FollowUp {
@@ -212,7 +221,12 @@ export function evaluateAnswers(contract: Contract, values: Record<string, unkno
     const visible = visibility(question);
     const value = check.status === "known" ? check.value : null;
     const problem = check.status === "invalid" ? check.reason : undefined;
-    const base = { key: question.key, value, ...(problem ? { problem } : {}) };
+    const rules = (question.rules ?? []).map((rule, index) => ({
+      index,
+      effect: rule.effect,
+      holds: condition(rule.when),
+    }));
+    const base = { key: question.key, value, ...(problem ? { problem } : {}), rules };
     if (visible === false) {
       if (values[question.key] !== null && values[question.key] !== undefined)
         inactive[question.key] = values[question.key];

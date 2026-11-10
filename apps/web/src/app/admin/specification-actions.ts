@@ -1,6 +1,6 @@
 "use server";
 
-import type { ContractIssue, ObservationKind } from "@ai-scouting/scouting";
+import type { ContractIssue, ExtractionResult, ObservationKind } from "@ai-scouting/scouting";
 import general from "@ai-scouting/scouting/examples/general.json" with { type: "json" };
 import match from "@ai-scouting/scouting/examples/match.json" with { type: "json" };
 import pit from "@ai-scouting/scouting/examples/pit.json" with { type: "json" };
@@ -231,4 +231,58 @@ export async function assignSpecification(
   const season = form.get("season");
   if (season && version) revalidatePath(publicationPath(org, Number(season), kind, version));
   return { assignments: (data as { assignments: EventAssignments }).assignments };
+}
+
+export interface DraftTestMessage {
+  role: "note" | "reply";
+  asked?: string;
+  text: string;
+}
+
+export type DraftTestResult =
+  | { outcome: "tested"; revision: number; result: ExtractionResult }
+  | { outcome: "stale"; revision: number; message: string }
+  | { outcome: "invalid"; issues: ContractIssue[]; message: string }
+  | { outcome: "error"; message: string };
+
+// Runs the production extraction on synthetic messages against the saved draft at `revision`.
+// The backend stores nothing and sends nothing; this only reads the result back.
+export async function testSpecificationDraft(
+  org: string,
+  id: string,
+  input: { revision: number; messages: DraftTestMessage[] },
+): Promise<DraftTestResult> {
+  const response = await backendRequest(
+    api(org, `/drafts/${encodeURIComponent(id)}/test`),
+    { method: "POST", body: JSON.stringify(input) },
+    // The backend waits up to 45 seconds for the model.
+    { timeoutMs: 55_000 },
+  );
+  const data = await body(response);
+  if (response?.ok) {
+    const test = data.test as { revision: number; result: ExtractionResult };
+    return { outcome: "tested", revision: test.revision, result: test.result };
+  }
+  if (response?.status === 409 && typeof data.revision === "number")
+    return { outcome: "stale", revision: data.revision, message: String(data.error) };
+  if (response?.status === 422 && Array.isArray(data.issues))
+    return {
+      outcome: "invalid",
+      issues: data.issues as ContractIssue[],
+      message: String(data.error),
+    };
+  const errors = data.errors as Record<string, string> | undefined;
+  if (response?.status === 400 && errors?.messages)
+    return { outcome: "error", message: errors.messages };
+  if (response?.status === 404)
+    return {
+      outcome: "error",
+      message: "This draft no longer exists or you no longer administer this team.",
+    };
+  if (response && typeof data.error === "string" && response.status >= 413)
+    return { outcome: "error", message: data.error };
+  return {
+    outcome: "error",
+    message: "The test did not run. Your sample is kept; try again shortly.",
+  };
 }

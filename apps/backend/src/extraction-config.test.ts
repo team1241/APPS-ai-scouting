@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { extractionConfig } from "./extraction-config.ts";
+import { extractionConfig, mastraConfig } from "./extraction-config.ts";
 
 const base = {
   EXTRACTION_ENABLED: "true",
@@ -26,4 +26,13 @@ test("hosted extraction requires HTTPS and credentials before startup", () => {
   assert.ok(
     extractionConfig({ ...base, MASTRA_URL: "http://127.0.0.1:4111", MASTRA_SERVICE_TOKEN: "" }),
   );
+});
+
+test("draft tests need only the Mastra address and its credential", () => {
+  assert.equal(mastraConfig({}), null);
+  assert.deepEqual(mastraConfig({ MASTRA_URL: "http://localhost:4111" }), {
+    baseUrl: "http://localhost:4111/",
+    serviceToken: undefined,
+  });
+  assert.throws(() => mastraConfig({ MASTRA_URL: "https://example.com" }), /MASTRA_SERVICE_TOKEN/);
 });

@@ -103,7 +103,7 @@ export function draftDocument(input: unknown): DraftDocument {
   };
 }
 
-const contractInput = (kind: ObservationKind, document: DraftDocument, version: string) => ({
+export const contractInput = (kind: ObservationKind, document: DraftDocument, version: string) => ({
   formatVersion: CONTRACT_FORMAT_VERSION,
   kind,
   version,
