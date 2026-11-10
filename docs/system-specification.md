@@ -162,7 +162,11 @@ The [scouting contract](scouting-contract.md) defines format 2, the agreed share
 - Turn history: hidden answers stay as inactive history, are excluded from current values, completeness and export, and are not restored on reactivation without a new statement.
 - `formatVersion` is separate from the publication identity. `readContract` reads existing format 1 publications with their original semantics.
 
-Publication validation now uses the shared contract validator for duplicate codes and protected identity. Telegram extraction, follow-ups and the data API still use the format 1 path; #48 connects format 2 to them. Draft and publish APIs are #46, the builder is #47 and preview is #49.
+Publication validation now uses the shared contract validator for duplicate codes and protected identity. Telegram extraction, follow-ups and the data API still use the format 1 path; #48 connects format 2 to them. The builder is #47 and preview is #49.
+
+### Drafts, publication and assignment (#46)
+
+Team admins create drafts, publish immutable versions and assign them to events through the web admin API. See [scouting specifications](web-app.md#scouting-specifications-46). Publication and assignment are separate actions. Match assignment stays on `event.specification_version` and accepts format 1 until #48. Pit and general assignments are stored per event and kind for #48 intake.
 
 ## 7. Event configuration and external data
 

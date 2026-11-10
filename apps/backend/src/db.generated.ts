@@ -104,6 +104,16 @@ export interface EventMatch {
   stage: string;
 }
 
+export interface EventSpecificationAssignment {
+  assigned_at: Generated<Timestamp>;
+  assigned_by: string | null;
+  event_id: string;
+  kind: string;
+  organization_id: string;
+  season: number;
+  version: string;
+}
+
 export interface EventTeam {
   event_id: string;
   facts: Generated<Json>;
@@ -265,9 +275,12 @@ export interface PlatformOperator {
 export interface PublishedSpecification {
   document: Json;
   kind: string;
+  name: string | null;
   organization_id: string;
   published_at: Generated<Timestamp>;
+  published_by: string | null;
   season: number;
+  source_draft_id: string | null;
   version: string;
 }
 
@@ -342,6 +355,24 @@ export interface ScoutingSession {
   validation_result: Json | null;
 }
 
+export interface SpecificationDraft {
+  created_at: Generated<Timestamp>;
+  created_by: string | null;
+  document: Json;
+  id: Generated<string>;
+  kind: string;
+  name: string;
+  organization_id: string;
+  published_at: Timestamp | null;
+  published_version: string | null;
+  revision: Generated<number>;
+  season: number;
+  source_season: number | null;
+  source_version: string | null;
+  updated_at: Generated<Timestamp>;
+  updated_by: string | null;
+}
+
 export interface TeamAdminInvitation {
   accepted_by: string | null;
   accepted_member_id: string | null;
@@ -398,6 +429,7 @@ export interface DB {
   event: Event;
   event_command: EventCommand;
   event_match: EventMatch;
+  event_specification_assignment: EventSpecificationAssignment;
   event_team: EventTeam;
   intake_rejection: IntakeRejection;
   invitation: Invitation;
@@ -418,6 +450,7 @@ export interface DB {
   schedule_notification: ScheduleNotification;
   schedule_poll: SchedulePoll;
   scouting_session: ScoutingSession;
+  specification_draft: SpecificationDraft;
   team_admin_invitation: TeamAdminInvitation;
   telegram_active_team: TelegramActiveTeam;
   telegram_connect: TelegramConnect;

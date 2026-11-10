@@ -4,6 +4,7 @@ import { uuidPattern } from "./event-config.ts";
 import type { ApiKeySummary } from "./repositories/api-keys.ts";
 import { telegramAdmin } from "./repositories/telegram-connect.ts";
 import type { AdminOrganization } from "./repositories/web-admin.ts";
+import { type SpecificationDeps, specificationRoutes } from "./specification-routes.ts";
 import { type TeamAdminDeps, teamAdminRoutes } from "./team-admin-routes.ts";
 
 export function webAdminRoutes(deps: {
@@ -20,6 +21,8 @@ export function webAdminRoutes(deps: {
   } | null;
   // Team admin invitations (#40). Omitted in tests that do not need them.
   teamAdmins?: TeamAdminDeps;
+  // Scouting specification drafts, publication and assignment (#46).
+  specifications?: SpecificationDeps;
 }) {
   const app = new Hono<{ Variables: { subject: string } }>();
   app.use("*", async (c, next) => {
@@ -86,6 +89,7 @@ export function webAdminRoutes(deps: {
     );
   }
   if (deps.teamAdmins) app.route("/", teamAdminRoutes(deps.teamAdmins));
+  if (deps.specifications) app.route("/", specificationRoutes(deps.specifications));
   const keys = deps.apiKeys;
   const keysPath = "/organizations/:id/api-keys";
   // The wildcard also matches the list path itself.
