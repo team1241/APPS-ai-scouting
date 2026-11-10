@@ -83,8 +83,10 @@ Records recorded before conditional contracts are evaluated against their own
 publication, which has no rules. `completeness.missing` lists the questions that
 block completion. A record can have all required answers yet remain incomplete
 because validation or an identity conflict still needs attention. Pit and general
-records have validation status `not_applicable`: they are not checked against the
-match schedule.
+records are not checked against the match schedule. A pit record is checked against
+the event roster: `valid`, or `unknown_team` when the scout saved it anyway. Pit
+records at events without a saved roster, and all general records, have
+`not_applicable`.
 
 Explicit correction sessions update the original logical record after their
 first successful extraction, including incomplete corrections. Until then the

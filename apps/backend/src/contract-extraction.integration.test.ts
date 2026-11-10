@@ -71,6 +71,7 @@ async function fixture(run: (org: string, event: string) => Promise<void>) {
         "intake_rejection",
         "event_command",
         "organization_event_setting",
+        "event_team",
         "event",
         "channel_identity",
         "member",
@@ -290,10 +291,7 @@ test("pit and general notes need an explicit assignment and no match", async () 
     assert.equal(pitRevision?.match_id, null);
     assert.equal(pitRevision?.team_number, 1241);
     assert.equal(pitRevision?.outcome, "unchecked");
-    assert.equal(
-      (pitRevision?.validation as { status?: string } | undefined)?.status,
-      "not_applicable",
-    );
+    assert.equal((pitRevision?.validation as { status?: string } | undefined)?.status, "off");
 
     // General: a field note needs no team. A team topic makes the team required.
     const general = await note(org, "/general field lights flickered", "general");
@@ -317,6 +315,68 @@ test("pit and general notes need an explicit assignment and no match", async () 
     assert.equal(pitSpec?.kind, "pit");
     assert.ok(pitSpec?.questions.some((q) => q.key === "drivetrain"));
     assert.ok(!JSON.stringify(pitSpec).includes("guidance"));
+  }));
+
+test("pit notes for a team not at the event warn and save only on request", async () =>
+  fixture(async (org, event) => {
+    await publish(org, "pit", "v1");
+    await assign(org, event, "pit", "v1");
+    const pitNote = async (team: number) => {
+      const saved = await note(org, `/pit ${team} swerve, cannot climb`, "pit");
+      const turn = { team_number: team, drivetrain: "swerve", can_climb: false };
+      return { saved, turn, finished: await finish(org, turn) };
+    };
+    // Without a saved roster the check cannot run, so the note is not held back.
+    for (const mode of ["warn", "strict"] as const) {
+      assert.equal(
+        (await changeEvent(org, "1", next(), { kind: "validation", eventId: event, mode })).status,
+        "ok",
+      );
+      const unchecked = await pitNote(9998);
+      assert.equal(unchecked.finished.result.status, "complete");
+    }
+    await withTenant(org, (tx) =>
+      tx
+        .insertInto("event_team")
+        .values(
+          [1241, 1242].map((team_number) => ({
+            organization_id: org,
+            event_id: event,
+            team_number,
+          })),
+        )
+        .execute(),
+    );
+    // Strict mode still lets the scout keep a pit note.
+    const unknown = await pitNote(9999);
+    assert.equal(unknown.finished.result.status, "needs_review");
+    assert.match(
+      unknown.finished.result.question ?? "",
+      /Team 9999 is not on the team list for this event\. Reply with the correct team number, or “save unverified”/,
+    );
+    assert.equal(await revision(org, unknown.saved.sessionId), undefined);
+    await note(org, "save unverified", undefined, unknown.finished.question);
+    const kept = await finish(org, unknown.turn, {});
+    assert.equal(kept.result.status, "complete");
+    const keptRevision = await revision(org, unknown.saved.sessionId);
+    assert.equal(keptRevision?.team_number, 9999);
+    assert.equal(keptRevision?.outcome, "warning_acknowledged");
+    // A corrected team number passes the check.
+    const typo = await pitNote(1214);
+    assert.equal(typo.finished.result.status, "needs_review");
+    await note(org, "sorry, 1241", undefined, typo.finished.question);
+    const fixed = await finish(org, typo.turn, { team_number: 1241 });
+    assert.equal(fixed.result.status, "complete");
+    assert.equal((await revision(org, typo.saved.sessionId))?.outcome, "validated");
+    // Off mode skips the check.
+    assert.equal(
+      (await changeEvent(org, "1", next(), { kind: "validation", eventId: event, mode: "off" }))
+        .status,
+      "ok",
+    );
+    const off = await pitNote(9997);
+    assert.equal(off.finished.result.status, "complete");
+    assert.equal((await revision(org, off.saved.sessionId))?.outcome, "unchecked");
   }));
 
 test("sessions and publications stay inside their organization", async () =>

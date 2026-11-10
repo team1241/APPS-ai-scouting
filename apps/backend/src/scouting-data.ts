@@ -181,6 +181,7 @@ export function exportObservation(org: string, row: ExportRow) {
     "unknown_match",
     "invalid_pairing",
     "incomplete_participants",
+    "unknown_team",
     "not_applicable",
   ];
   return {

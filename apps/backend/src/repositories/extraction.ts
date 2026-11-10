@@ -241,13 +241,18 @@ export function finishExtraction(
       answer === "save unverified" || (sameIdentity && prior.unverifiedConsent === true);
     let notice = validation.message;
     const unverified = validation.status !== "valid" && validation.status !== "not_applicable";
-    const blocked = validation.mode === "strict" && unverified;
+    // A pit roster mismatch is always a warning the scout can accept, even in strict mode.
+    const warns = validation.mode === "warn" || validation.status === "unknown_team";
+    const blocked = validation.mode === "strict" && unverified && !warns;
     // Warn preserves the draft and permits an explicit unverified finalization.
-    if (validation.mode === "warn" && unverified && !unverifiedConsent) {
+    if (warns && unverified && !unverifiedConsent) {
       result = {
         ...result,
         status: "needs_review",
-        question: `${validation.message} Reply with corrected details, or “save unverified” to finish with this warning.`,
+        question:
+          validation.status === "unknown_team"
+            ? `${validation.message} Reply with the correct team number, or “save unverified” to save this note anyway.`
+            : `${validation.message} Reply with corrected details, or “save unverified” to finish with this warning.`,
       };
     } else if (blocked) {
       result = { ...result, status: "needs_review", question: validation.message };

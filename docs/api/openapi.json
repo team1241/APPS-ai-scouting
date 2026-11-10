@@ -686,6 +686,7 @@
                   "unknown_match",
                   "invalid_pairing",
                   "incomplete_participants",
+                  "unknown_team",
                   "not_applicable",
                   "unknown"
                 ]

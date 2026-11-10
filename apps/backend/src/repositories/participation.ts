@@ -91,15 +91,31 @@ export async function validateSessionInTransaction(
     session.validation_mode === "off" || session.validation_mode === "strict"
       ? session.validation_mode
       : "warn";
-  if (session.kind !== "match") {
-    const validation: ParticipationValidation = {
-      mode,
-      status: "not_applicable",
-      message: null,
-      matchId: null,
-    };
-    return { session, validation };
+  const result = (
+    status: ParticipationValidation["status"],
+    message: string | null = null,
+  ): { session: typeof session; validation: ParticipationValidation } => ({
+    session,
+    validation: { mode, status, message, matchId: null },
+  });
+  // Pit notes are checked against the event roster. General notes are not checked.
+  if (session.kind === "pit") {
+    const team = values.team_number;
+    if (mode === "off") return result("off");
+    if (!Number.isSafeInteger(team)) return result("not_applicable");
+    const roster = await tx
+      .selectFrom("event_team")
+      .select("team_number")
+      .where("organization_id", "=", organizationId)
+      .where("event_id", "=", session.event_id as string)
+      .execute();
+    // Without a saved roster the check cannot run, so the note is not held back.
+    if (!roster.length) return result("not_applicable");
+    return roster.some((r) => r.team_number === team)
+      ? result("valid")
+      : result("unknown_team", `Team ${team} is not on the team list for this event.`);
   }
+  if (session.kind !== "match") return result("not_applicable");
   const schedule = await scheduleInTransaction(tx, organizationId, session.event_id as string);
   const validation = validateParticipation(
     mode,
