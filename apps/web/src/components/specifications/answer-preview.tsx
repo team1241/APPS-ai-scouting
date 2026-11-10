@@ -20,11 +20,11 @@ import {
   stateView,
 } from "@/lib/specification-preview";
 import { cn } from "@/lib/utils";
+import { ChoiceSelect } from "./choice-select";
 import { controlClass } from "./fields";
 import { FollowUpMessage, RuleLine } from "./preview-parts";
 
 const input = `${controlClass} h-11`;
-const select = `${controlClass} h-11 pr-8`;
 
 function AnswerInput({
   question,
@@ -54,32 +54,30 @@ function AnswerInput({
     );
   if (answer.type === "boolean")
     return (
-      <select
+      <ChoiceSelect
         {...common}
-        className={cn(select, "max-w-48")}
+        className="max-w-48"
         value={value === true ? "true" : value === false ? "false" : ""}
-        onChange={(e) => onChange(e.target.value === "" ? undefined : e.target.value === "true")}
-      >
-        <option value="">Not stated</option>
-        <option value="true">Yes</option>
-        <option value="false">No</option>
-      </select>
+        onChange={(next) => onChange(next === "" ? undefined : next === "true")}
+        choices={[
+          { value: "", label: "Not stated" },
+          { value: "true", label: "Yes" },
+          { value: "false", label: "No" },
+        ]}
+      />
     );
   if (answer.type === "single_choice")
     return (
-      <select
+      <ChoiceSelect
         {...common}
-        className={cn(select, "max-w-sm")}
+        className="max-w-sm"
         value={typeof value === "string" ? value : ""}
-        onChange={(e) => onChange(e.target.value || undefined)}
-      >
-        <option value="">Not stated</option>
-        {answer.options.map((option) => (
-          <option key={option.code} value={option.code}>
-            {option.label}
-          </option>
-        ))}
-      </select>
+        onChange={(next) => onChange(next || undefined)}
+        choices={[
+          { value: "", label: "Not stated" },
+          ...answer.options.map((option) => ({ value: option.code, label: option.label })),
+        ]}
+      />
     );
   const chosen = Array.isArray(value) ? (value as string[]) : null;
   return (
@@ -188,22 +186,15 @@ export function AnswerPreview({
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <label htmlFor="preview-sample" className="sr-only">
-            Load a sample
-          </label>
-          <select
+          <ChoiceSelect
             id="preview-sample"
-            className={cn(select, "w-auto")}
+            aria-label="Load a sample"
+            className="w-56"
+            placeholder="Load a sample…"
             value={sample}
-            onChange={(e) => loadSample(e.target.value)}
-          >
-            <option value="">Load a sample…</option>
-            {samples.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.title}
-              </option>
-            ))}
-          </select>
+            onChange={loadSample}
+            choices={samples.map((s) => ({ value: s.id, label: s.title }))}
+          />
           <Button
             type="button"
             variant="outline"

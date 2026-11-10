@@ -22,11 +22,11 @@ import {
   stateView,
 } from "@/lib/specification-preview";
 import { cn } from "@/lib/utils";
+import { ChoiceSelect } from "./choice-select";
 import { controlClass } from "./fields";
 import { FollowUpMessage } from "./preview-parts";
 
 const textarea = `${controlClass} min-h-20 py-2.5 leading-relaxed`;
-const select = `${controlClass} h-11 pr-8`;
 
 interface Message extends DraftTestMessage {
   id: string;
@@ -277,25 +277,16 @@ export function ExtractionTest({
           <h3 id={`${base}-sample`} className="font-semibold">
             Sample messages
           </h3>
-          <div>
-            <label htmlFor={`${base}-load`} className="sr-only">
-              Start from a sample
-            </label>
-            <select
-              id={`${base}-load`}
-              className={cn(select, "w-auto")}
-              value={sample}
-              disabled={running}
-              onChange={(e) => loadSample(e.target.value)}
-            >
-              <option value="">Start from a sample…</option>
-              {samples.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.title}
-                </option>
-              ))}
-            </select>
-          </div>
+          <ChoiceSelect
+            id={`${base}-load`}
+            aria-label="Start from a sample"
+            className="w-56"
+            placeholder="Start from a sample…"
+            value={sample}
+            disabled={running}
+            onChange={loadSample}
+            choices={samples.map((s) => ({ value: s.id, label: s.title }))}
+          />
         </div>
         <p className="text-sm text-muted-foreground">
           Use invented notes only. Do not paste real scout messages here.
