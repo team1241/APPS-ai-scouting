@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { type ApiKey, ApiKeys } from "@/components/api-keys";
 import { PageHeading, TeamNumber } from "@/components/page-heading";
+import { SpecificationsCard } from "@/components/specifications/specifications-card";
 import {
   type AdminInvitation,
   type TeamAdmin,
@@ -18,11 +19,12 @@ export default async function OrganizationPage({
 }) {
   const { organizationId } = await params;
   // The backend checks admin access for each section itself, so all load together.
-  const [organizations, connection, keyList, adminList] = await Promise.all([
+  const [organizations, connection, keyList, adminList, specificationList] = await Promise.all([
     authorizedOrganizations(),
     backendRequest(`/web/organizations/${organizationId}/telegram/state`),
     backendRequest(`/web/organizations/${organizationId}/api-keys`),
     backendRequest(`/web/organizations/${organizationId}/administrators`),
+    backendRequest(`/web/organizations/${organizationId}/specifications`),
   ]);
   if (organizations === null)
     return (
@@ -43,6 +45,9 @@ export default async function OrganizationPage({
   const admins = adminList?.ok
     ? ((await adminList.json()) as { administrators: TeamAdmin[]; invitations: AdminInvitation[] })
     : null;
+  const specifications = specificationList?.ok
+    ? ((await specificationList.json()) as { drafts: unknown[]; publications: unknown[] })
+    : null;
   return (
     <>
       <TeamNavigation organization={organization} canChangeTeam={organizations.length > 1} />
@@ -54,6 +59,15 @@ export default async function OrganizationPage({
           organizationId={organizationId}
           connected={state?.connected ?? null}
           connectedAt={state?.connectedAt ?? null}
+        />
+        <SpecificationsCard
+          organizationId={organizationId}
+          counts={
+            specifications && {
+              drafts: specifications.drafts.length,
+              publications: specifications.publications.length,
+            }
+          }
         />
         <TeamAdministrators organizationId={organizationId} data={admins} />
         <ApiKeys organizationId={organizationId} keys={keys} />

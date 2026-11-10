@@ -287,7 +287,7 @@ Validation covers route authorization, search and paging input, reveal outcomes 
 
 ## Scouting specifications (#46)
 
-Team admins create, publish and assign scouting contracts through `/web/organizations/<organization>/...`. The contract format is in the [scouting contract](scouting-contract.md). The builder UI is #47. Every call rechecks that the Clerk session is a linked admin of the team (`webAdminMember`). Telegram does not need to be linked. A team the account does not administer gets the same 404 as one that does not exist. The backend never trusts a supplied member ID.
+Team admins create, publish and assign scouting contracts through `/web/organizations/<organization>/...`. The contract format is in the [scouting contract](scouting-contract.md). The builder UI is described [below](#specification-builder-47). Every call rechecks that the Clerk session is a linked admin of the team (`webAdminMember`). Telegram does not need to be linked. A team the account does not administer gets the same 404 as one that does not exist. The backend never trusts a supplied member ID.
 
 | Method and path                                             | Purpose                                                                                                                                                   |
 | ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -298,6 +298,7 @@ Team admins create, publish and assign scouting contracts through `/web/organiza
 | `PUT specifications/drafts/<draft>`                         | Save `{ revision, name, document: { description, questions } }`                                                                                           |
 | `DELETE specifications/drafts/<draft>`                      | Delete an unpublished draft                                                                                                                               |
 | `POST specifications/drafts/<draft>/publish`                | Publish `{ revision }`                                                                                                                                    |
+| `GET specifications/events`                                 | Every current event of the team with its match, pit and general assignments, newest first                                                                 |
 | `GET events/<event>/specifications`                         | Current match, pit and general assignment for an event                                                                                                    |
 | `PUT events/<event>/specifications/<kind>`                  | Assign `{ version }`, or `{ version: null }` to clear pit or general                                                                                      |
 
@@ -315,3 +316,31 @@ Team admins create, publish and assign scouting contracts through `/web/organiza
 Sessions pin their publication at intake. A new assignment affects only new sessions. Open sessions, follow-ups and recorded observations keep their publication, and nothing is re-extracted.
 
 **Deployment.** Apply migration `20261110000000_specification_drafts` before deploying the backend, then run `pnpm db:sync` locally. It adds `specification_draft`, `event_specification_assignment` and three nullable columns on `published_specification` (`name`, `published_by`, `source_draft_id`). Existing publications are not changed.
+
+## Specification builder (#47)
+
+Team admins build scouting specifications in the team workspace at `/admin/<organization>/specifications`, without editing JSON. The team navigation row links to it ("Scouting specifications"), and the workspace has a summary card with the draft and publication counts. Each page rechecks team access, as the workspace does.
+
+**List.** Specifications are grouped by season, then by kind (match, pit, general). Drafts show a Draft badge, the last edit and the copy source, with "Continue editing" and "Delete draft" (confirmation dialog). Publications show their version, name, publication date and the events whose new sessions use them. "New specification" opens a dialog for season, name, kind and the starting point:
+
+- **Example questions:** the worked example from `packages/scouting/src/examples` for the kind. The server action creates a blank draft, then saves the example questions into it.
+- **Identity questions only:** the blank draft from the API.
+- **A published version:** a copy of any publication of the same kind, from any season.
+
+**Editor.** `/specifications/drafts/<draft>` shows the questions in the order scouts are asked. Each row leads with the follow-up question, then the label, code, answer summary, base requirement and a plain-language sentence for each rule ("Asked only when Can climb is Yes"). A gutter to the left of the rows draws a line from each question to the questions whose rules read its answer; the selected question's lines are in the primary colour. One question opens at a time, in place, with:
+
+- Move up, Move down, Duplicate and Remove (confirmation dialog that names the questions whose rules use it). Reordering uses buttons only and is announced to screen readers.
+- Label, code, follow-up question, extraction guidance, answer type and the base requirement. A new question's code follows its label until the admin edits the code. Renaming a code updates the rules in the draft that use it.
+- Answer settings: whole-number or decimal format with minimum and maximum, the longest text answer, and option lists with label, code, reorder and remove. Multiple choice adds the fewest and most selections.
+- Conditions: each rule has an effect (ask only when, do not ask when, make required when, make optional when), one or more conditions, and "all" or "any" when there are several. A condition picks another question that is not free text, a comparison that fits its type, and a value (yes/no, a number, one option, or several options for "is one of"). Only effects that can apply are offered; identity questions offer none that would hide them or make required identity optional. A stored rule with nested groups is kept and shown as such, and can only be removed.
+- Identity: a disclosure explains the identity questions for the kind. Identity rows have a navy Identity badge, a fixed code and answer type, and required identity cannot be removed or made optional. Missing optional identity questions can be added back.
+
+**Validation.** The editor checks the draft as the admin types, with the shared validator from `packages/scouting` and plain-language messages for each field: missing text, code format, duplicate codes and labels, number bounds, option counts, missing or deleted rule dependencies, incompatible comparisons, redundant rules, identity protection and rule loops. Messages appear under the field and in a "N problems to fix before publishing" summary whose items go to the field. Drafts save with problems; publishing needs none.
+
+**Saving.** Edits save automatically 1.5 seconds after the last change. The status bar at the bottom shows Saved (with the time), Unsaved changes, Saving, Not saved (with the reason and Try again) or "Not saved: edited elsewhere". Values that do not validate are saved as typed, so nothing is lost. If another admin saved first (HTTP 409), autosave stops and the page offers "Keep my version" (saves over theirs) or "Load their version". The browser warns before leaving with unsaved changes. If the draft was published or deleted elsewhere, the editor becomes read-only and says so.
+
+**Publishing.** "Review and publish" lists the remaining problems, or shows the season, kind and next version (computed from the existing publications; the server assigns the actual version) and says that publishing changes no event. After publication the browser goes to the read-only publication page.
+
+**Publication page.** `/specifications/publications/<season>/<kind>/<version>` shows the questions in the same outline, read-only, with "Create editable draft" (copies it into a new draft for a chosen season). The Events card lists the team's current events in that season. "Use for new sessions" and, for pit and general, "Stop using" open a dialog that says new sessions use the version and open sessions keep theirs. Until custom extraction is connected (#48), the card explains that match scouting cannot use custom questions and offers no match assignment for format 2 versions.
+
+The web app imports `@ai-scouting/scouting` (TypeScript source, through `transpilePackages`) for the validator, types and examples, so the browser and the server use the same rules.

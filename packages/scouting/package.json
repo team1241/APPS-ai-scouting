@@ -2,7 +2,10 @@
   "name": "@ai-scouting/scouting",
   "private": true,
   "type": "module",
-  "exports": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./examples/*.json": "./src/examples/*.json"
+  },
   "scripts": {
     "typecheck": "tsc"
   },

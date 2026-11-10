@@ -51,6 +51,7 @@ function deps(overrides: Partial<SpecificationDeps> = {}): SpecificationDeps {
             },
           }
         : null,
+    events: async (id, subject) => (admin(subject, id) ? [] : null),
     assignments: async (id, subject) => (admin(subject, id) ? "not_found" : null),
     assign: async (id, subject) => (admin(subject, id) ? { outcome: "event_not_found" } : null),
     ...overrides,
@@ -265,4 +266,24 @@ test("assignment validates kind and version and explains refusals", async () => 
     assert.equal(response.status, status, outcome);
     assert.equal((await response.json()).outcome, outcome);
   }
+});
+
+test("event list returns every current event with its assignments", async () => {
+  const path = `/organizations/${org}/specifications/events`;
+  const events = [
+    {
+      event: { id: eventId, name: "Event", season: 2027, startDate: "2027-03-01" },
+      match: { version: "starter-match-v1" },
+      pit: { version: "v2" },
+      general: null,
+    },
+  ];
+  const listed = await app({ events: async () => events }).request(path, { headers });
+  assert.equal(listed.status, 200);
+  assert.deepEqual(await listed.json(), { events });
+  assert.equal((await app({}, "user_other").request(path, { headers })).status, 404);
+  assert.equal(
+    (await app().request("/organizations/not-a-team/specifications/events", { headers })).status,
+    404,
+  );
 });
