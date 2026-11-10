@@ -183,6 +183,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@ai-scouting/scouting':
+        specifier: workspace:*
+        version: link:../../packages/scouting
       '@clerk/nextjs':
         specifier: ^7.9.25
         version: 7.9.25(next@16.4.5(@babel/core@8.0.10)(@types/node@26.6.6)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)

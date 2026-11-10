@@ -8,6 +8,7 @@ import {
   assignSpecification,
   createDraft,
   deleteDraft,
+  listEventAssignments,
   listSpecifications,
   loadDraft,
   publishDraft,
@@ -409,4 +410,15 @@ test("assignment is per event and kind, checks season and keeps match on the exi
   assert.ok(cleared?.outcome === "assigned");
   assert.equal(cleared.assignments.pit, null);
   assert.ok(await readPublication(org, admin, 2027, "pit", pit));
+
+  // The builder's event list: newest first, with each kind's current selection.
+  assert.equal(await listEventAssignments(org, other.admin), null);
+  const listed = await listEventAssignments(org, admin);
+  assert.deepEqual(
+    listed?.map((e) => [e.event.id, e.event.startDate, e.match, e.pit, e.general]),
+    [
+      [eventId, "2027-03-01", { version: requirements.version }, null, { version: general }],
+      [oldEvent, "2026-03-01", { version: requirements.version }, null, null],
+    ],
+  );
 });

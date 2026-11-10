@@ -9,6 +9,7 @@
     "typecheck": "next typegen && tsc --noEmit"
   },
   "dependencies": {
+    "@ai-scouting/scouting": "workspace:*",
     "@clerk/nextjs": "^7.9.25",
     "@radix-ui/react-slot": "^1.2.4",
     "@tanstack/react-form": "^1.33.5",

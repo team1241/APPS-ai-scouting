@@ -51,6 +51,7 @@ export interface SpecificationDeps {
     id: string,
     revision: number,
   ): Promise<PublishResult | null>;
+  events(org: string, subject: string): Promise<EventAssignments[] | null>;
   assignments(
     org: string,
     subject: string,
@@ -162,6 +163,11 @@ export function specificationRoutes(deps: SpecificationDeps) {
     if (result === null) return c.json(unavailable, 404);
     if (result === "not_found") return c.json({ error: "Publication not found." }, 404);
     return c.json({ publication: result });
+  });
+
+  app.get(`${base}/events`, async (c) => {
+    const result = await deps.events(c.req.param("id"), c.get("subject"));
+    return result ? c.json({ events: result }) : c.json(unavailable, 404);
   });
 
   app.post(drafts, limit, async (c) => {

@@ -86,7 +86,7 @@ export type AssignResult =
     };
 
 export interface EventAssignments {
-  event: { id: string; name: string; season: number };
+  event: { id: string; name: string; season: number; startDate?: string };
   // Match always has a publication: the event's existing specification selection.
   match: { version: string };
   pit: { version: string } | null;
@@ -520,6 +520,43 @@ async function eventAssignments(
     pit: other("pit"),
     general: other("general"),
   };
+}
+
+// Every current event of the team with its assignments, newest first, for the builder.
+export function listEventAssignments(org: string, subject: string) {
+  return withTenant(org, async (tx): Promise<EventAssignments[] | null> => {
+    if (!(await webAdminMember(tx, org, subject))) return null;
+    const [events, rows] = await Promise.all([
+      tx
+        .selectFrom("event")
+        .select(["id", "name", "season", "start_date", "specification_version"])
+        .where("organization_id", "=", org)
+        .where("archived", "=", false)
+        .orderBy("start_date", "desc")
+        .orderBy("name")
+        .execute(),
+      tx
+        .selectFrom("event_specification_assignment")
+        .select(["event_id", "kind", "version"])
+        .where("organization_id", "=", org)
+        .execute(),
+    ]);
+    const other = (eventId: string, kind: string) => {
+      const row = rows.find((r) => r.event_id === eventId && r.kind === kind);
+      return row ? { version: row.version } : null;
+    };
+    return events.map((event) => ({
+      event: {
+        id: event.id,
+        name: event.name,
+        season: event.season,
+        startDate: iso(event.start_date).slice(0, 10),
+      },
+      match: { version: event.specification_version },
+      pit: other(event.id, "pit"),
+      general: other(event.id, "general"),
+    }));
+  });
 }
 
 export function readEventAssignments(org: string, subject: string, eventId: string) {
