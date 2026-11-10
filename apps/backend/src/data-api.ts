@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { type ObservationKind, observationKinds } from "@ai-scouting/scouting";
 import { Hono } from "hono";
 import { type ApiKeyVerification, ProviderUnavailable } from "./api-keys.ts";
 import { uuidPattern } from "./event-config.ts";
@@ -94,12 +95,18 @@ export function dataApiRoutes(deps: {
   app.get("/events/:eventId/specifications/:version", async (c) => {
     const eventId = c.req.param("eventId");
     if (!uuidPattern.test(eventId)) return c.json({ error: "Invalid event ID" }, 400);
-    if (Object.keys(c.req.query()).length) return c.json({ error: "Unknown query parameter" }, 400);
+    const query = c.req.query();
+    if (Object.keys(query).some((key) => key !== "kind"))
+      return c.json({ error: "Unknown query parameter" }, 400);
+    const kind = query.kind ?? "match";
+    if (!(observationKinds as readonly string[]).includes(kind))
+      return c.json({ error: "kind must be match, pit or general" }, 400);
     if (!deps.scouting) return c.json({ error: "Data unavailable" }, 503);
     const specification = await deps.scouting.specification(
       c.get("organizationId"),
       eventId,
       c.req.param("version"),
+      kind as ObservationKind,
     );
     return specification
       ? c.json({ specification })

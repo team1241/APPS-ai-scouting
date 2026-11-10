@@ -106,10 +106,6 @@ const assignmentErrors: Record<
   event_not_found: ["Event not found.", 404],
   publication_not_found: ["Publication not found.", 404],
   season_mismatch: ["This publication belongs to another season than the event.", 422],
-  unsupported_by_intake: [
-    "Match intake cannot use this contract format yet. Keep the current match specification until custom extraction is available.",
-    422,
-  ],
   required: ["Match scouting always needs a specification.", 422],
 };
 

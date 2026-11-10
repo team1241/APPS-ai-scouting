@@ -255,7 +255,6 @@ test("assignment validates kind and version and explains refusals", async () => 
   assert.deepEqual(received, ["pit", null]);
   for (const [outcome, status] of [
     ["season_mismatch", 422],
-    ["unsupported_by_intake", 422],
     ["required", 422],
     ["publication_not_found", 404],
   ] as const) {

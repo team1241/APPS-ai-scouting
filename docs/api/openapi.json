@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Organization Scouting Data API",
-    "version": "1.0.0",
-    "description": "Read-only, tenant-scoped current extraction results. Availability follows asynchronous extraction. No scouting writes, raw messages, identities, history or calculated statistics. See docs/api/README.md for pagination and freshness semantics."
+    "version": "1.1.0",
+    "description": "Read-only, tenant-scoped current extraction results for match, pit and general scouting. Availability follows asynchronous extraction. No scouting writes, raw messages, identities, history or calculated statistics. See docs/api/README.md for pagination and freshness semantics."
   },
   "servers": [
     {
@@ -423,7 +423,7 @@
     },
     "/events/{eventId}/specifications/{version}": {
       "get": {
-        "summary": "Discover field meanings for a match specification version",
+        "summary": "Discover question meanings for a published specification version",
         "parameters": [
           {
             "name": "eventId",
@@ -440,6 +440,16 @@
             "required": true,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "required": false,
+            "description": "Observation kind of the publication. Versions are numbered per kind. Default match.",
+            "schema": {
+              "enum": ["match", "pit", "general"],
+              "default": "match"
             }
           }
         ],
@@ -599,11 +609,12 @@
             "pattern": "^obs_[0-9a-f]{64}$"
           },
           "teamNumber": {
-            "type": "integer",
-            "minimum": 1
+            "type": ["integer", "null"],
+            "minimum": 1,
+            "description": "Required for match and pit observations. A general note may have no team."
           },
           "kind": {
-            "const": "match"
+            "enum": ["match", "pit", "general"]
           },
           "match": {
             "type": "object",
@@ -621,7 +632,8 @@
                 "type": "boolean"
               }
             },
-            "required": ["id", "label", "resolved"]
+            "required": ["id", "label", "resolved"],
+            "description": "Pit observations never have a match. General observations may."
           },
           "updatedAt": {
             "type": "string",
@@ -633,9 +645,12 @@
           "values": {
             "type": "object",
             "additionalProperties": {
-              "type": ["string", "integer", "boolean", "null"]
+              "type": ["string", "number", "boolean", "array", "null"],
+              "items": {
+                "type": "string"
+              }
             },
-            "description": "Fields defined by the published specification. Unknown/missing values are null; explicit false is retained. Extracted notes may contain incidental personal information."
+            "description": "One entry per question of the observation's publication. Only current answers have a value: unknown, invalid and inactive (hidden by a rule) answers are null. Explicit false, numeric 0 and [] are answers. Choice answers are option codes. Extracted notes may contain incidental personal information."
           },
           "completeness": {
             "type": "object",
@@ -671,6 +686,8 @@
                   "unknown_match",
                   "invalid_pairing",
                   "incomplete_participants",
+                  "unknown_team",
+                  "not_applicable",
                   "unknown"
                 ]
               }
@@ -695,6 +712,23 @@
                 "description": "Event name."
               }
             }
+          },
+          "fields": {
+            "type": "object",
+            "description": "State of each question, so null values can be told apart: missing (required, unknown), unanswered (optional, unknown), invalid, pending (applicability unknown), inactive (hidden by a rule; any earlier answer is excluded from values).",
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "state": {
+                  "enum": ["answered", "unanswered", "missing", "invalid", "pending", "inactive"]
+                },
+                "requirement": {
+                  "enum": ["required", "optional", "unknown", "not_applicable"]
+                }
+              },
+              "required": ["state", "requirement"]
+            }
           }
         },
         "required": [
@@ -707,7 +741,8 @@
           "values",
           "completeness",
           "validation",
-          "event"
+          "event",
+          "fields"
         ]
       },
       "Specification": {
@@ -740,10 +775,49 @@
                 }
               },
               "required": ["key", "type", "required", "description"]
+            },
+            "description": "Format 1 publications only. Kept for existing integrations; use questions."
+          },
+          "kind": {
+            "enum": ["match", "pit", "general"]
+          },
+          "formatVersion": {
+            "type": ["integer", "null"],
+            "description": "Contract format. 1 is the original starter format, 2 the customizable contract."
+          },
+          "questions": {
+            "type": "array",
+            "description": "Questions in follow-up order. Answer constraints and rules use the shared contract format; see docs/scouting-contract.md.",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "key": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                },
+                "required": {
+                  "type": "boolean",
+                  "description": "Base requirement before rules apply."
+                },
+                "answer": {
+                  "type": "object",
+                  "description": "Answer type and constraints."
+                },
+                "rules": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                }
+              },
+              "required": ["key", "label", "required", "answer"]
             }
           }
         },
-        "required": ["version", "description", "fields"]
+        "required": ["version", "kind", "formatVersion", "description", "questions"]
       },
       "EventPage": {
         "type": "object",

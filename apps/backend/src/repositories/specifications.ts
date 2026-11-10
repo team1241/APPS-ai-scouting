@@ -77,12 +77,7 @@ export type PublishResult =
 export type AssignResult =
   | { outcome: "assigned"; assignments: EventAssignments }
   | {
-      outcome:
-        | "event_not_found"
-        | "publication_not_found"
-        | "season_mismatch"
-        | "unsupported_by_intake"
-        | "required";
+      outcome: "event_not_found" | "publication_not_found" | "season_mismatch" | "required";
     };
 
 export interface EventAssignments {
@@ -609,8 +604,6 @@ export function assignSpecification(
       if (!publication)
         return { outcome: publications.length ? "season_mismatch" : "publication_not_found" };
       if (kind === "match") {
-        // Match intake runs format 1 contracts until #48 connects format 2 extraction.
-        if (contractFormat(publication.document) !== 1) return { outcome: "unsupported_by_intake" };
         await tx
           .updateTable("event")
           .set({ specification_version: version })

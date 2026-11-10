@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { test } from "node:test";
-import { finalizeExtraction } from "@ai-scouting/scouting";
 import { sql } from "kysely";
 import { db } from "./db.ts";
+import { stated } from "./extraction-fixture.ts";
 import { cleanupPublished } from "./published-test-cleanup.ts";
 import { claimExtraction, finishExtraction } from "./repositories/extraction.ts";
 import { saveIncomingNote } from "./repositories/intake.ts";
@@ -71,6 +71,26 @@ test("authenticated Telegram intake persists and deduplicates notes", async () =
         .values({ organization_id: id, active_event_id: event.id })
         .execute();
     });
+    // Pit and general are explicit commands. Without an assignment the note is refused.
+    const command = async (text: string, update_id: number) =>
+      (
+        await (
+          await app.request("/", {
+            method: "POST",
+            headers: {
+              "content-type": "application/json",
+              "X-Telegram-Bot-Api-Secret-Token": "test-secret",
+            },
+            body: JSON.stringify({ update_id, message: { ...update.message, text } }),
+          })
+        ).json()
+      ).text as string;
+    assert.match(await command("/pit", 9001), /Use \/pit <note>/);
+    assert.match(await command("/pit 1241 swerve", 9002), /pit scouting is not set up/);
+    assert.match(
+      await command("/scout not-an-id pit note", 9003),
+      /\/scout <event-id> \[pit\|general\] <note>/,
+    );
     const responses = await Promise.all([post("test-secret"), post("test-secret")]);
     assert.ok(responses.every((r) => r.status === 200));
     const rows = await tenant((tx) =>
@@ -81,7 +101,7 @@ test("authenticated Telegram intake persists and deduplicates notes", async () =
     assert.equal(rows[0]?.status, "pending");
     const claimed = await claimExtraction(id);
     assert.ok(claimed);
-    const missing = finalizeExtraction({
+    const missing = stated({
       match: "Q42",
       team_number: 1241,
       climbed: null,
@@ -111,8 +131,8 @@ test("authenticated Telegram intake persists and deduplicates notes", async () =
     assert.equal(session.match_label, "Q42");
     assert.equal(session.team_number, 1241);
     assert.equal(session.status, "collecting");
-    assert.match(resumed.text, /No climb/);
-    const completed = finalizeExtraction({
+    assert.match(JSON.stringify(resumed.messages), /No climb/);
+    const completed = stated({
       match: "Q42",
       team_number: 1241,
       climbed: false,

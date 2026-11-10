@@ -98,19 +98,15 @@ export function EventAssignmentList({
   kind,
   season,
   version,
-  formatVersion,
   events,
 }: {
   organizationId: string;
   kind: ObservationKind;
   season: number;
   version: string;
-  formatVersion: number | null;
   events: EventAssignments[] | null;
 }) {
   const lower = kindLabels[kind].toLowerCase();
-  // Match intake runs the starter format until custom extraction is connected (#48).
-  const matchBlocked = kind === "match" && formatVersion !== 1;
   return (
     <section aria-labelledby="events-title" className="rounded-xl border bg-card">
       <div className="p-5 sm:p-6">
@@ -121,12 +117,6 @@ export function EventAssignmentList({
           Choose the {season} events whose new {lower} sessions use {version}. Open sessions keep
           their version.
         </p>
-        {matchBlocked ? (
-          <p className="mt-3 rounded-md bg-warning-soft px-3 py-2 text-sm text-warning">
-            Match scouting cannot use custom questions yet. Keep the current match specification at
-            events until custom extraction is available.
-          </p>
-        ) : null}
       </div>
       {events === null ? (
         <p className="border-t px-6 py-4 text-sm">
@@ -171,7 +161,7 @@ export function EventAssignmentList({
                       />
                     ) : null}
                   </>
-                ) : matchBlocked ? null : (
+                ) : (
                   <AssignDialog
                     organizationId={organizationId}
                     event={event}

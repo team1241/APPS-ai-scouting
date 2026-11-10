@@ -310,8 +310,8 @@ Team admins create, publish and assign scouting contracts through `/web/organiza
 
 **Assignment.** Assignment chooses the publication new sessions of a kind use at one event. The publication must have the event's season and the same kind (`season_mismatch` or `publication_not_found` otherwise).
 
-- **Match** keeps the existing selection, `event.specification_version`, so Telegram event activation and intake are unchanged. Match always has a publication and cannot be cleared. Until #48 connects custom extraction, match accepts format 1 publications only (`unsupported_by_intake`).
-- **Pit and general** use `event_specification_assignment`, one row per event and kind. They can be cleared. Intake for pit and general is #48.
+- **Match** keeps the existing selection, `event.specification_version`, so Telegram event activation and intake are unchanged. Match always has a publication and cannot be cleared. Match accepts format 1 and format 2 publications.
+- **Pit and general** use `event_specification_assignment`, one row per event and kind. They can be cleared. Scouts start pit and general notes with `/pit` and `/general` (#48).
 
 Sessions pin their publication at intake. A new assignment affects only new sessions. Open sessions, follow-ups and recorded observations keep their publication, and nothing is re-extracted.
 
@@ -341,6 +341,6 @@ Team admins build scouting specifications in the team workspace at `/admin/<orga
 
 **Publishing.** "Review and publish" lists the remaining problems, or shows the season, kind and next version (computed from the existing publications; the server assigns the actual version) and says that publishing changes no event. After publication the browser goes to the read-only publication page.
 
-**Publication page.** `/specifications/publications/<season>/<kind>/<version>` shows the questions in the same outline, read-only, with "Create editable draft" (copies it into a new draft for a chosen season). The Events card lists the team's current events in that season. "Use for new sessions" and, for pit and general, "Stop using" open a dialog that says new sessions use the version and open sessions keep theirs. Until custom extraction is connected (#48), the card explains that match scouting cannot use custom questions and offers no match assignment for format 2 versions.
+**Publication page.** `/specifications/publications/<season>/<kind>/<version>` shows the questions in the same outline, read-only, with "Create editable draft" (copies it into a new draft for a chosen season). The Events card lists the team's current events in that season. "Use for new sessions" and, for pit and general, "Stop using" open a dialog that says new sessions use the version and open sessions keep theirs.
 
 The web app imports `@ai-scouting/scouting` (TypeScript source, through `transpilePackages`) for the validator, types and examples, so the browser and the server use the same rules.

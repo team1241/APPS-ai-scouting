@@ -1,16 +1,19 @@
-import { extractionShape, finalizeExtraction, requirements } from "@ai-scouting/scouting";
+import { modelContract, modelOutputSchema } from "@ai-scouting/scouting";
 import { extractor } from "../agents/extractor.ts";
 import { createSessionWorkflow } from "./session.ts";
 
 export const sessionWorkflow = createSessionWorkflow(
-  async (text, tracingContext, specification = requirements) => {
+  async ({ contract, messages }, tracingContext) => {
     const response = await extractor.generate(
-      JSON.stringify({ requirements: specification, scoutingNote: text }),
+      JSON.stringify({
+        contract: modelContract(contract),
+        messages: messages.map((message, index) => ({ index, ...message })),
+      }),
       {
-        structuredOutput: { schema: extractionShape(specification) },
+        structuredOutput: { schema: modelOutputSchema(contract, messages.length) },
         tracingContext,
       },
     );
-    return finalizeExtraction(response.object, specification);
+    return { turns: response.object.turns };
   },
 );
