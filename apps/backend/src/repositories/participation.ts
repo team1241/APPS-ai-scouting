@@ -113,7 +113,7 @@ export async function validateSessionInTransaction(
     if (!roster.length) return result("not_applicable");
     return roster.some((r) => r.team_number === team)
       ? result("valid")
-      : result("unknown_team", `Team ${team} is not on the team list for this event.`);
+      : result("unknown_team", `Team ${team} isn't on the team list for this event.`);
   }
   if (session.kind !== "match") return result("not_applicable");
   const schedule = await scheduleInTransaction(tx, organizationId, session.event_id as string);

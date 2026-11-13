@@ -1,5 +1,5 @@
 export const flagUsage =
-  "Use /flag <team-number> [match-number] [note]. Examples: /flag 1241, /flag 1241 42 climb was wrong, /flag 1241 P14 wrong team. Omit the match to flag your latest finalized submission for that team. Use -- before a note that starts with a number.";
+  "To report a mistake in a saved note, send:\n/flag <team-number> [match-number] [note]\n\nExamples:\n/flag 1241\n/flag 1241 42 climb was wrong\n/flag 1241 P14 wrong team\n\nLeave out the match to flag your most recent note for that team. If your note starts with a number, put -- before it.";
 export interface FlagRequest {
   teamNumber: number;
   matchLabel: string | null;

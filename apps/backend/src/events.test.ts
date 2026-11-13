@@ -277,14 +277,8 @@ test("new notes require an active event, rejected retries cannot adopt later con
       return response.json();
     };
     const rejectedId = next();
-    assert.match(
-      (await post("Q1 1241 climbed", rejectedId)).text,
-      /not submitted because no event is active/,
-    );
-    assert.match(
-      (await post(`/scout ${aid} Q1 1241 climbed`)).text,
-      /not submitted because no event is active/,
-    );
+    assert.match((await post("Q1 1241 climbed", rejectedId)).text, /no event is active/);
+    assert.match((await post(`/scout ${aid} Q1 1241 climbed`)).text, /no event is active/);
     assert.equal(
       (
         await withTenant(org, (tx) =>
@@ -306,23 +300,14 @@ test("new notes require an active event, rejected retries cannot adopt later con
       0,
     );
     await changeEvent(org, "1", next(), { kind: "activate", eventId: aid });
-    assert.match(
-      (await post("Q1 1241 climbed", rejectedId)).text,
-      /not submitted because no event is active/,
-    );
+    assert.match((await post("Q1 1241 climbed", rejectedId)).text, /no event is active/);
     const acceptedId = next();
-    assert.match((await post("Q1 1241 climbed", acceptedId)).text, /Processing it now/);
-    assert.match(
-      (await post(`/scout ${foreign} Q2 1241 climbed`)).text,
-      /selected event is unavailable/,
-    );
+    assert.match((await post("Q1 1241 climbed", acceptedId)).text, /Got it!/);
+    assert.match((await post(`/scout ${foreign} Q2 1241 climbed`)).text, /event isn't available/);
     await changeEvent(org, "1", next(), { kind: "archive", eventId: bid });
-    assert.match(
-      (await post(`/scout ${bid} Q2 1241 climbed`)).text,
-      /selected event is unavailable/,
-    );
-    assert.match((await post("/eventassign old-session old-event")).text, /Send a scouting note/);
-    assert.match((await post("/unassigned")).text, /Send a scouting note/);
+    assert.match((await post(`/scout ${bid} Q2 1241 climbed`)).text, /event isn't available/);
+    assert.match((await post("/eventassign old-session old-event")).text, /\/match <note>/);
+    assert.match((await post("/unassigned")).text, /\/match <note>/);
     assert.match((await post("/event")).text, /A/);
     await changeEvent(org, "1", next(), { kind: "activate", eventId: null });
     assert.deepEqual(
@@ -330,7 +315,7 @@ test("new notes require an active event, rejected retries cannot adopt later con
       { ok: true },
       "accepted retries remain duplicates after the active event is cleared",
     );
-    assert.match((await post("Q3 1241 climbed")).text, /not submitted because no event is active/);
+    assert.match((await post("Q3 1241 climbed")).text, /no event is active/);
     const existing = await claimExtraction(org);
     assert.ok(
       existing,
@@ -449,7 +434,7 @@ test("FRC event selection imports once, preserves settings, and deduplicates act
     };
     assert.match(
       (await eventCommand(input("/event refresh 2026 ONOSH"), refreshed)) ?? "",
-      /refreshed from FIRST/,
+      /Updated .* from FIRST/,
     );
     const refreshedRow = (await readEvents(org, "1"))?.events.find((e) => e.id === first.id);
     assert.equal(refreshedRow?.name, "Updated by FIRST");
@@ -467,7 +452,10 @@ test("FRC event selection imports once, preserves settings, and deduplicates act
     assert.match((await eventCommand(input("/event add 2026 ONNEW"), lookup)) ?? "", /Event added/);
     assert.equal((await readEvents(org, "1"))?.active?.id, other);
     await changeEvent(org, "1", next(), { kind: "archive", eventId: first.id });
-    assert.match((await eventCommand(input("/event set 2026 ONOSH"), lookup)) ?? "", /unavailable/);
+    assert.match(
+      (await eventCommand(input("/event set 2026 ONOSH"), lookup)) ?? "",
+      /isn't available/,
+    );
     assert.equal((await readEvents(org, "1"))?.active?.id, other);
     const failing = async () => {
       throw new (await import("./frc-events.ts")).FrcEventsError("FIRST lookup failed");

@@ -14,6 +14,8 @@ import {
 import { withTenant } from "./repositories/tenant.ts";
 import { telegramCommand } from "./telegram-commands.ts";
 
+const notEnrolled = "To get started, open the invitation or connection link from your team admin.";
+
 export function telegramRoutes(secret: string) {
   const app = new Hono();
   app.use("*", bodyLimit({ maxSize: 64 * 1024 }));
@@ -42,18 +44,18 @@ export function telegramRoutes(secret: string) {
       const answer = (text: string) =>
         c.json({ method: "answerCallbackQuery", callback_query_id: callback.id, text });
       if (chat?.type !== "private" || chat.id !== sender?.id)
-        return answer("Select your team in a private chat with the bot.");
+        return answer("Choose your team in a private chat with me.");
       const selected =
         typeof callback.data === "string"
           ? /^team:([0-9a-f-]{36})$/i.exec(callback.data)?.[1]
           : undefined;
       if (!selected || !uuidPattern.test(selected))
-        return answer("Use /team to open the team list again.");
+        return answer("Send /team to see your teams again.");
       try {
         const user = String(sender?.id);
         const team = (await senderTeams(user)).find((t) => t.id === selected);
         if (!team)
-          return answer("You no longer have access to this team. Use /team to refresh the list.");
+          return answer("You no longer have access to this team. Send /team to see your teams.");
         await activeTeam(user, team.id);
         return answer(`Active team: ${team.teamNumber} · ${team.name}`.slice(0, 200));
       } catch {
@@ -80,7 +82,7 @@ export function telegramRoutes(secret: string) {
       if (start?.[2]) {
         organizationId = await tokenOrganization(start[2], start[1] === "connect");
         if (!organizationId)
-          return reply("This link is invalid. Ask your team admin for a new link.");
+          return reply("This link doesn't work anymore. Ask your team admin for a new one.");
         if (start[1] === "connect") {
           const connectedOrganizationId = organizationId;
           const team = await withTenant(connectedOrganizationId, (tx) =>
@@ -93,8 +95,8 @@ export function telegramRoutes(secret: string) {
           const connected = await consumeConnect(organizationId, start[2], user);
           return reply(
             connected
-              ? `Telegram connected to your administrator account for Team ${team.frc_team_number}. Use /team to choose your team, then /invite to invite scouts.`
-              : "This connection link expired, was used, or conflicts with an existing account. Disconnect on the team page before reconnecting.",
+              ? `Telegram is connected to your admin account for Team ${team.frc_team_number}.\n\nNext steps:\n1. Send /team to choose your team.\n2. Send /invite to create a link for your scouts.`
+              : "This connection link has expired, was already used, or belongs to another account. Disconnect Telegram on your team page, then try again.",
           );
         }
       } else {
@@ -106,7 +108,7 @@ export function telegramRoutes(secret: string) {
             await activeTeam(user, chosen.id);
             return reply(`Active team: ${chosen.teamNumber} · ${chosen.name}`);
           }
-          if (!teams.length) return reply("Open your team's invitation or connection link first.");
+          if (!teams.length) return reply(notEnrolled);
           return c.json({
             method: "sendMessage",
             chat_id: chat.id,
@@ -129,8 +131,8 @@ export function telegramRoutes(secret: string) {
         if (!organizationId)
           return reply(
             teams.length
-              ? "Choose a team with /team before sending a message."
-              : "Open your team's invitation or connection link first.",
+              ? "You're on more than one team. Choose a team with /team, then send your message again."
+              : notEnrolled,
           );
       }
       const boundOrganization = await bindMessageTeam(
@@ -138,8 +140,7 @@ export function telegramRoutes(secret: string) {
         String(update.update_id),
         organizationId,
       );
-      if (!boundOrganization)
-        return reply("This update could not be routed. Send your message again.");
+      if (!boundOrganization) return reply("Something went wrong. Please send your message again.");
       organizationId = boundOrganization;
       // Scouts choose the kind explicitly: a plain note is match scouting, /pit and /general
       // start pit and general notes. Intake never asks the model to choose a contract.
@@ -149,10 +150,10 @@ export function telegramRoutes(secret: string) {
       if (kindCommand && !kindCommand[2]?.trim())
         return reply(
           kindCommand[1]?.toLowerCase() === "general"
-            ? "Use /general <note>, for example /general the field lights flickered in Q12."
+            ? "Add your note after /general, for example:\n/general The field lights flickered in Q12"
             : kindCommand[1]?.toLowerCase() === "pit"
-              ? "Use /pit <note>, for example /pit 1241 swerve drive, can climb."
-              : "Use /match <note>, or send the note without a command.",
+              ? "Add your note after /pit, for example:\n/pit 1241 swerve drive, can climb"
+              : "Add your note after /match, for example:\n/match Q12 1241 climbed high\n\nYou can also send the note without a command.",
         );
       const override = /^\/scout(?:@\w+)?(?:\s+([\s\S]*))?$/i.exec(message.text.trim());
       const explicit = override
@@ -162,7 +163,7 @@ export function telegramRoutes(secret: string) {
         return c.json({
           method: "sendMessage",
           chat_id: chat.id,
-          text: "Use /scout <event-id> [pit|general] <note>. Find event IDs with /events.",
+          text: "To send a note for a different event, use:\n/scout <event-id> [pit|general] <note>\n\nSend /events to find event IDs.",
         });
       const kind = (kindCommand?.[1] ?? explicit?.[2])?.toLowerCase() as
         | ObservationKind
@@ -211,18 +212,18 @@ export function telegramRoutes(secret: string) {
         chat_id: chat?.id,
         text:
           result === "unknown"
-            ? "Your account is not enrolled. Contact your team administrator."
+            ? "You're not on a team yet. Ask your team admin for an invitation link."
             : result === "no_active_event"
-              ? "Your note was not submitted because no event is active. Ask a team admin to select one with /event set <season> <FRC code>, then resend your note."
+              ? "Your note wasn't saved because no event is active yet.\nAsk a team admin to set one with /event set <season> <FRC code>, then send your note again."
               : result === "invalid_event"
-                ? "Your note was not submitted because the selected event is unavailable. Check /events and resend it with a valid event."
+                ? "Your note wasn't saved because that event isn't available.\nSend /events to find a valid event ID, then send your note again."
                 : result === "completed_session"
-                  ? "That completed submission cannot accept this reply. Use /flag <team-number> [match-number] [note] to request an investigation."
+                  ? "That note is already saved, so it can't take more replies.\nIf something in it is wrong, use /flag <team-number> [match-number] [note]."
                   : result === "legacy_session"
-                    ? "This older session has no event. Your reply was not submitted. Check /event, then resend the complete note as a new message."
+                    ? "Your reply wasn't saved because that note is from before events were tracked.\nPlease send the full note again as a new message."
                     : result === "kind_unassigned"
-                      ? `Your note was not submitted because ${kind} scouting is not set up for this event. Ask a team admin to choose a ${kind} specification for the event, then resend your note.`
-                      : `Received your ${result.kind === "match" ? "" : `${result.kind} `}scouting note. Processing it now…\nEvent: ${result.eventName}`,
+                      ? `Your note wasn't saved because ${kind} scouting isn't set up for this event yet.\nAsk a team admin to choose a ${kind} specification for the event in the web app, then send your note again.`
+                      : `Got it! Reading your ${result.kind === "match" ? "" : `${result.kind} `}note for ${result.eventName}…`,
       });
     } catch {
       console.error("Telegram intake database transaction failed");

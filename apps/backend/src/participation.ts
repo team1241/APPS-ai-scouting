@@ -62,26 +62,23 @@ export function validateParticipation(
   ): ParticipationValidation => ({ mode, status, message, matchId });
   if (mode === "off") return result("off", null);
   if (typeof label !== "string" || !label.trim() || !Number.isSafeInteger(team) || Number(team) < 1)
-    return result(
-      "missing_identity",
-      "Please specify the match label and team number for this event.",
-    );
+    return result("missing_identity", "Please tell me the match and team number for this note.");
   if (state === "absent")
     return result(
       "missing_schedule",
-      "No schedule is saved for this event. Confirm the event, match and team; ask an admin to acquire or explicitly sync its schedule.",
+      "This event doesn't have a match schedule yet, so I can't check the match and team.\nDouble-check them, or ask an admin to sync the schedule.",
     );
   if (state === "stale")
     return result(
       "stale_schedule",
-      "The cached schedule is unverified or a later import was incomplete/failed. Confirm the event, match and team; ask an admin to explicitly sync the schedule.",
+      "The saved schedule for this event may be out of date, so I can't confirm the match and team.\nDouble-check them, or ask an admin to sync the schedule.",
     );
   const key = labelKey(label);
   // Bare numbers and round-only labels never imply a stage, set or replay.
   if (/^\d+$/.test(key) || /^(?:final|semifinal|quarterfinal|f|sf|qf)\s*\d*$/i.test(key))
     return result(
       "ambiguous_match",
-      "Please use Q<number>, P<FIRST playoff number>, or an exact stored match key (for example sf1m1). Round/set details are required for playoffs.",
+      "Which match is this? Use Q and a number for qualification matches (like Q12), or P and a number for playoff matches (like P3).",
     );
   const candidates = matches.filter((m) =>
     [m.identity, ...m.aliases].some((a) => labelKey(a) === key),
@@ -89,13 +86,13 @@ export function validateParticipation(
   if (candidates.length > 1)
     return result(
       "ambiguous_match",
-      "That label identifies multiple stored matches. Please provide the exact stored match key and event.",
+      "That could be more than one match. Please use the exact match key, like sf1m1.",
     );
   const match = candidates[0];
   if (!match)
     return result(
       "unknown_match",
-      "That match is absent from this event's saved schedule. Check its exact label and event; later playoff schedules require an explicit admin sync.",
+      `${label} isn't in this event's schedule. Please check the match number.\nFor a playoff match, an admin may need to sync the schedule first.`,
     );
   const participants = match.participants;
   if (
@@ -106,12 +103,12 @@ export function validateParticipation(
   )
     return result(
       "incomplete_participants",
-      "This match has incomplete or conflicting participants. Ask an admin to explicitly sync its schedule.",
+      "The schedule for this match is incomplete, so I can't check the team. Ask an admin to sync the schedule.",
     );
   if (!participants.some((p) => p.number === team))
     return result(
       "invalid_pairing",
-      `Team ${team} is not scheduled in ${label} for this event. Please check the match, team and event.`,
+      `Team ${team} isn't scheduled to play in ${label}. Please check the match and team number.`,
       match.id,
     );
   return result("valid", null, match.id);

@@ -158,12 +158,12 @@ test("strict preserves intake, handles missing/stale schedules, and finalizes ex
     let saved = await finish(org);
     assert.equal(saved.id, id);
     assert.equal(saved.result?.status, "needs_review");
-    assert.match(saved.result?.question ?? "", /No schedule/);
+    assert.match(saved.result?.question ?? "", /doesn't have a match schedule/);
     await syncReference(org, "1", event, provider);
     await note(org, "1", saved.question);
     saved = await finish(org, 9999);
     assert.equal(saved.result?.status, "needs_review");
-    assert.match(saved.result?.question ?? "", /not scheduled/);
+    assert.match(saved.result?.question ?? "", /isn't scheduled/);
     const deliveredQuestion = saved.question;
     await note(org, "1", deliveredQuestion);
     saved = await finish(org);
@@ -189,7 +189,7 @@ test("strict preserves intake, handles missing/stale schedules, and finalizes ex
     });
     await note(org);
     saved = await finish(org);
-    assert.match(saved.result?.question ?? "", /unverified|incomplete\/failed/);
+    assert.match(saved.result?.question ?? "", /may be out of date/);
     await withTenant(org, async (tx) => {
       const rows = await tx
         .selectFrom("raw_entry")
@@ -228,7 +228,7 @@ test("warn permits explicit unverified save; off bypasses checks; only admins ca
         updateId: next(),
         text: "/event",
       })) ?? "",
-      /Schedule validation: off/,
+      /Schedule check: off/,
     );
   }));
 
@@ -242,7 +242,7 @@ test("provisional sessions, separate scouts and multiple teams remain independen
     const first = await finish(org, 1241, null);
     await note(org);
     const conflict = await finish(org, 1241, null);
-    assert.match(conflict.result?.question ?? "", /Another open session/);
+    assert.match(conflict.result?.question ?? "", /already have an unfinished note/);
     assert.notEqual(conflict.id, first.id);
     const context = await eventCommand({
       organizationId: org,
@@ -250,12 +250,12 @@ test("provisional sessions, separate scouts and multiple teams remain independen
       updateId: next(),
       text: "/event",
     });
-    assert.match(context ?? "", /separate-note decision needed/);
+    assert.match(context ?? "", /keep separate/);
     assert.ok(context?.includes(event));
     await note(org, "1", conflict.question, "keep separate");
     const independent = await finish(org, 1241, null);
     assert.equal(independent.result?.status, "needs_review");
-    assert.doesNotMatch(independent.result?.question ?? "", /Another open session/);
+    assert.doesNotMatch(independent.result?.question ?? "", /already have an unfinished note/);
     await note(org, "1", independent.question, "No climb");
     assert.equal((await finish(org)).result?.status, "complete");
     await note(org, "2");
@@ -381,7 +381,7 @@ test("validation uses primary participants despite supplemental conflicts or tim
     });
     await note(org);
     const invalid = await finish(org, 11241);
-    assert.match(invalid.result?.question ?? "", /not scheduled/);
+    assert.match(invalid.result?.question ?? "", /isn't scheduled/);
     await note(org, "1", invalid.question, "Team 1241");
     assert.equal((await finish(org)).result?.status, "complete");
     const other = await changeEvent(org, "1", next(), {
@@ -595,7 +595,7 @@ test("corrections retain history and original event, deny foreign/stale targets,
     await note(org, "1", invalid.question, "team 1242");
     // The second independent correction can finish first. The stale contender cannot replace it.
     await finish(org, 1242);
-    assert.match((await finish(org, 1242)).result?.question ?? "", /no longer current/);
+    assert.match((await finish(org, 1242)).result?.question ?? "", /already been replaced/);
     history = await readObservationHistory(org, "1");
     assert.equal(history.length, 2);
     assert.equal(history.filter((r) => r.current).length, 1);
@@ -730,7 +730,7 @@ test("flag requests preserve observations, deduplicate concurrent retries, and a
     assert.match((await command("/flags", "2")) ?? "", /Team 1241/);
     assert.match((await command(`/flags ${first[0]?.id}`, "2")) ?? "", /Wrong climb/);
     assert.match((await command("/correct ignored")) ?? "", /\/flag/);
-    assert.match((await command("/flag")) ?? "", /Use \/flag/);
+    assert.match((await command("/flag")) ?? "", /\/flag <team-number>/);
     // Clearing the event does not retarget flags; new submissions require explicit activation.
     await changeEvent(org, "1", next(), { kind: "activate", eventId: null });
     const noActive = await flag("1241");
@@ -791,7 +791,7 @@ test("flag requests preserve observations, deduplicate concurrent retries, and a
       });
       const reply = (await retired.json()) as { text: string };
       assert.match(reply.text, /use \/flag/);
-      assert.doesNotMatch(reply.text, /Received your scouting note/);
+      assert.doesNotMatch(reply.text, /Got it!/);
       assert.equal(
         await claimExtraction(org),
         null,

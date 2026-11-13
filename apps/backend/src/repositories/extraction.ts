@@ -9,7 +9,7 @@ import {
 } from "@ai-scouting/scouting";
 import { type Selectable, sql, type Transaction } from "kysely";
 import type { DB, ScoutingSession } from "../db.generated.ts";
-import { extractionReply } from "../extraction-reply.ts";
+import { extractionReply, outcomeLabel } from "../extraction-reply.ts";
 import { publishedContract } from "./observations.ts";
 import { enqueueDelivery } from "./outbound.ts";
 import { validateSessionInTransaction } from "./participation.ts";
@@ -251,8 +251,8 @@ export function finishExtraction(
         status: "needs_review",
         question:
           validation.status === "unknown_team"
-            ? `${validation.message} Reply with the correct team number, or “save unverified” to save this note anyway.`
-            : `${validation.message} Reply with corrected details, or “save unverified” to finish with this warning.`,
+            ? `${validation.message}\n\nReply with the correct team number, or “save unverified” to save this note anyway.`
+            : `${validation.message}\n\nReply with the correct details, or “save unverified” to save this note anyway.`,
       };
     } else if (blocked) {
       result = { ...result, status: "needs_review", question: validation.message };
@@ -276,7 +276,7 @@ export function finishExtraction(
       if (existing && !separateConsent) conflict = existing.id;
     }
     if (conflict) {
-      notice = `Another open session (${conflict}) already targets this event, match and team. This note is stored separately and has not been merged. Reply “keep separate” to continue this independent note. To add to the earlier session, reply to its original question explicitly.`;
+      notice = `You already have an unfinished note for this match and team. This one is saved separately for now.\n\nReply “keep separate” to keep it as its own note, or reply to the earlier note's question to add to that one instead.`;
       result = { ...result, status: "needs_review", question: notice };
     }
     const teamNumber =
@@ -303,7 +303,7 @@ export function finishExtraction(
           result = {
             ...result,
             status: "needs_review",
-            question: `Correction target is no longer current. Your draft is retained. Use /flag ${teamNumber ?? "<team-number>"} to request an investigation.`,
+            question: `The note you're correcting has already been replaced. Your changes are kept, but weren't applied.\nTo report a problem, use /flag ${teamNumber ?? "<team-number>"}.`,
           };
         }
       }
@@ -404,8 +404,10 @@ export function finishExtraction(
       .where("organization_id", "=", organizationId)
       .where("session_id", "=", id)
       .executeTakeFirst();
-    if (revision)
-      notice = `${revision.outcome}. Revision ${revision.id}. To request an investigation: /flag ${teamNumber ?? "<team-number>"} [match-number] [note]. Team requests: /flags.`;
+    if (revision) {
+      const outcome = outcomeLabel(revision.outcome);
+      notice = `${outcome[0]?.toUpperCase()}${outcome.slice(1)}.\nSpot a mistake? Use /flag ${teamNumber ?? "<team-number>"} [match-number] [note].`;
+    }
     const identity = await tx
       .selectFrom("channel_identity")
       .select("external_id")
@@ -420,13 +422,14 @@ export function finishExtraction(
       .where("parent_entry_id", "=", id)
       .orderBy("id")
       .execute();
+    const reply = result.question ?? extractionReply(result);
     await enqueueDelivery(tx, {
       organization_id: organizationId,
       logical_key: `session:${id}:${createHash("sha256").update(JSON.stringify(turns)).digest("hex")}`,
       recipient: identity.external_id,
       session_id: id,
       question: Boolean(result.question),
-      text: `${result.question ?? extractionReply(result)}${notice ? `\n${notice}` : ""}`,
+      text: notice && !reply.includes(notice) ? `${reply}\n${notice}` : reply,
     });
     return { ...updated, result, notice };
   });
