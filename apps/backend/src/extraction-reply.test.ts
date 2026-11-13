@@ -22,5 +22,5 @@ test("known identity is not requested and remaining metrics follow", () => {
   const text = reply({ match: "Q42", team_number: 1241, climbed: null });
   assert.match(text, /climb/);
   assert.doesNotMatch(text, /Which match|Which team/);
-  assert.match(reply({ match: "Q42", team_number: 1241, climbed: false }), /has been saved/);
+  assert.match(reply({ match: "Q42", team_number: 1241, climbed: false }), /Saved!/);
 });

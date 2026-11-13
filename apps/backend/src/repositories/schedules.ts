@@ -78,7 +78,7 @@ export async function recordScheduleReceipt(
         organization_id: organizationId,
         event_id: event.id,
         telegram_user_id: admin.external_id,
-        text: `The ${poll.roster_received_at ? "team roster and match schedule" : "match schedule"} for ${event.name} (${event.season}${event.frc_event_code ? ` ${event.frc_event_code}` : ""}) ${poll.roster_received_at ? "have" : "has"} been received and saved. ${poll.roster_received_at ? "Automatic polling has stopped." : "Schedule polling has stopped; roster acquisition will continue."}`,
+        text: `Good news: the ${poll.roster_received_at ? "team list and match schedule" : "match schedule"} for ${event.name} (${event.season}${event.frc_event_code ? ` ${event.frc_event_code}` : ""}) ${poll.roster_received_at ? "have" : "has"} been received and saved.\n${poll.roster_received_at ? "I've stopped checking for updates. If anything changes later, use /event sync <event-id>." : "I'll keep checking for the team list."}`,
         next_attempt_at: now,
       })
       .onConflict((oc) =>

@@ -352,7 +352,7 @@ test("pit notes for a team not at the event warn and save only on request", asyn
     assert.equal(unknown.finished.result.status, "needs_review");
     assert.match(
       unknown.finished.result.question ?? "",
-      /Team 9999 is not on the team list for this event\. Reply with the correct team number, or “save unverified”/,
+      /Team 9999 isn't on the team list for this event\.\n\nReply with the correct team number, or “save unverified”/,
     );
     assert.equal(await revision(org, unknown.saved.sessionId), undefined);
     await note(org, "save unverified", undefined, unknown.finished.question);

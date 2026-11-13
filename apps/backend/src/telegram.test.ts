@@ -85,8 +85,8 @@ test("authenticated Telegram intake persists and deduplicates notes", async () =
           })
         ).json()
       ).text as string;
-    assert.match(await command("/pit", 9001), /Use \/pit <note>/);
-    assert.match(await command("/pit 1241 swerve", 9002), /pit scouting is not set up/);
+    assert.match(await command("/pit", 9001), /Add your note after \/pit/);
+    assert.match(await command("/pit 1241 swerve", 9002), /pit scouting isn't set up/);
     assert.match(
       await command("/scout not-an-id pit note", 9003),
       /\/scout <event-id> \[pit\|general\] <note>/,

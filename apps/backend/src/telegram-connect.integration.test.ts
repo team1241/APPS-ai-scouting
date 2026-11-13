@@ -89,7 +89,7 @@ test("single-use admin connections preserve members, enforce tenant isolation an
       const confirmation = await post(`/start connect_${link.token}`);
       assert.match(
         confirmation.text,
-        new RegExp(`administrator account for Team ${org === orgs[0] ? 1241 : 5678}\\.`),
+        new RegExp(`admin account for Team ${org === orgs[0] ? 1241 : 5678}\\.`),
       );
       assert.equal(await consumeConnect(org, link.token, user), false);
       const state = await telegramAdmin(org, subject, "state");
