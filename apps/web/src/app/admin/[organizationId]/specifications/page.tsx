@@ -1,19 +1,12 @@
 import type { ObservationKind } from "@ai-scouting/scouting";
 import { ChevronRight, ClipboardList, Plus } from "lucide-react";
 import Link from "next/link";
-import { PageHeading } from "@/components/page-heading";
+import { LinkButton } from "@/components/link-button";
+import { PageBody, PageHeading } from "@/components/page-heading";
 import { DeleteDraftButton } from "@/components/specifications/delete-draft-button";
 import { NewSpecificationDialog } from "@/components/specifications/new-specification-dialog";
 import { StatusBadge } from "@/components/status-badge";
 import { TeamNavigation } from "@/components/team-navigation";
-import {
-  Empty,
-  EmptyContent,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@/components/ui/empty";
 import { backendRequest } from "@/lib/backend";
 import { kindLabels } from "@/lib/specification-model";
 import {
@@ -33,30 +26,27 @@ export const metadata = { title: "Scouting specifications" };
 
 function DraftRow({ organizationId, draft }: { organizationId: string; draft: DraftSummary }) {
   return (
-    <li className="flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-4">
+    <li className="flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-4 sm:px-6">
       <div className="min-w-0 flex-1 basis-64">
         <p className="flex flex-wrap items-center gap-x-3 gap-y-1">
           <Link
             href={draftPath(organizationId, draft.id)}
-            className="font-medium [overflow-wrap:anywhere] underline-offset-4 hover:underline"
+            className="rounded-sm font-semibold [overflow-wrap:anywhere] underline-offset-4 hover:underline"
           >
             {draft.name}
           </Link>
           <StatusBadge tone="waiting">Draft</StatusBadge>
         </p>
-        <p className="mt-1 text-sm text-muted-foreground">
+        <p className="mt-1 text-sm text-muted">
           Edited{" "}
           <time dateTime={draft.updatedAt}>{dateTimeFormat.format(new Date(draft.updatedAt))}</time>
           {draft.source ? ` · copied from ${draft.source.season} ${draft.source.version}` : ""}
         </p>
       </div>
       <div className="flex flex-wrap items-center gap-1">
-        <Link
-          href={draftPath(organizationId, draft.id)}
-          className="inline-flex h-11 items-center rounded-md border border-input bg-background px-4 text-sm font-medium hover:bg-accent"
-        >
+        <LinkButton href={draftPath(organizationId, draft.id)} variant="outline">
           Continue editing
-        </Link>
+        </LinkButton>
         <DeleteDraftButton organizationId={organizationId} draftId={draft.id} name={draft.name} />
       </div>
     </li>
@@ -91,17 +81,17 @@ function PublicationRow({
     <li>
       <Link
         href={href}
-        className="flex items-center gap-3 px-4 py-4 outline-none hover:bg-accent/60 sm:gap-4 sm:px-5 focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:ring-inset"
+        className="group flex items-center gap-3 px-4 py-4 transition-colors hover:bg-surface-secondary focus-visible:outline-offset-[-3px] motion-reduce:transition-none sm:gap-4 sm:px-6"
       >
-        <span className="w-12 shrink-0 font-extrabold font-stretch-125% text-lg text-primary tabular-nums">
+        <span className="font-bumper w-12 shrink-0 text-xl text-accent">
           {numbered ? publication.version : null}
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block font-medium [overflow-wrap:anywhere]">
+          <span className="block font-semibold [overflow-wrap:anywhere]">
             {publication.name ??
               (publication.formatVersion === 1 ? "Starter questions" : publication.version)}
           </span>
-          <span className="block text-sm text-muted-foreground [overflow-wrap:anywhere]">
+          <span className="block text-sm text-muted [overflow-wrap:anywhere]">
             {numbered ? null : (
               <code className="font-mono text-[0.8125rem]">{publication.version} · </code>
             )}
@@ -114,7 +104,10 @@ function PublicationRow({
           {badge ? <span className="mt-2 block sm:hidden">{badge}</span> : null}
         </span>
         {badge ? <span className="max-sm:hidden">{badge}</span> : null}
-        <ChevronRight aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
+        <ChevronRight
+          aria-hidden="true"
+          className="size-5 shrink-0 text-muted transition-transform group-hover:translate-x-0.5 group-hover:text-foreground motion-reduce:transition-none"
+        />
       </Link>
     </li>
   );
@@ -157,7 +150,21 @@ export default async function SpecificationsPage({
       publications={list.publications}
       trigger={
         <>
-          <Plus aria-hidden="true" />
+          <Plus aria-hidden="true" className="size-4" />
+          New specification
+        </>
+      }
+    />
+  ) : null;
+  const newOnBand = list ? (
+    <NewSpecificationDialog
+      organizationId={organizationId}
+      defaults={{ season: seasons[0] && seasons[0] > season ? seasons[0] : season }}
+      publications={list.publications}
+      variant="field"
+      trigger={
+        <>
+          <Plus aria-hidden="true" className="size-4" />
           New specification
         </>
       }
@@ -166,80 +173,85 @@ export default async function SpecificationsPage({
   return (
     <>
       <TeamNavigation organization={organization} canChangeTeam={organizations.length > 1} />
-      <main id="main" className="mx-auto max-w-4xl space-y-10 px-4 py-12 sm:px-6">
-        <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
-          <PageHeading
-            className="flex-1 basis-80"
-            description="What the bot collects from scouts for each kind of observation. Edit a draft, publish it as a version, then choose that version for an event."
-          >
-            Scouting specifications
-          </PageHeading>
-          {seasons.length ? newDialog : null}
-        </div>
-        {!list ? (
-          <div className="rounded-xl border bg-card p-6">
-            <StatusBadge tone="warning">Unavailable</StatusBadge>
-            <p className="mt-3">We couldn’t load this team’s specifications. Try again shortly.</p>
-            <Link
-              href={`/admin/${organizationId}/specifications`}
-              className="mt-4 inline-flex h-11 items-center rounded-md border border-input bg-background px-4 text-sm font-medium hover:bg-accent"
-            >
-              Check again
-            </Link>
-          </div>
-        ) : !seasons.length ? (
-          <Empty className="rounded-xl border bg-card">
-            <EmptyHeader>
-              <EmptyMedia variant="icon">
-                <ClipboardList aria-hidden="true" />
-              </EmptyMedia>
-              <EmptyTitle>No specifications yet</EmptyTitle>
-              <EmptyDescription>
-                Start from example questions for match, pit or general scouting, or from just the
-                identity questions. Drafts change nothing for scouts until you publish one.
-              </EmptyDescription>
-            </EmptyHeader>
-            <EmptyContent>{newDialog}</EmptyContent>
-          </Empty>
-        ) : (
-          seasons.map((year) => (
-            <section key={year} aria-labelledby={`season-${year}`} className="space-y-4">
-              <h2
-                id={`season-${year}`}
-                className="font-extrabold font-stretch-125% text-2xl text-navy tabular-nums"
+      <main id="main">
+        <PageHeading
+          description="What the bot collects from scouts for each kind of observation. Edit a draft, publish it as a version, then choose that version for an event."
+          actions={seasons.length ? newOnBand : null}
+        >
+          Scouting specifications
+        </PageHeading>
+        <PageBody className="space-y-10">
+          {!list ? (
+            <div className="rounded-2xl bg-surface p-5 shadow-surface sm:p-6">
+              <StatusBadge tone="warning">Unavailable</StatusBadge>
+              <p className="mt-3">
+                We couldn’t load this team’s specifications. Try again shortly.
+              </p>
+              <LinkButton
+                href={`/admin/${organizationId}/specifications`}
+                variant="outline"
+                className="mt-4"
               >
-                {year} season
-              </h2>
-              {observationKindOrder.map((kind: ObservationKind) => {
-                const drafts = list.drafts.filter((d) => d.season === year && d.kind === kind);
-                const publications = list.publications.filter(
-                  (p) => p.season === year && p.kind === kind,
-                );
-                if (!drafts.length && !publications.length) return null;
-                return (
-                  <div key={kind} className="overflow-hidden rounded-xl border bg-card">
-                    <h3 className="border-b bg-muted/40 px-5 py-3 text-sm font-semibold">
-                      {kindLabels[kind]} scouting
-                    </h3>
-                    <ul className="divide-y">
-                      {drafts.map((draft) => (
-                        <DraftRow key={draft.id} organizationId={organizationId} draft={draft} />
-                      ))}
-                      {publications.map((publication) => (
-                        <PublicationRow
-                          key={publication.version}
-                          organizationId={organizationId}
-                          publication={publication}
-                          events={eventNames}
-                        />
-                      ))}
-                    </ul>
-                  </div>
-                );
-              })}
-            </section>
-          ))
-        )}
+                Check again
+              </LinkButton>
+            </div>
+          ) : !seasons.length ? (
+            <div className="flex flex-col items-center gap-4 rounded-2xl bg-surface px-6 py-12 text-center shadow-surface">
+              <span
+                aria-hidden="true"
+                className="grid size-12 place-items-center rounded-2xl bg-accent-soft text-accent-soft-foreground"
+              >
+                <ClipboardList className="size-6" />
+              </span>
+              <div className="max-w-md space-y-1.5">
+                <h2 className="text-lg font-semibold">No specifications yet</h2>
+                <p className="text-sm text-pretty text-muted">
+                  Start from example questions for match, pit or general scouting, or from just the
+                  identity questions. Drafts change nothing for scouts until you publish one.
+                </p>
+              </div>
+              {newDialog}
+            </div>
+          ) : (
+            seasons.map((year) => (
+              <section key={year} aria-labelledby={`season-${year}`} className="space-y-4">
+                <h2 id={`season-${year}`} className="font-bumper text-2xl text-foreground">
+                  {year} season
+                </h2>
+                {observationKindOrder.map((kind: ObservationKind) => {
+                  const drafts = list.drafts.filter((d) => d.season === year && d.kind === kind);
+                  const publications = list.publications.filter(
+                    (p) => p.season === year && p.kind === kind,
+                  );
+                  if (!drafts.length && !publications.length) return null;
+                  return (
+                    <div
+                      key={kind}
+                      className="overflow-hidden rounded-2xl bg-surface shadow-surface"
+                    >
+                      <h3 className="border-b border-separator bg-surface-secondary px-5 py-3 text-sm font-semibold sm:px-6">
+                        {kindLabels[kind]} scouting
+                      </h3>
+                      <ul className="divide-y divide-separator">
+                        {drafts.map((draft) => (
+                          <DraftRow key={draft.id} organizationId={organizationId} draft={draft} />
+                        ))}
+                        {publications.map((publication) => (
+                          <PublicationRow
+                            key={publication.version}
+                            organizationId={organizationId}
+                            publication={publication}
+                            events={eventNames}
+                          />
+                        ))}
+                      </ul>
+                    </div>
+                  );
+                })}
+              </section>
+            ))
+          )}
+        </PageBody>
       </main>
     </>
   );

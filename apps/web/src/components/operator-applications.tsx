@@ -1,10 +1,12 @@
+"use client";
+
+import { Alert, Card } from "@heroui/react";
 import { ExternalLink, X } from "lucide-react";
 import Link from "next/link";
 import { PendingReview, ResendInvitation } from "@/components/application-review";
+import { LinkButton } from "@/components/link-button";
 import { TeamNumber } from "@/components/page-heading";
 import { StatusBadge } from "@/components/status-badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { ReviewApplication } from "@/lib/operator";
 import { cn } from "@/lib/utils";
 
@@ -33,11 +35,14 @@ function Applicant({
   children?: React.ReactNode;
 }) {
   return (
-    <div className="flex min-w-0 flex-1 items-start gap-5">
-      <TeamNumber value={application.teamNumber} className="w-24 shrink-0 text-2xl leading-8" />
+    <div className="flex min-w-0 flex-1 items-start gap-4 sm:gap-5">
+      <TeamNumber
+        value={application.teamNumber}
+        className="w-16 shrink-0 text-xl leading-8 sm:w-24 sm:text-2xl"
+      />
       <div className="min-w-0 flex-1 [overflow-wrap:anywhere]">
         <p className="font-semibold leading-8">{application.name}</p>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-muted">
           {roles[application.role]} · {application.email}
         </p>
         {children}
@@ -80,7 +85,7 @@ function ReviewedStatus({ application }: { application: ReviewApplication }) {
     <div className="flex flex-col gap-2 sm:items-end">
       {badge}
       {date ? (
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-muted">
           <DateText value={date} />
         </p>
       ) : null}
@@ -92,15 +97,15 @@ function ReviewedStatus({ application }: { application: ReviewApplication }) {
 export function ApplicationsUnavailable({ href = "/operator" }: { href?: string }) {
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Operator tools are unavailable</CardTitle>
-        <CardDescription>We couldn’t load this page. Try again shortly.</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Button asChild variant="outline">
-          <Link href={href}>Try again</Link>
-        </Button>
-      </CardContent>
+      <Card.Header>
+        <Card.Title>Operator tools are unavailable</Card.Title>
+        <Card.Description>We couldn’t load this page. Try again shortly.</Card.Description>
+      </Card.Header>
+      <Card.Footer>
+        <LinkButton href={href} variant="outline">
+          Try again
+        </LinkButton>
+      </Card.Footer>
     </Card>
   );
 }
@@ -122,23 +127,20 @@ export function ReviewNotice({
         ? `${team} is set up, but the invitation to ${application.email} was not sent. Use Resend invitation below.`
         : `${team} is set up. We emailed an invitation to ${application.email}.`;
   return (
-    <div
-      role="status"
-      className={cn(
-        "flex items-start justify-between gap-3 rounded-lg py-2 pr-2 pl-4 text-sm font-medium",
-        notSent ? "bg-destructive-soft text-destructive" : "bg-success-soft text-success",
-      )}
-    >
-      <p className="py-1.5">{message}</p>
+    <Alert role="status" status={notSent ? "danger" : "success"} className="items-center">
+      <Alert.Indicator />
+      <Alert.Content>
+        <Alert.Description className="font-medium text-foreground">{message}</Alert.Description>
+      </Alert.Content>
       <Link
         href="/operator"
         scroll={false}
         aria-label="Dismiss"
-        className="inline-flex size-9 shrink-0 items-center justify-center rounded-md hover:bg-black/5"
+        className="inline-flex size-11 shrink-0 items-center justify-center rounded-full text-muted hover:bg-default hover:text-foreground"
       >
         <X aria-hidden="true" className="size-4" />
       </Link>
-    </div>
+    </Alert>
   );
 }
 
@@ -154,19 +156,19 @@ export function OperatorApplications({
   return (
     <>
       <section aria-labelledby="pending-heading" className="space-y-4">
-        <h2 id="pending-heading" className="text-lg font-semibold">
+        <h2 id="pending-heading" className="font-display text-xl text-foreground">
           Waiting for review <span className="tabular-nums">({pending.length})</span>
         </h2>
         {pending.length === 0 ? (
-          <p className="text-muted-foreground">
+          <p className="text-muted">
             Nothing to review. New requests from the access form appear here.
           </p>
         ) : (
-          <ul className="divide-y overflow-hidden rounded-lg border bg-card">
+          <ul className="divide-y divide-separator overflow-hidden rounded-2xl bg-surface shadow-surface">
             {pending.map((application) => (
-              <li key={application.id} className="space-y-5 p-6">
+              <li key={application.id} className="space-y-5 p-5 sm:p-6">
                 <Applicant application={application}>
-                  <p className="mt-1 flex flex-wrap items-center gap-x-3 text-sm text-muted-foreground">
+                  <p className="mt-1 flex flex-wrap items-center gap-x-3 text-sm text-muted">
                     <span>
                       Submitted <DateText value={application.createdAt} />
                     </span>
@@ -174,7 +176,7 @@ export function OperatorApplications({
                       href={`https://www.thebluealliance.com/team/${application.teamNumber}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex min-h-11 items-center gap-1 text-primary underline underline-offset-4"
+                      className="inline-flex min-h-11 items-center gap-1 font-medium text-accent-soft-foreground underline decoration-accent/40 underline-offset-4 hover:decoration-accent"
                     >
                       Check team on The Blue Alliance
                       <ExternalLink aria-hidden="true" className="size-3.5" />
@@ -194,23 +196,23 @@ export function OperatorApplications({
         )}
       </section>
       <section aria-labelledby="reviewed-heading" className="space-y-4">
-        <h2 id="reviewed-heading" className="text-lg font-semibold">
+        <h2 id="reviewed-heading" className="font-display text-xl text-foreground">
           Recently reviewed
         </h2>
         {reviewed.length === 0 ? (
-          <p className="text-muted-foreground">Approved and rejected applications appear here.</p>
+          <p className="text-muted">Approved and rejected applications appear here.</p>
         ) : (
-          <ul className="divide-y overflow-hidden rounded-lg border bg-card">
+          <ul className="divide-y divide-separator overflow-hidden rounded-2xl bg-surface shadow-surface">
             {reviewed.map((application) => (
               <li
                 key={application.id}
                 className={cn(
-                  "flex flex-col gap-3 p-6 sm:flex-row sm:items-start sm:justify-between",
-                  application.id === highlight && "bg-accent/60",
+                  "flex flex-col gap-3 p-5 sm:flex-row sm:items-start sm:justify-between sm:p-6",
+                  application.id === highlight && "bg-accent-soft",
                 )}
               >
                 <Applicant application={application} />
-                <div className="pl-29 sm:pl-0">
+                <div className="pl-20 sm:pl-0">
                   <ReviewedStatus application={application} />
                 </div>
               </li>

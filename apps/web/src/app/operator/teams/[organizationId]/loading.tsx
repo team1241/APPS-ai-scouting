@@ -1,21 +1,21 @@
-import { Skeleton } from "@/components/ui/skeleton";
+import { Bar, LoadingBand } from "@/components/loading-skeletons";
 
 function CardSkeleton({ rows }: { rows: number }) {
   return (
-    <div className="rounded-xl border bg-card">
-      <div className="space-y-2.5 p-6">
-        <Skeleton className="h-6 w-40" />
-        <Skeleton className="h-4 w-full max-w-lg" />
+    <div className="rounded-2xl bg-surface shadow-surface">
+      <div className="space-y-2.5 p-5 sm:p-6">
+        <Bar className="h-6 w-40" />
+        <Bar className="h-4 w-full max-w-lg" />
       </div>
-      <div className="divide-y border-t">
+      <div className="divide-y divide-separator border-t border-separator">
         {Array.from({ length: rows }, (_, index) => (
           // biome-ignore lint/suspicious/noArrayIndexKey: static placeholders never reorder.
-          <div key={index} className="flex items-center justify-between gap-4 px-6 py-4">
+          <div key={index} className="flex items-center justify-between gap-4 px-5 py-4 sm:px-6">
             <div className="space-y-2">
-              <Skeleton className="h-5 w-40" />
-              <Skeleton className="h-4 w-56 max-w-full" />
+              <Bar className="h-5 w-40" />
+              <Bar className="h-4 w-56 max-w-full" />
             </div>
-            <Skeleton className="h-7 w-24 rounded-full" />
+            <Bar className="h-7 w-24 rounded-full" />
           </div>
         ))}
       </div>
@@ -23,20 +23,18 @@ function CardSkeleton({ rows }: { rows: number }) {
   );
 }
 
-// Matches the team page: back link, heading, then the two cards.
+// Matches the team page: band with the number, name and description, then the two cards.
 export default function Loading() {
   return (
-    <main id="main" className="mx-auto max-w-3xl space-y-8 px-6 pt-6 pb-12" aria-busy="true">
+    <main id="main" aria-busy="true">
       <p role="status" className="sr-only">
         Loading team…
       </p>
-      <Skeleton className="h-11 w-24" />
-      <div className="space-y-3">
-        <Skeleton className="h-9 w-72 max-w-full sm:h-10" />
-        <Skeleton className="h-5 w-full max-w-xl" />
+      <LoadingBand number />
+      <div className="mx-auto w-full max-w-6xl space-y-6 px-4 py-8 sm:px-6 sm:py-10">
+        <CardSkeleton rows={2} />
+        <CardSkeleton rows={1} />
       </div>
-      <CardSkeleton rows={2} />
-      <CardSkeleton rows={1} />
     </main>
   );
 }

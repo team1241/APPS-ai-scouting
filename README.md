@@ -13,7 +13,7 @@ Team 1241's scouting assistant collects typed or keyboard-dictated Telegram note
 
 - [Privacy notice](docs/privacy-notice.md) and [privacy boundaries](docs/privacy.md): audience, data handling, vendor review, and release requirements.
 
-- [Administration web app](docs/web-app.md): Next.js, Clerk approval/linking, shadcn/ui, and Vercel setup.
+- [Administration web app](docs/web-app.md): Next.js, Clerk approval/linking, HeroUI, and Vercel setup.
 
 ## Work tracking
 

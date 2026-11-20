@@ -1,4 +1,4 @@
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, ClipboardList } from "lucide-react";
 import Link from "next/link";
 import { specificationsPath } from "@/lib/specifications";
 
@@ -12,19 +12,28 @@ export function SpecificationsCard({
 }) {
   const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
   return (
-    <section className="rounded-xl border bg-card" aria-labelledby="specifications-title">
+    <section
+      className="rounded-2xl bg-surface shadow-surface"
+      aria-labelledby="specifications-title"
+    >
       <Link
         href={specificationsPath(organizationId)}
-        className="flex items-center gap-4 rounded-xl p-6 outline-none hover:bg-accent/50 focus-visible:ring-[3px] focus-visible:ring-ring/50"
+        className="group flex items-center gap-4 rounded-2xl p-5 transition-colors hover:bg-surface-secondary focus-visible:outline-offset-[-3px] motion-reduce:transition-none sm:p-6"
       >
+        <span
+          aria-hidden="true"
+          className="grid size-11 shrink-0 place-items-center rounded-xl bg-accent-soft text-accent-soft-foreground"
+        >
+          <ClipboardList className="size-5" />
+        </span>
         <div className="min-w-0 flex-1">
-          <h2 id="specifications-title" className="text-lg font-semibold">
+          <h2 id="specifications-title" className="text-[1.0625rem] font-semibold">
             Scouting specifications
           </h2>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <p className="mt-1 text-sm text-muted">
             The questions scouts are asked for match, pit and general observations.
           </p>
-          <p className="mt-3 text-sm">
+          <p className="mt-2 text-sm font-medium">
             {counts
               ? counts.drafts + counts.publications
                 ? `${plural(counts.drafts, "draft", "drafts")} · ${plural(counts.publications, "published version", "published versions")}`
@@ -32,7 +41,10 @@ export function SpecificationsCard({
               : "Status unavailable"}
           </p>
         </div>
-        <ChevronRight aria-hidden="true" className="size-5 shrink-0 text-muted-foreground" />
+        <ChevronRight
+          aria-hidden="true"
+          className="size-5 shrink-0 text-muted transition-transform group-hover:translate-x-0.5 group-hover:text-foreground motion-reduce:transition-none"
+        />
       </Link>
     </section>
   );

@@ -1,26 +1,26 @@
 "use client";
 
 import type { ObservationKind } from "@ai-scouting/scouting";
+import {
+  Button,
+  Description,
+  FieldError,
+  Input,
+  Label,
+  Radio,
+  RadioGroup,
+  TextField,
+} from "@heroui/react";
+import { FilePlus2 } from "lucide-react";
 import { type ReactNode, useActionState, useEffect, useId, useRef, useState } from "react";
 import {
   type CreateSpecificationState,
   createSpecification,
 } from "@/app/admin/specification-actions";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { DialogActions, FormDialog } from "@/components/form-dialog";
 import { kindLabels } from "@/lib/specification-model";
 import type { PublicationSummary } from "@/lib/specifications";
+import { useEditedErrors } from "@/lib/use-edited-errors";
 import { cn } from "@/lib/utils";
 import { ChoiceSelect } from "./choice-select";
 
@@ -42,21 +42,52 @@ export interface NewSpecificationDefaults {
   fixedSource?: { label: string };
 }
 
-const radioCard =
-  "flex min-h-11 cursor-pointer gap-3 rounded-lg border bg-card p-3 text-sm has-[:checked]:border-primary has-[:checked]:bg-accent has-[:focus-visible]:ring-[3px] has-[:focus-visible]:ring-ring/50";
+// A selectable card: the whole card is the radio's label.
+const radioCard = cn(
+  "flex min-h-11 w-full cursor-(--cursor-interactive) items-start gap-3 rounded-xl border border-border bg-surface p-3 text-sm transition-colors motion-reduce:transition-none",
+  "data-[selected=true]:border-accent data-[selected=true]:bg-accent-soft",
+  "data-[focus-visible=true]:outline-2 data-[focus-visible=true]:outline-offset-2 data-[focus-visible=true]:outline-focus",
+  "data-[disabled=true]:cursor-not-allowed data-[disabled=true]:opacity-60",
+);
+
+function RadioCard({
+  value,
+  title,
+  hint,
+  isDisabled,
+}: {
+  value: string;
+  title: string;
+  hint: ReactNode;
+  isDisabled?: boolean;
+}) {
+  return (
+    <Radio value={value} isDisabled={isDisabled} className="mt-0! w-full">
+      <Radio.Content className={radioCard}>
+        <Radio.Control className="mt-0.5 shrink-0">
+          <Radio.Indicator />
+        </Radio.Control>
+        <span className="min-w-0 flex-1">
+          <span className="font-semibold">{title}</span>
+          <span className="block text-muted">{hint}</span>
+        </span>
+      </Radio.Content>
+    </Radio>
+  );
+}
 
 function NewSpecificationForm({
   organizationId,
   defaults,
   publications,
   onPendingChange,
-  title,
+  onCancel,
 }: {
   organizationId: string;
   defaults: NewSpecificationDefaults;
   publications: PublicationSummary[];
   onPendingChange: (pending: boolean) => void;
-  title: string;
+  onCancel: () => void;
 }) {
   const [state, submit, pending] = useActionState<CreateSpecificationState, FormData>(
     createSpecification,
@@ -83,6 +114,9 @@ function NewSpecificationForm({
     const invalid = form.current?.querySelector<HTMLElement>("[aria-invalid=true]");
     invalid?.focus();
   }, [state]);
+  const { edit, shown } = useEditedErrors<keyof CreateSpecificationState["errors"]>(state);
+  const error = (field: keyof CreateSpecificationState["errors"]) =>
+    shown(field, state.errors[field]);
   const copies = publications.filter((p) => p.kind === kind);
   const [copy, setCopy] = useState(state.values.source);
   // The chosen version when it fits the kind, otherwise the first one, as a native select did.
@@ -91,63 +125,41 @@ function NewSpecificationForm({
     : copies[0]
       ? copyKey(copies[0])
       : "";
-  const error = (field: keyof CreateSpecificationState["errors"]) =>
-    state.errors[field] ? (
-      <p id={`${id}-${field}-error`} className="text-sm text-destructive">
-        {state.errors[field]}
-      </p>
-    ) : null;
-  const described = (field: keyof CreateSpecificationState["errors"]) =>
-    state.errors[field] ? { "aria-invalid": true, "aria-describedby": `${id}-${field}-error` } : {};
   return (
     <form ref={form} action={submit} className="grid gap-5">
       <input type="hidden" name="organizationId" value={organizationId} />
-      <DialogHeader>
-        <DialogTitle>{title}</DialogTitle>
-        <DialogDescription>
-          {defaults.fixedSource
-            ? `Copies ${defaults.fixedSource.label} into a draft you can edit. The original does not change.`
-            : "Creates a draft. Nothing changes for scouts until you publish a version and choose it for an event."}
-        </DialogDescription>
-      </DialogHeader>
       {state.message ? (
         <p
           role="alert"
-          className="rounded-md bg-destructive-soft px-3 py-2 text-sm text-destructive"
+          className="rounded-xl bg-danger-soft px-3 py-2 text-sm font-medium text-danger-soft-foreground"
         >
           {state.message}
         </p>
       ) : null}
       <div className="grid gap-4 sm:grid-cols-[8rem_1fr]">
-        <div className="space-y-1.5">
-          <Label htmlFor={`${id}-season`}>Season</Label>
-          <Input
-            id={`${id}-season`}
-            name="season"
-            inputMode="numeric"
-            autoComplete="off"
-            defaultValue={state.values.season}
-            disabled={pending}
-            className="h-11 tabular-nums"
-            {...described("season")}
-          />
-          {error("season")}
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor={`${id}-name`}>Name</Label>
-          <Input
-            id={`${id}-name`}
-            name="name"
-            maxLength={80}
-            autoComplete="off"
-            placeholder="For example, Pit scouting 2027"
-            defaultValue={state.values.name}
-            disabled={pending}
-            className="h-11"
-            {...described("name")}
-          />
-          {error("name")}
-        </div>
+        <TextField
+          name="season"
+          defaultValue={state.values.season}
+          isDisabled={pending}
+          isInvalid={Boolean(error("season"))}
+          onChange={() => edit("season")}
+        >
+          <Label>Season</Label>
+          <Input inputMode="numeric" autoComplete="off" className="tabular-nums" />
+          <FieldError>{error("season")}</FieldError>
+        </TextField>
+        <TextField
+          name="name"
+          maxLength={80}
+          defaultValue={state.values.name}
+          isDisabled={pending}
+          isInvalid={Boolean(error("name"))}
+          onChange={() => edit("name")}
+        >
+          <Label>Name</Label>
+          <Input autoComplete="off" placeholder="For example, Pit scouting 2027" />
+          <FieldError>{error("name")}</FieldError>
+        </TextField>
       </div>
       {defaults.fixedSource ? (
         <>
@@ -156,95 +168,78 @@ function NewSpecificationForm({
         </>
       ) : (
         <>
-          <fieldset className="space-y-2" disabled={pending}>
-            <legend className="mb-2 text-sm font-medium">Kind</legend>
-            <div className="grid gap-2">
-              {(["match", "pit", "general"] as const).map((value) => (
-                <label key={value} className={radioCard}>
-                  <input
-                    type="radio"
-                    name="kind"
-                    value={value}
-                    checked={kind === value}
-                    onChange={() => {
-                      setKind(value);
-                      if (!publications.some((p) => p.kind === value) && source === "publication")
-                        setSource("template");
-                    }}
-                    className="mt-0.5 size-4 accent-primary"
-                    {...(state.errors.kind ? { "aria-invalid": true } : {})}
-                  />
-                  <span>
-                    <span className="font-medium">{kindLabels[value]}</span>
-                    <span className="block text-muted-foreground">{kindHints[value]}</span>
-                  </span>
-                </label>
-              ))}
-            </div>
-            {error("kind")}
-          </fieldset>
-          <fieldset className="space-y-2" disabled={pending}>
-            <legend className="mb-2 text-sm font-medium">Start from</legend>
-            <div className="grid gap-2">
-              <label className={radioCard}>
-                <input
-                  type="radio"
-                  name="sourceType"
-                  checked={source === "template"}
-                  onChange={() => setSource("template")}
-                  className="mt-0.5 size-4 accent-primary"
-                />
-                <span>
-                  <span className="font-medium">Example questions</span>
-                  <span className="block text-muted-foreground">
-                    A worked example for the kind, with conditions. Edit or remove anything.
-                  </span>
-                </span>
-              </label>
-              <label className={radioCard}>
-                <input
-                  type="radio"
-                  name="sourceType"
-                  checked={source === "blank"}
-                  onChange={() => setSource("blank")}
-                  className="mt-0.5 size-4 accent-primary"
-                />
-                <span>
-                  <span className="font-medium">Identity questions only</span>
-                  <span className="block text-muted-foreground">
-                    Start from scratch with the match and team questions the kind needs.
-                  </span>
-                </span>
-              </label>
-              <label className={cn(radioCard, !copies.length && "cursor-not-allowed opacity-60")}>
-                <input
-                  type="radio"
-                  name="sourceType"
-                  checked={source === "publication"}
-                  disabled={!copies.length}
-                  onChange={() => setSource("publication")}
-                  className="mt-0.5 size-4 accent-primary"
-                />
-                <span className="min-w-0 flex-1">
-                  <span className="font-medium">A published version</span>
-                  <span className="block text-muted-foreground">
-                    {kind
-                      ? copies.length
-                        ? "Copy its questions into a new draft."
-                        : `No ${kindLabels[kind as ObservationKind].toLowerCase()} versions are published yet.`
-                      : "Choose a kind first."}
-                  </span>
-                </span>
-              </label>
-            </div>
+          <RadioGroup
+            name="kind"
+            value={kind || null}
+            onChange={(value) => {
+              setKind(value);
+              edit("kind");
+              edit("source");
+              if (!publications.some((p) => p.kind === value) && source === "publication")
+                setSource("template");
+            }}
+            isDisabled={pending}
+            isInvalid={Boolean(error("kind"))}
+            className="gap-2"
+          >
+            <Label>Kind</Label>
+            {(["match", "pit", "general"] as const).map((value) => (
+              <RadioCard
+                key={value}
+                value={value}
+                title={kindLabels[value]}
+                hint={kindHints[value]}
+              />
+            ))}
+            <FieldError>{error("kind")}</FieldError>
+          </RadioGroup>
+          <div className="space-y-3">
+            <RadioGroup
+              value={source}
+              onChange={(value) => {
+                setSource(value);
+                edit("source");
+              }}
+              isDisabled={pending}
+              className="gap-2"
+            >
+              <Label>Start from</Label>
+              <RadioCard
+                value="template"
+                title="Example questions"
+                hint="A worked example for the kind, with conditions. Edit or remove anything."
+              />
+              <RadioCard
+                value="blank"
+                title="Identity questions only"
+                hint="Start from scratch with the match and team questions the kind needs."
+              />
+              <RadioCard
+                value="publication"
+                isDisabled={!copies.length}
+                title="A published version"
+                hint={
+                  kind
+                    ? copies.length
+                      ? "Copy its questions into a new draft."
+                      : `No ${kindLabels[kind as ObservationKind].toLowerCase()} versions are published yet.`
+                    : "Choose a kind first."
+                }
+              />
+            </RadioGroup>
             {source === "publication" && copies.length ? (
-              <div className="space-y-1.5 pt-1">
-                <Label htmlFor={`${id}-copy`}>Version to copy</Label>
+              <div className="space-y-1.5">
+                <label htmlFor={`${id}-copy`} className="text-sm font-medium">
+                  Version to copy
+                </label>
                 <ChoiceSelect
                   id={`${id}-copy`}
                   name="source"
                   value={copyValue}
-                  onChange={setCopy}
+                  onChange={(value) => {
+                    setCopy(value);
+                    edit("source");
+                  }}
                   choices={copies.map((p) => ({
                     value: copyKey(p),
                     label: `${p.season} · ${p.version}${p.name ? ` · ${p.name}` : ""}`,
@@ -258,20 +253,20 @@ function NewSpecificationForm({
                 value={source === "publication" ? "blank" : source}
               />
             )}
-            {error("source")}
-          </fieldset>
+            {error("source") ? (
+              <Description className="text-danger">{error("source")}</Description>
+            ) : null}
+          </div>
         </>
       )}
-      <DialogFooter>
-        <DialogClose asChild>
-          <Button type="button" variant="outline" disabled={pending} className="h-11">
-            Cancel
-          </Button>
-        </DialogClose>
-        <Button type="submit" disabled={pending} className="h-11 px-5">
+      <DialogActions>
+        <Button variant="tertiary" isDisabled={pending} onPress={onCancel}>
+          Cancel
+        </Button>
+        <Button type="submit" isPending={pending}>
           {pending ? "Creating draft…" : "Create draft"}
         </Button>
-      </DialogFooter>
+      </DialogActions>
     </form>
   );
 }
@@ -289,26 +284,51 @@ export function NewSpecificationDialog({
   publications: PublicationSummary[];
   trigger: ReactNode;
   title?: string;
-  variant?: "default" | "outline" | "ghost";
+  // "field" is the white action on the blue page band.
+  variant?: "default" | "outline" | "ghost" | "field";
 }) {
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(false);
+  // A new form each time the dialog opens, so earlier values and errors do not carry over.
+  const [opened, setOpened] = useState(0);
   return (
-    <Dialog open={open} onOpenChange={(next) => (pending ? null : setOpen(next))}>
-      <DialogTrigger asChild>
-        <Button type="button" variant={variant} className="h-11 px-4">
-          {trigger}
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="max-h-[calc(100dvh-2rem)] max-w-lg overflow-y-auto">
+    <>
+      <Button
+        variant={variant === "default" || variant === "field" ? "primary" : variant}
+        className={
+          variant === "field"
+            ? "bg-white text-bumper-deep shadow-sm hover:bg-bumper-ink max-sm:w-full"
+            : undefined
+        }
+        onPress={() => {
+          setOpened((count) => count + 1);
+          setOpen(true);
+        }}
+      >
+        {trigger}
+      </Button>
+      <FormDialog
+        isOpen={open}
+        onOpenChange={setOpen}
+        isPending={pending}
+        size="lg"
+        icon={<FilePlus2 className="size-5" />}
+        title={title}
+        description={
+          defaults.fixedSource
+            ? `Copies ${defaults.fixedSource.label} into a draft you can edit. The original does not change.`
+            : "Creates a draft. Nothing changes for scouts until you publish a version and choose it for an event."
+        }
+      >
         <NewSpecificationForm
+          key={opened}
           organizationId={organizationId}
           defaults={defaults}
           publications={publications}
           onPendingChange={setPending}
-          title={title}
+          onCancel={() => setOpen(false)}
         />
-      </DialogContent>
-    </Dialog>
+      </FormDialog>
+    </>
   );
 }

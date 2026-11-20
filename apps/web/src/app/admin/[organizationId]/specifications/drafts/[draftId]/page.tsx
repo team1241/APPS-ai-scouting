@@ -1,5 +1,6 @@
-import Link from "next/link";
-import { PageHeading } from "@/components/page-heading";
+import { ArrowLeft } from "lucide-react";
+import { LinkButton } from "@/components/link-button";
+import { PageBody, PageHeading } from "@/components/page-heading";
 import { DraftEditor } from "@/components/specifications/draft-editor";
 import { TeamNavigation } from "@/components/team-navigation";
 import { backendRequest } from "@/lib/backend";
@@ -37,16 +38,22 @@ export default async function DraftPage({
     return (
       <>
         {navigation}
-        <main id="main" className="mx-auto max-w-3xl space-y-4 px-6 py-12">
-          <PageHeading>{missing ? "Draft not found" : "This draft is unavailable"}</PageHeading>
-          <p>
-            {missing
-              ? "It was published or deleted. Published versions are listed with the team’s specifications."
-              : "We couldn’t load the draft. Try again shortly."}
-          </p>
-          <Link className="text-primary underline" href={specificationsPath(organizationId)}>
-            Back to specifications
-          </Link>
+        <main id="main">
+          <PageHeading
+            description={
+              missing
+                ? "It was published or deleted. Published versions are listed with the team’s specifications."
+                : "We couldn’t load the draft. Try again shortly."
+            }
+          >
+            {missing ? "Draft not found" : "This draft is unavailable"}
+          </PageHeading>
+          <PageBody>
+            <LinkButton href={specificationsPath(organizationId)} variant="outline">
+              <ArrowLeft aria-hidden="true" className="size-4" />
+              Back to specifications
+            </LinkButton>
+          </PageBody>
         </main>
       </>
     );

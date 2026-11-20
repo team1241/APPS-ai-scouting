@@ -1,7 +1,7 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { type ApiKey, ApiKeys } from "@/components/api-keys";
-import { PageHeading, TeamNumber } from "@/components/page-heading";
+import { LinkButton } from "@/components/link-button";
+import { PageBody, PageHeading } from "@/components/page-heading";
 import { SpecificationsCard } from "@/components/specifications/specifications-card";
 import {
   type AdminInvitation,
@@ -28,12 +28,15 @@ export default async function OrganizationPage({
   ]);
   if (organizations === null)
     return (
-      <main id="main" className="mx-auto max-w-3xl space-y-4 px-6 py-12">
-        <PageHeading>Administration is unavailable</PageHeading>
-        <p>We couldn’t check your team access. Try again shortly.</p>
-        <Link className="text-primary underline" href="/admin">
-          Return to organizations
-        </Link>
+      <main id="main">
+        <PageHeading description="We couldn’t check your team access. Try again shortly.">
+          Administration is unavailable
+        </PageHeading>
+        <PageBody>
+          <LinkButton href="/admin" variant="secondary">
+            Return to organizations
+          </LinkButton>
+        </PageBody>
       </main>
     );
   const organization = organizations.find((org) => org.id === organizationId);
@@ -51,26 +54,28 @@ export default async function OrganizationPage({
   return (
     <>
       <TeamNavigation organization={organization} canChangeTeam={organizations.length > 1} />
-      <main id="main" className="mx-auto max-w-3xl space-y-8 px-6 py-12">
-        <PageHeading description="You administer this team.">
-          <TeamNumber value={organization.teamNumber} /> {organization.name}
+      <main id="main">
+        <PageHeading number={organization.teamNumber} description="You administer this team.">
+          {organization.name}
         </PageHeading>
-        <TelegramConnection
-          organizationId={organizationId}
-          connected={state?.connected ?? null}
-          connectedAt={state?.connectedAt ?? null}
-        />
-        <SpecificationsCard
-          organizationId={organizationId}
-          counts={
-            specifications && {
-              drafts: specifications.drafts.length,
-              publications: specifications.publications.length,
+        <PageBody>
+          <TelegramConnection
+            organizationId={organizationId}
+            connected={state?.connected ?? null}
+            connectedAt={state?.connectedAt ?? null}
+          />
+          <SpecificationsCard
+            organizationId={organizationId}
+            counts={
+              specifications && {
+                drafts: specifications.drafts.length,
+                publications: specifications.publications.length,
+              }
             }
-          }
-        />
-        <TeamAdministrators organizationId={organizationId} data={admins} />
-        <ApiKeys organizationId={organizationId} keys={keys} />
+          />
+          <TeamAdministrators organizationId={organizationId} data={admins} />
+          <ApiKeys organizationId={organizationId} keys={keys} />
+        </PageBody>
       </main>
     </>
   );

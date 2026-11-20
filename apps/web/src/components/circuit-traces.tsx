@@ -38,7 +38,7 @@ export function CircuitTraces({ className }: { className?: string }) {
               r="6"
               stroke="currentColor"
               strokeWidth="2"
-              fill="var(--navy)"
+              fill="var(--bumper)"
             />
           ) : null}
         </g>

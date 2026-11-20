@@ -1,13 +1,12 @@
-import { ChevronLeft, ChevronRight, Search } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { LinkButton } from "@/components/link-button";
 import { ApplicationsUnavailable } from "@/components/operator-applications";
-import { PageHeading, TeamNumber } from "@/components/page-heading";
+import { PageBody, PageHeading, TeamNumber } from "@/components/page-heading";
 import { StatusBadge } from "@/components/status-badge";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { type DirectoryTeam, directoryPage, operatorAccess } from "@/lib/operator";
+import { TeamSearch } from "./team-search";
 
 const dateFormat = new Intl.DateTimeFormat("en-CA", {
   dateStyle: "medium",
@@ -29,7 +28,7 @@ function TeamRow({ team }: { team: DirectoryTeam }) {
     <li>
       <Link
         href={`/operator/teams/${team.id}`}
-        className="flex items-start gap-4 p-5 outline-none sm:gap-5 sm:p-6 hover:bg-accent/60 focus-visible:bg-accent/60 focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:ring-inset"
+        className="group flex items-start gap-4 p-5 transition-colors outline-none hover:bg-surface-secondary focus-visible:bg-accent-soft focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-inset sm:gap-5 sm:p-6 motion-reduce:transition-none"
       >
         <TeamNumber
           value={team.teamNumber}
@@ -37,7 +36,7 @@ function TeamRow({ team }: { team: DirectoryTeam }) {
         />
         <div className="min-w-0 flex-1 [overflow-wrap:anywhere]">
           <p className="font-semibold leading-8">{team.name}</p>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-muted">
             Registered{" "}
             <time dateTime={team.createdAt}>{dateFormat.format(new Date(team.createdAt))}</time>
           </p>
@@ -58,7 +57,10 @@ function TeamRow({ team }: { team: DirectoryTeam }) {
             ) : null}
           </p>
         </div>
-        <ChevronRight aria-hidden="true" className="mt-2 size-5 shrink-0 text-muted-foreground" />
+        <ChevronRight
+          aria-hidden="true"
+          className="mt-2 size-5 shrink-0 text-muted transition-transform group-hover:translate-x-0.5 group-hover:text-foreground motion-reduce:transition-none"
+        />
       </Link>
     </li>
   );
@@ -80,109 +82,89 @@ export default async function TeamsDirectoryPage({
   const first = result ? (page - 1) * result.pageSize + 1 : 0;
   const last = result ? first + result.teams.length - 1 : 0;
   return (
-    <main id="main" className="mx-auto max-w-3xl space-y-8 px-6 py-12">
+    <main id="main">
       <PageHeading description="Every registered team on the platform. Only operators see this list. Opening a team does not make you one of its admins.">
         All teams
       </PageHeading>
-      <search>
-        <form action="/operator/teams" className="flex flex-col gap-2 sm:flex-row sm:items-end">
-          <div className="flex-1 space-y-1.5">
-            <Label htmlFor="team-search">Team number or name</Label>
-            <Input
-              id="team-search"
-              name="q"
-              type="search"
-              defaultValue={search}
-              maxLength={120}
-              autoComplete="off"
-              className="h-11"
-            />
-          </div>
-          <Button type="submit" variant="outline" className="h-11 px-5">
-            <Search aria-hidden="true" />
-            Search
-          </Button>
-        </form>
-      </search>
-      {access === null || result === null ? (
-        <ApplicationsUnavailable href={pageHref(search, page)} />
-      ) : (
-        <section aria-labelledby="teams-heading" className="space-y-4">
-          <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-            <h2 id="teams-heading" className="text-lg font-semibold">
+      <PageBody className="space-y-8">
+        <TeamSearch search={search} />
+        {access === null || result === null ? (
+          <ApplicationsUnavailable href={pageHref(search, page)} />
+        ) : (
+          <section aria-labelledby="teams-heading" className="space-y-4">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+              <h2 id="teams-heading" className="font-display text-xl text-foreground">
+                {search ? (
+                  <>
+                    Teams matching “<span className="[overflow-wrap:anywhere]">{search}</span>”
+                  </>
+                ) : (
+                  "Registered teams"
+                )}{" "}
+                <span className="tabular-nums">({result.total})</span>
+              </h2>
               {search ? (
-                <>
-                  Teams matching “<span className="[overflow-wrap:anywhere]">{search}</span>”
-                </>
-              ) : (
-                "Registered teams"
-              )}{" "}
-              <span className="tabular-nums">({result.total})</span>
-            </h2>
-            {search ? (
-              <Link
-                href="/operator/teams"
-                className="inline-flex min-h-11 items-center text-sm text-primary underline underline-offset-4"
-              >
-                Clear search
-              </Link>
-            ) : null}
-          </div>
-          {result.teams.length ? (
-            <ul className="divide-y overflow-hidden rounded-lg border bg-card">
-              {result.teams.map((team) => (
-                <TeamRow key={team.id} team={team} />
-              ))}
-            </ul>
-          ) : result.total > 0 ? (
-            <p className="text-muted-foreground">
-              This page is past the end of the list.{" "}
-              <Link
-                className="text-primary underline underline-offset-4"
-                href={pageHref(search, 1)}
-              >
-                Go to the first page
-              </Link>
-            </p>
-          ) : search ? (
-            <p className="text-muted-foreground">
-              No teams match this search. Check the number, or search part of the name.
-            </p>
-          ) : (
-            <p className="text-muted-foreground">
-              No teams are registered yet. Teams appear here when you approve an access application.
-            </p>
-          )}
-          {pages > 1 && result.teams.length ? (
-            <nav
-              aria-label="Team list pages"
-              className="flex flex-wrap items-center justify-between gap-3"
-            >
-              <p className="text-sm text-muted-foreground tabular-nums">
-                {first}–{last} of {result.total}
+                <Link
+                  href="/operator/teams"
+                  className="inline-flex min-h-11 items-center text-sm font-semibold text-accent-soft-foreground underline decoration-accent/40 underline-offset-4 hover:decoration-accent"
+                >
+                  Clear search
+                </Link>
+              ) : null}
+            </div>
+            {result.teams.length ? (
+              <ul className="divide-y divide-separator overflow-hidden rounded-2xl bg-surface shadow-surface">
+                {result.teams.map((team) => (
+                  <TeamRow key={team.id} team={team} />
+                ))}
+              </ul>
+            ) : result.total > 0 ? (
+              <p className="text-muted">
+                This page is past the end of the list.{" "}
+                <Link
+                  className="font-semibold text-accent-soft-foreground underline decoration-accent/40 underline-offset-4"
+                  href={pageHref(search, 1)}
+                >
+                  Go to the first page
+                </Link>
               </p>
-              <div className="flex gap-2">
-                {page > 1 ? (
-                  <Button asChild variant="outline" className="h-11">
-                    <Link href={pageHref(search, page - 1)} rel="prev">
-                      <ChevronLeft aria-hidden="true" />
+            ) : search ? (
+              <p className="text-muted">
+                No teams match this search. Check the number, or search part of the name.
+              </p>
+            ) : (
+              <p className="text-muted">
+                No teams are registered yet. Teams appear here when you approve an access
+                application.
+              </p>
+            )}
+            {pages > 1 && result.teams.length ? (
+              <nav
+                aria-label="Team list pages"
+                className="flex flex-wrap items-center justify-between gap-3"
+              >
+                <p className="text-sm text-muted tabular-nums">
+                  {first}–{last} of {result.total}
+                </p>
+                <div className="flex gap-2">
+                  {page > 1 ? (
+                    <LinkButton variant="outline" href={pageHref(search, page - 1)} rel="prev">
+                      <ChevronLeft aria-hidden="true" className="size-4" />
                       Previous
-                    </Link>
-                  </Button>
-                ) : null}
-                {page < pages ? (
-                  <Button asChild variant="outline" className="h-11">
-                    <Link href={pageHref(search, page + 1)} rel="next">
+                    </LinkButton>
+                  ) : null}
+                  {page < pages ? (
+                    <LinkButton variant="outline" href={pageHref(search, page + 1)} rel="next">
                       Next
-                      <ChevronRight aria-hidden="true" />
-                    </Link>
-                  </Button>
-                ) : null}
-              </div>
-            </nav>
-          ) : null}
-        </section>
-      )}
+                      <ChevronRight aria-hidden="true" className="size-4" />
+                    </LinkButton>
+                  ) : null}
+                </div>
+              </nav>
+            ) : null}
+          </section>
+        )}
+      </PageBody>
     </main>
   );
 }

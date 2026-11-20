@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { PageBody, PageHeading } from "@/components/page-heading";
 
 export const metadata: Metadata = { title: "Privacy" };
 
@@ -16,11 +17,15 @@ const paragraphs = [
 
 export default function PrivacyPage() {
   return (
-    <main id="main" className="mx-auto max-w-3xl space-y-6 px-6 py-12">
-      <h1 className="text-2xl font-semibold">Your scouting information</h1>
-      {paragraphs.map((paragraph) => (
-        <p key={paragraph}>{paragraph}</p>
-      ))}
+    <main id="main">
+      <PageHeading>Your scouting information</PageHeading>
+      <PageBody className="space-y-5 text-[1.0625rem] [&>*]:max-w-[68ch]">
+        {paragraphs.map((paragraph) => (
+          <p key={paragraph} className="text-pretty">
+            {paragraph}
+          </p>
+        ))}
+      </PageBody>
     </main>
   );
 }

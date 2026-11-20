@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState, useId } from "react";
+import { Button, FieldError, Input, Label, TextField } from "@heroui/react";
+import { useActionState } from "react";
 import {
   approveApplication,
   type ReviewState,
@@ -8,9 +9,7 @@ import {
   resendInvitation,
 } from "@/app/operator/actions";
 import { ConfirmDialog } from "@/components/confirm-dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { useEditedErrors } from "@/lib/use-edited-errors";
 
 const idle: ReviewState = { status: "idle" };
 
@@ -20,7 +19,7 @@ function Feedback({ state }: { state: ReviewState }) {
     <p
       role={state.status === "error" ? "alert" : "status"}
       className={
-        state.status === "error" ? "text-sm text-destructive" : "text-sm text-muted-foreground"
+        state.status === "error" ? "text-sm font-medium text-danger" : "text-sm text-muted"
       }
     >
       {state.message}
@@ -38,35 +37,33 @@ export function PendingReview({
 }) {
   const [approval, approve, approving] = useActionState(approveApplication, idle);
   const [rejection, reject, rejecting] = useActionState(rejectApplication, idle);
-  const nameId = useId();
   const busy = approving || rejecting;
+  const { edit, shown } = useEditedErrors<"organizationName">(approval);
+  const nameError = shown("organizationName", approval.fieldError);
   return (
     <div className="space-y-3">
-      <form action={approve} className="flex flex-col gap-2 sm:flex-row sm:items-end">
+      <form action={approve} className="flex flex-col gap-2 sm:flex-row sm:items-start">
         <input type="hidden" name="applicationId" value={applicationId} />
-        <div className="min-w-0 flex-1 space-y-1.5">
-          <Label htmlFor={nameId}>Team name</Label>
-          <Input
-            id={nameId}
-            name="organizationName"
-            defaultValue={`Team ${teamNumber}`}
-            maxLength={120}
-            required
-            disabled={busy}
-            aria-invalid={approval.fieldError ? true : undefined}
-            aria-describedby={approval.fieldError ? `${nameId}-error` : undefined}
-            className="h-11"
-          />
-        </div>
-        <Button type="submit" disabled={busy} className="h-11 px-5">
+        <TextField
+          name="organizationName"
+          defaultValue={`Team ${teamNumber}`}
+          maxLength={120}
+          isRequired
+          isDisabled={busy}
+          isInvalid={nameError ? true : undefined}
+          onChange={() => edit("organizationName")}
+          validationBehavior="aria"
+          fullWidth
+          className="min-w-0 flex-1"
+        >
+          <Label>Team name</Label>
+          <Input />
+          <FieldError>{nameError}</FieldError>
+        </TextField>
+        <Button type="submit" isDisabled={busy} isPending={approving} className="px-5 sm:mt-7">
           {approving ? "Approving…" : "Approve and invite"}
         </Button>
       </form>
-      {approval.fieldError ? (
-        <p id={`${nameId}-error`} className="text-sm text-destructive">
-          {approval.fieldError}
-        </p>
-      ) : null}
       <Feedback state={approval} />
       <div className="-ml-3">
         <ConfirmDialog
@@ -92,7 +89,7 @@ export function ResendInvitation({ applicationId }: { applicationId: string }) {
   return (
     <form action={resend} className="space-y-2">
       <input type="hidden" name="applicationId" value={applicationId} />
-      <Button type="submit" variant="outline" disabled={sending} className="h-11">
+      <Button type="submit" variant="outline" isPending={sending}>
         {sending ? "Sending…" : "Resend invitation"}
       </Button>
       <Feedback state={state} />

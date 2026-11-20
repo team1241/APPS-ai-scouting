@@ -1,7 +1,7 @@
 import { SignUp } from "@clerk/nextjs";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
-import { displayHeading, PublicBand } from "@/components/public-band";
+import { displayHeading, overlapCard, PublicBand } from "@/components/public-band";
 import { authConfigured } from "@/lib/auth-config";
 import { authCardAppearance } from "@/lib/clerk-appearance";
 
@@ -20,19 +20,17 @@ export default async function SignUpPage({
   return (
     <main id="main">
       <PublicBand badge className="pt-12 pb-28 sm:pt-16 sm:pb-32">
-        <h1 className={`${displayHeading} text-4xl sm:text-6xl`}>
+        <h1 className={`${displayHeading} text-5xl sm:text-7xl`}>
           Accept your <span className="text-sky">invitation</span>
         </h1>
-        <p className="mt-4 max-w-md text-sky-soft">
+        <p className="mt-4 max-w-md text-bumper-ink">
           Create your account with the email address that received the invitation.
         </p>
       </PublicBand>
-      <div className="relative z-10 mx-auto -mt-20 max-w-5xl px-4 pb-12 sm:px-6">
+      <div className="relative z-10 mx-auto -mt-20 max-w-6xl px-4 pb-12 sm:px-6">
         <Suspense
           fallback={
-            <p className="max-w-md rounded-xl bg-card p-8 text-muted-foreground">
-              Loading your invitation…
-            </p>
+            <p className={`max-w-md p-8 text-muted ${overlapCard}`}>Loading your invitation…</p>
           }
         >
           <SignUp forceRedirectUrl="/admin" signInUrl="/sign-in" appearance={authCardAppearance} />

@@ -1,6 +1,6 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { PageHeading } from "@/components/page-heading";
+import { LinkButton } from "@/components/link-button";
+import { PageBody, PageHeading } from "@/components/page-heading";
 import { authorizedOrganizations, type Organization } from "@/lib/backend";
 
 // Rechecks team access for a workspace page. Unavailable access renders a page that does not
@@ -16,12 +16,15 @@ export async function teamAccess(
     return {
       ok: false,
       page: (
-        <main id="main" className="mx-auto max-w-3xl space-y-4 px-6 py-12">
-          <PageHeading>Administration is unavailable</PageHeading>
-          <p>We couldn’t check your team access. Try again shortly.</p>
-          <Link className="text-primary underline" href="/admin">
-            Return to organizations
-          </Link>
+        <main id="main">
+          <PageHeading description="We couldn’t check your team access. Try again shortly.">
+            Administration is unavailable
+          </PageHeading>
+          <PageBody>
+            <LinkButton href="/admin" variant="secondary">
+              Return to organizations
+            </LinkButton>
+          </PageBody>
         </main>
       ),
     };

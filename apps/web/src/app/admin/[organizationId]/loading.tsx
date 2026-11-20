@@ -1,61 +1,26 @@
-import { LoadingPage } from "@/components/loading-skeletons";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Bar, CardSkeleton, LoadingPage } from "@/components/loading-skeletons";
 
 export default function Loading() {
   return (
     <>
-      <div aria-hidden="true" className="border-b bg-card">
-        <div className="mx-auto flex min-h-[60px] max-w-5xl items-center px-4 sm:px-6">
-          <Skeleton className="h-4 w-48" />
+      <div aria-hidden="true" className="border-t border-white/10 bg-bumper">
+        <div className="mx-auto flex min-h-[56px] max-w-6xl items-center gap-3 px-4 sm:px-6">
+          <div className="h-7 w-14 rounded-lg bg-white/20" />
+          <div className="h-4 w-40 rounded-md bg-white/15" />
         </div>
       </div>
-      <LoadingPage label="Loading your team workspace…">
+      <LoadingPage label="Loading your team workspace…" number>
         {/* Telegram, specifications, administrators, then API keys. */}
-        <div className="space-y-8">
-          <div className="rounded-xl border bg-card">
-            <div className="flex items-start justify-between gap-6 p-6">
-              <div className="flex-1 space-y-3">
-                <Skeleton className="h-5 w-24" />
-                <Skeleton className="h-4 w-full max-w-md" />
-              </div>
-              <Skeleton className="h-7 w-28 rounded-full" />
-            </div>
-            <div className="border-t px-6 py-4">
-              <Skeleton className="h-11 w-36" />
-            </div>
-          </div>
-          <div className="rounded-xl border bg-card p-6">
-            <div className="space-y-3">
-              <Skeleton className="h-5 w-48" />
-              <Skeleton className="h-4 w-full max-w-md" />
-              <Skeleton className="h-4 w-56" />
-            </div>
-          </div>
-          <div className="rounded-xl border bg-card">
-            <div className="flex items-start justify-between gap-6 p-6">
-              <div className="flex-1 space-y-3">
-                <Skeleton className="h-5 w-24" />
-                <Skeleton className="h-4 w-full max-w-md" />
-              </div>
-              <Skeleton className="h-11 w-48" />
-            </div>
-            <div className="border-t px-6 py-4">
-              <Skeleton className="h-10 w-full max-w-xs" />
-            </div>
-          </div>
-          <div className="rounded-xl border bg-card">
-            <div className="flex items-start justify-between gap-6 p-6">
-              <div className="flex-1 space-y-3">
-                <Skeleton className="h-5 w-24" />
-                <Skeleton className="h-4 w-full max-w-md" />
-              </div>
-              <Skeleton className="h-11 w-32" />
-            </div>
-            <div className="border-t px-6 py-4">
-              <Skeleton className="h-11 w-full" />
-            </div>
-          </div>
-        </div>
+        <CardSkeleton>
+          <Bar className="h-11 w-36 rounded-full" />
+        </CardSkeleton>
+        <CardSkeleton />
+        <CardSkeleton action>
+          <Bar className="h-10 w-full max-w-xs" />
+        </CardSkeleton>
+        <CardSkeleton action>
+          <Bar className="h-11 w-full" />
+        </CardSkeleton>
       </LoadingPage>
     </>
   );

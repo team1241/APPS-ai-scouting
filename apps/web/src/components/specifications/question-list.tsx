@@ -1,7 +1,7 @@
 "use client";
 
 import type { ObservationKind } from "@ai-scouting/scouting";
-import { ChevronDown, Lock } from "lucide-react";
+import { ChevronDown, ChevronRight, Lock } from "lucide-react";
 import { type ReactNode, useCallback, useLayoutEffect, useRef, useState } from "react";
 import {
   answerSummary,
@@ -46,6 +46,7 @@ export function QuestionList({
   problems,
   renderBody,
   headerAction,
+  compact = false,
 }: {
   kind: ObservationKind;
   questions: EditorQuestion[];
@@ -54,21 +55,33 @@ export function QuestionList({
   problems?: Map<string, number>;
   renderBody: (question: EditorQuestion, index: number) => ReactNode;
   headerAction?: (question: EditorQuestion) => ReactNode;
+  // Wide-screen outline beside the inspector: tighter rows, and the selected
+  // question opens in the inspector instead of in place.
+  compact?: boolean;
 }) {
   const list = useRef<HTMLOListElement>(null);
-  const [positions, setPositions] = useState<number[]>([]);
+  // Each dot's vertical centre and left edge, relative to the list.
+  const [positions, setPositions] = useState<{ y: number; left: number; wide: boolean }[]>([]);
   const measure = useCallback(() => {
     const root = list.current;
     if (!root) return;
-    const top = root.getBoundingClientRect().top;
+    const origin = root.getBoundingClientRect();
     const dots = [...root.querySelectorAll<HTMLElement>("[data-rule-dot]")];
     const next = dots.map((dot) => {
       const box = dot.getBoundingClientRect();
-      return box.top - top + box.height / 2;
+      return {
+        y: box.top - origin.top + box.height / 2,
+        left: box.left - origin.left,
+        // Phones show the number inside a larger dot.
+        wide: box.width > 16,
+      };
     });
     setPositions((previous) =>
       previous.length === next.length &&
-      previous.every((p, i) => Math.abs(p - (next[i] ?? 0)) < 0.5)
+      previous.every(
+        (p, i) =>
+          Math.abs(p.y - (next[i]?.y ?? 0)) < 0.5 && Math.abs(p.left - (next[i]?.left ?? 0)) < 0.5,
+      )
         ? previous
         : next,
     );
@@ -93,14 +106,14 @@ export function QuestionList({
           const open = question.id === selectedId;
           const identity = identityPolicy(kind, question.key);
           const count = problems?.get(question.id) ?? 0;
-          const bodyId = `question-${question.id}`;
+          const bodyId = compact ? "question-inspector" : `question-${question.id}`;
           return (
             <li
               key={question.id}
               id={`block-${question.id}`}
               className={cn(
-                "scroll-mt-[calc(var(--site-header-height)+var(--sub-header-height)+1rem)] rounded-xl border bg-card transition-[border-color,box-shadow]",
-                open && "border-primary shadow-[0_0_0_1px_var(--color-primary)]",
+                "scroll-mt-[calc(var(--site-header-height)+var(--sub-header-height)+1rem)] rounded-2xl bg-surface shadow-surface transition-shadow motion-reduce:transition-none",
+                open && "ring-2 ring-accent",
               )}
             >
               <div className="flex items-start">
@@ -109,34 +122,43 @@ export function QuestionList({
                   aria-expanded={open}
                   aria-controls={bodyId}
                   onClick={() => onSelect(open ? null : question.id)}
-                  className="group grid min-h-11 flex-1 grid-cols-[1.75rem_1.5rem_1fr] items-start gap-x-2 rounded-xl py-4 pr-2 pl-3 text-left outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 sm:grid-cols-[2rem_1.5rem_1fr] sm:gap-x-3 sm:pl-5"
+                  className={cn(
+                    "group grid min-h-11 flex-1 cursor-pointer grid-cols-[1.5rem_1fr] items-start gap-x-3 rounded-2xl pr-2 pl-5 text-left outline-none focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-accent/40 sm:grid-cols-[2rem_1.5rem_1fr] sm:gap-x-3 sm:pl-5",
+                    compact ? "py-3" : "py-4",
+                  )}
                 >
-                  <span className="pt-0.5 text-sm text-muted-foreground tabular-nums">
+                  {/* From sm up the number has its own column; phones put it inside the dot. */}
+                  <span className="pt-0.5 text-sm font-semibold text-muted tabular-nums max-sm:hidden">
                     {index + 1}
                   </span>
                   <span className="relative flex h-7 items-center justify-center">
                     <span
                       data-rule-dot
                       className={cn(
-                        "size-3 rounded-full border-2",
+                        "flex size-6 items-center justify-center rounded-full border-2 text-[0.6875rem] font-bold tabular-nums sm:size-3",
                         linked.has(index)
                           ? index === selectedIndex
-                            ? "border-primary bg-primary"
-                            : "border-primary bg-card"
-                          : "border-border bg-card",
+                            ? "border-accent bg-accent text-accent-foreground"
+                            : "border-accent bg-surface text-accent-soft-foreground"
+                          : "border-border-secondary bg-surface text-muted",
                       )}
-                    />
+                    >
+                      <span aria-hidden="true" className="sm:hidden">
+                        {index + 1}
+                      </span>
+                    </span>
                   </span>
                   <span className="min-w-0">
                     <span
                       className={cn(
-                        "block text-lg leading-snug font-medium text-navy [overflow-wrap:anywhere]",
-                        !question.prompt.trim() && "text-muted-foreground italic",
+                        "block leading-snug font-semibold text-foreground [overflow-wrap:anywhere]",
+                        compact ? "text-[0.9375rem]" : "text-lg",
+                        !question.prompt.trim() && "font-medium text-muted italic",
                       )}
                     >
                       {question.prompt.trim() || "No follow-up question yet"}
                     </span>
-                    <span className="mt-1 block text-sm text-muted-foreground [overflow-wrap:anywhere]">
+                    <span className="mt-1 block text-sm text-muted [overflow-wrap:anywhere]">
                       <span className="font-medium text-foreground">
                         {question.label.trim() || "Untitled"}
                       </span>
@@ -144,25 +166,35 @@ export function QuestionList({
                       <code className="font-mono text-[0.8125rem]">
                         {question.key || "no code"}
                       </code>
-                      {" · "}
-                      {answerSummary(question)}
-                      {" · "}
-                      {question.required ? "Required" : "Optional"}
+                      {compact ? null : (
+                        <>
+                          {" · "}
+                          {answerSummary(question)}
+                          {" · "}
+                          {question.required ? "Required" : "Optional"}
+                        </>
+                      )}
                     </span>
                     {question.rules.map((rule) => (
-                      <span key={rule.id} className="mt-1 block text-sm text-primary">
+                      <span
+                        key={rule.id}
+                        className={cn(
+                          "mt-1 block font-medium text-accent-soft-foreground",
+                          compact ? "text-xs" : "text-sm",
+                        )}
+                      >
                         {ruleSentence(rule, questions)}
                       </span>
                     ))}
                     <span className="mt-2 flex flex-wrap gap-2 empty:hidden">
                       {identity ? (
-                        <span className="inline-flex h-6 items-center gap-1.5 rounded-full bg-navy px-2.5 text-xs font-semibold text-white">
+                        <span className="inline-flex h-6 items-center gap-1.5 rounded-full bg-bumper-deep px-2.5 text-xs font-bold text-white">
                           <Lock aria-hidden="true" className="size-3 text-sky" />
                           Identity
                         </span>
                       ) : null}
                       {count ? (
-                        <span className="inline-flex h-6 items-center gap-1.5 rounded-full bg-destructive-soft px-2.5 text-xs font-semibold text-destructive">
+                        <span className="inline-flex h-6 items-center gap-1.5 rounded-full bg-danger-soft px-2.5 text-xs font-bold text-danger-soft-foreground">
                           <span aria-hidden="true" className="size-1.5 rounded-full bg-current" />
                           {count === 1 ? "1 problem" : `${count} problems`}
                         </span>
@@ -172,20 +204,28 @@ export function QuestionList({
                 </button>
                 <span className="flex items-center gap-1 py-3 pr-3">
                   {open && headerAction ? headerAction(question) : null}
-                  <ChevronDown
-                    aria-hidden="true"
-                    className={cn(
-                      "mt-1 size-5 text-muted-foreground transition-transform motion-reduce:transition-none",
-                      open && "rotate-180",
-                    )}
-                  />
+                  {compact ? (
+                    // Opens in the inspector beside the list, not in place.
+                    <ChevronRight
+                      aria-hidden="true"
+                      className={cn("mt-1 size-5", open ? "text-accent" : "text-muted")}
+                    />
+                  ) : (
+                    <ChevronDown
+                      aria-hidden="true"
+                      className={cn(
+                        "mt-1 size-5 text-muted transition-transform motion-reduce:transition-none",
+                        open && "rotate-180",
+                      )}
+                    />
+                  )}
                 </span>
               </div>
-              {open ? (
+              {open && !compact ? (
                 // biome-ignore lint/a11y/noStaticElementInteractions: Escape closes the open question from any of its fields.
                 <div
                   id={bodyId}
-                  className="border-t px-4 py-5 sm:pr-6 sm:pl-[4.75rem]"
+                  className="border-t border-separator px-4 py-5 sm:pr-6 sm:pl-[4.75rem]"
                   onKeyDown={(event) => {
                     if (event.key !== "Escape" || event.defaultPrevented) return;
                     event.preventDefault();
@@ -204,23 +244,23 @@ export function QuestionList({
       </ol>
       <svg
         aria-hidden="true"
-        className="pointer-events-none absolute top-0 left-12 z-10 w-6 overflow-visible sm:left-16"
+        className="pointer-events-none absolute top-0 left-0 z-10 w-px overflow-visible"
         height={height}
       >
         {lines.map((line) => {
-          const y1 = positions[line.from];
-          const y2 = positions[line.to];
-          if (y1 === undefined || y2 === undefined) return null;
-          // Lanes step left from the dots, which sit at x = 12.
-          const x = 4 - line.lane * 6;
+          const from = positions[line.from];
+          const to = positions[line.to];
+          if (!from || !to) return null;
+          // Lines leave each dot's left edge; lanes step further left, tighter on phones.
+          const x = from.left - 4 - line.lane * (from.wide ? 5 : 6);
           return (
             <path
               key={`${line.from}:${line.to}`}
-              d={`M 12 ${y1} H ${x} V ${y2} H 12`}
+              d={`M ${from.left} ${from.y} H ${x} V ${to.y} H ${to.left}`}
               fill="none"
               strokeWidth={line.active ? 2.5 : 2}
               strokeLinejoin="round"
-              className={line.active ? "stroke-primary" : "stroke-sky"}
+              className={line.active ? "stroke-accent" : "stroke-sky"}
             />
           );
         })}

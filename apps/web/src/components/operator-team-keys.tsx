@@ -1,5 +1,6 @@
 "use client";
 
+import { Button } from "@heroui/react";
 import { Check, Copy, Eye, EyeOff } from "lucide-react";
 import { useActionState, useEffect, useState } from "react";
 import {
@@ -9,7 +10,6 @@ import {
 } from "@/app/operator/teams/actions";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { StatusBadge } from "@/components/status-badge";
-import { Button } from "@/components/ui/button";
 import type { DirectoryTeamDetail } from "@/lib/operator";
 
 type Key = DirectoryTeamDetail["keys"][number];
@@ -85,7 +85,7 @@ function ActiveKey({
   return (
     <>
       <div className="flex flex-wrap items-center gap-2">
-        <code className="min-h-11 min-w-0 flex-1 basis-64 rounded-md border bg-muted/50 px-3 py-2.5 font-mono text-sm break-all select-all">
+        <code className="min-h-11 min-w-0 flex-1 basis-64 rounded-xl bg-surface-secondary px-3.5 py-2.5 font-mono text-[0.8125rem] leading-6 break-all text-foreground select-all">
           {shown && secret ? (
             secret
           ) : (
@@ -97,24 +97,25 @@ function ActiveKey({
           )}
         </code>
         <Button
-          type="button"
-          variant="outline"
-          className="h-11 min-w-24"
+          variant="secondary"
+          className="min-w-24"
           aria-pressed={shown}
-          disabled={busy !== null}
-          onClick={toggle}
+          isDisabled={busy !== null}
+          onPress={toggle}
         >
-          {shown ? <EyeOff aria-hidden="true" /> : <Eye aria-hidden="true" />}
+          {shown ? (
+            <EyeOff aria-hidden="true" className="size-4" />
+          ) : (
+            <Eye aria-hidden="true" className="size-4" />
+          )}
           {busy === "show" ? "Showing…" : shown ? "Hide" : "Show"}
         </Button>
-        <Button
-          type="button"
-          variant="outline"
-          className="h-11 min-w-24"
-          disabled={busy !== null}
-          onClick={copy}
-        >
-          {copied ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}
+        <Button variant="secondary" className="min-w-24" isDisabled={busy !== null} onPress={copy}>
+          {copied ? (
+            <Check aria-hidden="true" className="size-4" />
+          ) : (
+            <Copy aria-hidden="true" className="size-4" />
+          )}
           {busy === "copy" ? "Copying…" : copied ? "Copied" : "Copy"}
         </Button>
         <ConfirmDialog
@@ -130,7 +131,7 @@ function ActiveKey({
           fields={{ organizationId, keyId: apiKey.id }}
         />
       </div>
-      <p aria-live="polite" className="text-sm text-destructive empty:hidden">
+      <p aria-live="polite" className="text-sm font-medium text-danger empty:hidden">
         {error ?? ""}
       </p>
     </>
@@ -147,29 +148,29 @@ export function OperatorTeamKeys({
   keys: Key[];
 }) {
   return (
-    <section className="rounded-xl border bg-card" aria-labelledby="keys-title">
-      <div className="p-6">
-        <h2 id="keys-title" className="text-lg font-semibold">
+    <section className="rounded-2xl bg-surface shadow-surface" aria-labelledby="keys-title">
+      <div className="p-5 sm:p-6">
+        <h2 id="keys-title" className="text-[1.0625rem] font-semibold text-foreground">
           API keys
         </h2>
-        <p className="mt-1 text-sm text-muted-foreground">
+        <p className="mt-1 max-w-prose text-sm text-muted">
           Keys give read-only access to this team’s scouting data. Values stay hidden until you
           select Show or Copy. Only the team’s admins can create keys. You can revoke any key.
         </p>
       </div>
       {keys.length ? (
-        <ul className="divide-y border-t">
+        <ul className="divide-y divide-separator border-t border-separator">
           {keys.map((key) => (
-            <li key={key.id} className="space-y-3 px-6 py-4">
+            <li key={key.id} className="space-y-3 px-5 py-4 sm:px-6">
               <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-                <p className="min-w-0 font-medium break-words">{key.name}</p>
+                <p className="min-w-0 font-semibold break-words">{key.name}</p>
                 {key.revokedAt ? (
                   <StatusBadge tone="neutral">Revoked</StatusBadge>
                 ) : (
                   <StatusBadge tone="success">Active</StatusBadge>
                 )}
               </div>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-muted">
                 Created{" "}
                 <time dateTime={key.createdAt}>{dateFormat.format(new Date(key.createdAt))}</time>
                 {" · "}
@@ -184,7 +185,7 @@ export function OperatorTeamKeys({
                 ) : null}
               </p>
               {key.revokedAt ? (
-                <p className="text-sm text-muted-foreground">
+                <p className="text-sm text-muted">
                   Started <code className="font-mono">{key.start}</code>. Its value was erased when
                   it was revoked and can’t be shown.
                 </p>
@@ -195,7 +196,7 @@ export function OperatorTeamKeys({
           ))}
         </ul>
       ) : (
-        <p className="border-t px-6 py-4 text-sm text-muted-foreground">
+        <p className="border-t border-separator px-5 py-4 text-sm text-muted sm:px-6">
           This team has no API keys.
         </p>
       )}

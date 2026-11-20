@@ -1,7 +1,18 @@
 "use client";
 
 import type { ContractIssue } from "@ai-scouting/scouting";
-import { AlertTriangle, ArrowDown, ArrowUp, Copy, Plus, Trash2 } from "lucide-react";
+import { AlertDialog, Button, Input, TextArea } from "@heroui/react";
+import {
+  AlertTriangle,
+  ArrowDown,
+  ArrowUp,
+  ChevronDown,
+  ChevronRight,
+  Copy,
+  Lock,
+  Plus,
+  Trash2,
+} from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -9,27 +20,10 @@ import {
   publishSpecificationDraft,
   saveSpecificationDraft,
 } from "@/app/admin/specification-actions";
-import { adminHeading } from "@/components/page-heading";
+import { DialogActions, FormDialog } from "@/components/form-dialog";
+import { LinkButton } from "@/components/link-button";
+import { PageHeading } from "@/components/page-heading";
 import { StatusBadge, type StatusTone } from "@/components/status-badge";
-import {
-  AlertDialog,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import {
   blankQuestion,
   dependencies,
@@ -51,13 +45,15 @@ import {
   publicationPath,
   specificationsPath,
 } from "@/lib/specifications";
+import { useMediaQuery } from "@/lib/use-media-query";
 import { cn } from "@/lib/utils";
 import { AnswerPreview } from "./answer-preview";
 import { DeleteDraftButton } from "./delete-draft-button";
 import { ExtractionTest } from "./extraction-test";
-import { controlClass, Field } from "./fields";
+import { Field, invalidClass } from "./fields";
 import { FixProblemsFirst } from "./preview-parts";
-import { QuestionFields } from "./question-fields";
+import { QuestionFields, sectionForField } from "./question-fields";
+import { QuestionInspector } from "./question-inspector";
 import { QuestionList } from "./question-list";
 
 type SaveStatus =
@@ -140,6 +136,13 @@ export function DraftEditor({
     questions: toEditorQuestions(draft.document.questions),
   }));
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  // Wide screens edit the selected question in an inspector beside the outline.
+  const wide = useMediaQuery("(min-width: 64rem)");
+  const [inspectorTab, setInspectorTab] = useState<"question" | "answer" | "rules">("question");
+  const select = (id: string | null) => {
+    if (id !== selectedId) setInspectorTab("question");
+    setSelectedId(id);
+  };
   const [status, setStatus] = useState<SaveStatus>({ kind: "saved", at: draft.updatedAt });
   const [announcement, setAnnouncement] = useState("");
   const [removing, setRemoving] = useState<EditorQuestion | null>(null);
@@ -181,6 +184,8 @@ export function DraftEditor({
     () => validatedDraft(kind, content.description, content.questions),
     [kind, content.description, content.questions],
   );
+  const selectedIndex = content.questions.findIndex((q) => q.id === selectedId);
+  const selectedQuestion = selectedIndex === -1 ? null : content.questions[selectedIndex];
   const problemsByQuestion = useMemo(() => {
     const map = new Map<string, number>();
     for (const issue of issues)
@@ -370,12 +375,18 @@ export function DraftEditor({
     }
     if (!issue.questionId) return;
     setSelectedId(issue.questionId);
+    setInspectorTab(sectionForField(issue.field));
     requestAnimationFrame(() => {
       const block = document.getElementById(`block-${issue.questionId}`);
-      block?.scrollIntoView({ block: "start" });
+      const inspector = wide ? document.getElementById("question-inspector") : null;
       const target =
-        block?.querySelector<HTMLElement>("[aria-invalid=true]") ??
+        (inspector ?? block)?.querySelector<HTMLElement>("[aria-invalid=true]") ??
         block?.querySelector<HTMLElement>("button[aria-expanded]");
+      // Wide screens bring the field itself into view, inside the sticky inspector.
+      if (wide) {
+        block?.scrollIntoView({ block: "nearest" });
+        target?.scrollIntoView({ block: "center" });
+      } else block?.scrollIntoView({ block: "start" });
       target?.focus({ preventScroll: true });
     });
   };
@@ -464,7 +475,7 @@ export function DraftEditor({
     const index = content.questions.findIndex((q) => q.id === issue.questionId);
     const question = content.questions[index];
     return question ? (
-      <span className="font-medium">
+      <span className="font-semibold">
         {index + 1}. {question.label || question.key || "Untitled"}:{" "}
       </span>
     ) : null;
@@ -472,43 +483,48 @@ export function DraftEditor({
 
   return (
     <div className="pb-40">
-      <div className="mx-auto max-w-[60rem] space-y-6 px-4 pt-10 sm:px-6">
-        <nav aria-label="Breadcrumb" className="text-sm text-muted-foreground">
-          <Link
-            href={specificationsPath(organizationId)}
-            className="text-primary underline underline-offset-4"
+      <PageHeading
+        before={
+          <nav
+            aria-label="Breadcrumb"
+            className="flex flex-wrap items-center text-sm text-bumper-ink"
           >
-            Scouting specifications
-          </Link>
-          <span aria-hidden="true" className="px-2">
-            /
-          </span>
-          <span className="tabular-nums">{draft.season}</span>
-          <span aria-hidden="true" className="px-2">
-            /
-          </span>
-          <span>{kindLabels[kind]}</span>
-        </nav>
-        <div className="space-y-3">
-          <h1 className={cn(adminHeading, "[overflow-wrap:anywhere]")}>
-            {content.name.trim() || "Untitled draft"}
-          </h1>
-          <p className="flex flex-wrap items-center gap-x-3 gap-y-2 text-muted-foreground">
-            <StatusBadge tone="waiting">Draft</StatusBadge>
+            <Link
+              href={specificationsPath(organizationId)}
+              className="inline-flex min-h-11 items-center rounded-full px-3 font-semibold text-white underline decoration-white/40 underline-offset-4 hover:bg-white/10"
+            >
+              Scouting specifications
+            </Link>
+            <ChevronRight aria-hidden="true" className="size-4 text-bumper-ink/70" />
+            <span className="px-2 tabular-nums">{draft.season}</span>
+            <ChevronRight aria-hidden="true" className="size-4 text-bumper-ink/70" />
+            <span className="px-2">{kindLabels[kind]}</span>
+          </nav>
+        }
+        description={
+          <span className="flex flex-wrap items-center gap-x-3 gap-y-2">
+            <span className="inline-flex h-7 items-center gap-2 rounded-full bg-white/15 px-3 text-[0.8125rem] font-semibold text-white">
+              <span aria-hidden="true" className="size-1.5 rounded-full bg-sky" />
+              Draft
+            </span>
             <span>
               {draft.season} {kindLabels[kind].toLowerCase()} scouting
               {draft.source ? ` · copied from ${draft.source.season} ${draft.source.version}` : ""}
-              {" · "}publishes as {nextVersion}
+              {" · "}publishes as <span className="font-bumper text-white">{nextVersion}</span>
             </span>
-          </p>
-        </div>
+          </span>
+        }
+      >
+        {content.name.trim() || "Untitled draft"}
+      </PageHeading>
 
+      <div className="mx-auto max-w-6xl space-y-6 px-4 pt-8 sm:px-6">
         {status.kind === "conflict" ? (
-          <div
-            role="alert"
-            className="space-y-3 rounded-xl border border-warning/40 bg-warning-soft p-5"
-          >
-            <p className="font-semibold text-warning">Someone else saved this draft</p>
+          <div role="alert" className="space-y-3 rounded-2xl bg-warning-soft p-5">
+            <p className="flex items-center gap-2 font-semibold text-warning-soft-foreground">
+              <AlertTriangle aria-hidden="true" className="size-4" />
+              Someone else saved this draft
+            </p>
             <p className="text-sm">
               Their version was saved {dateTimeFormat.format(new Date(status.theirs.updatedAt))} and
               has {status.theirs.document.questions.length} questions. Yours has{" "}
@@ -516,48 +532,47 @@ export function DraftEditor({
               replaced.
             </p>
             <div className="flex flex-wrap gap-2">
-              <Button type="button" className="h-11" onClick={keepMine}>
-                Keep my version
-              </Button>
-              <Button type="button" variant="outline" className="h-11" onClick={loadTheirs}>
+              <Button onPress={keepMine}>Keep my version</Button>
+              <Button variant="outline" className="bg-surface" onPress={loadTheirs}>
                 Load their version
               </Button>
             </div>
           </div>
         ) : null}
         {status.kind === "published" ? (
-          <div role="status" className="rounded-xl border bg-card p-5">
+          <div role="status" className="rounded-2xl bg-surface p-5 shadow-surface">
             <p className="font-semibold">This draft was published as {status.version}.</p>
-            <p className="mt-1 text-sm text-muted-foreground">
+            <p className="mt-1 text-sm text-muted">
               Published versions cannot change. Open it to create a new draft from it.
             </p>
-            <Link
+            <LinkButton
               href={publicationPath(organizationId, draft.season, kind, status.version)}
-              className="mt-3 inline-flex h-11 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground"
+              className="mt-3"
             >
               Open {status.version}
-            </Link>
+            </LinkButton>
           </div>
         ) : null}
         {status.kind === "missing" ? (
-          <div role="alert" className="rounded-xl border bg-card p-5">
+          <div role="alert" className="rounded-2xl bg-surface p-5 shadow-surface">
             <p className="font-semibold">This draft no longer exists.</p>
-            <p className="mt-1 text-sm text-muted-foreground">
+            <p className="mt-1 text-sm text-muted">
               Another admin deleted it. Your changes on this page were not saved.
             </p>
-            <Link
+            <LinkButton
               href={specificationsPath(organizationId)}
-              className="mt-3 inline-block text-primary underline"
+              variant="outline"
+              className="mt-3"
             >
               Back to specifications
-            </Link>
+            </LinkButton>
           </div>
         ) : null}
 
         <div
           role="tablist"
           aria-label="Draft views"
-          className="-mx-4 flex gap-1 overflow-x-auto border-b px-4 sm:mx-0 sm:px-0"
+          className="-mx-4 flex gap-1 overflow-x-auto border-b border-separator px-4 sm:mx-0 sm:px-0"
         >
           {views.map(([id, name]) => (
             <button
@@ -580,15 +595,20 @@ export function DraftEditor({
                 document.getElementById(`tab-${next}`)?.focus();
               }}
               className={cn(
-                "-mb-px inline-flex min-h-11 shrink-0 items-center gap-2 border-b-2 px-3 text-sm font-medium whitespace-nowrap outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50",
+                "relative inline-flex min-h-11 shrink-0 cursor-pointer items-center gap-2 rounded-t-xl px-3 text-sm font-semibold whitespace-nowrap outline-none transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-accent/40 motion-reduce:transition-none",
                 view === id
-                  ? "border-primary text-foreground"
-                  : "border-transparent text-muted-foreground hover:text-foreground",
+                  ? "text-foreground after:absolute after:inset-x-2 after:-bottom-px after:h-[3px] after:rounded-full after:bg-accent"
+                  : "text-muted hover:text-foreground",
               )}
             >
               {name}
               {id === "questions" ? (
-                <span className="text-muted-foreground tabular-nums">
+                <span
+                  className={cn(
+                    "inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-xs font-bold tabular-nums",
+                    view === id ? "bg-accent text-accent-foreground" : "bg-default text-muted",
+                  )}
+                >
                   {content.questions.length}
                 </span>
               ) : null}
@@ -605,16 +625,17 @@ export function DraftEditor({
         >
           <fieldset disabled={readOnly} className="space-y-6">
             <legend className="sr-only">Draft details</legend>
-            <div className="grid gap-4 rounded-xl border bg-card p-5 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)]">
+            <div className="grid gap-4 rounded-2xl bg-surface p-5 shadow-surface sm:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)] sm:p-6">
               <Field
                 id="draft-name"
                 label="Name"
                 errors={issues.filter((i) => i.field === "name").map((i) => i.message)}
               >
                 {(props) => (
-                  <input
+                  <Input
                     {...props}
-                    className={`${controlClass} h-11`}
+                    fullWidth
+                    className={invalidClass}
                     value={content.name}
                     onChange={(e) => edit((c) => ({ ...c, name: e.target.value }))}
                   />
@@ -627,10 +648,11 @@ export function DraftEditor({
                 errors={issues.filter((i) => i.field === "description").map((i) => i.message)}
               >
                 {(props) => (
-                  <textarea
+                  <TextArea
                     {...props}
+                    fullWidth
                     rows={2}
-                    className={`${controlClass} min-h-11 py-2.5`}
+                    className={invalidClass}
                     value={content.description}
                     onChange={(e) => edit((c) => ({ ...c, description: e.target.value }))}
                   />
@@ -638,14 +660,23 @@ export function DraftEditor({
               </Field>
             </div>
 
-            <details className="group rounded-xl border bg-card">
-              <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-4 rounded-xl px-5 py-3 text-sm font-medium outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 [&::-webkit-details-marker]:hidden">
-                <span>Identity for {kindLabels[kind].toLowerCase()} scouting</span>
-                <span className="text-primary group-open:hidden">Show</span>
-                <span className="hidden text-primary group-open:inline">Hide</span>
+            <details className="group rounded-2xl bg-surface shadow-surface">
+              <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-4 rounded-2xl px-5 py-3 text-sm font-semibold outline-none focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-accent/40 sm:px-6 [&::-webkit-details-marker]:hidden">
+                <span className="flex items-center gap-2">
+                  <Lock aria-hidden="true" className="size-4 text-accent" />
+                  Identity for {kindLabels[kind].toLowerCase()} scouting
+                </span>
+                <span className="inline-flex items-center gap-1 text-accent-soft-foreground">
+                  <span className="group-open:hidden">Show</span>
+                  <span className="hidden group-open:inline">Hide</span>
+                  <ChevronDown
+                    aria-hidden="true"
+                    className="size-4 transition-transform group-open:rotate-180 motion-reduce:transition-none"
+                  />
+                </span>
               </summary>
-              <div className="space-y-3 border-t px-5 py-4 text-sm">
-                <p className="text-muted-foreground">
+              <div className="space-y-3 border-t border-separator px-5 py-4 text-sm sm:px-6">
+                <p className="text-muted">
                   Identity questions say which match and team an observation is about. They are
                   always asked, and their codes and answer types are fixed. The event always comes
                   from the scouting session.
@@ -653,10 +684,8 @@ export function DraftEditor({
                 <ul className="space-y-2">
                   {identities.map((p) => (
                     <li key={p.key}>
-                      <span className="font-medium">{p.label}</span>{" "}
-                      <code className="font-mono text-[0.8125rem] text-muted-foreground">
-                        {p.key}
-                      </code>
+                      <span className="font-semibold">{p.label}</span>{" "}
+                      <code className="font-mono text-[0.8125rem] text-muted">{p.key}</code>
                       {": "}
                       {p.explanation}
                     </li>
@@ -667,12 +696,10 @@ export function DraftEditor({
                     {missingIdentity.map((p) => (
                       <Button
                         key={p.key}
-                        type="button"
                         variant="outline"
-                        className="h-11"
-                        onClick={() => addIdentity(p.key, p.policy === "required")}
+                        onPress={() => addIdentity(p.key, p.policy === "required")}
                       >
-                        <Plus aria-hidden="true" />
+                        <Plus aria-hidden="true" className="size-4" />
                         Add {p.label.toLowerCase()} question
                       </Button>
                     ))}
@@ -683,14 +710,11 @@ export function DraftEditor({
           </fieldset>
 
           {issues.length ? (
-            <section
-              aria-labelledby="problem-summary"
-              className="rounded-xl border border-destructive/30 bg-destructive-soft/60 p-5"
-            >
+            <section aria-labelledby="problem-summary" className="rounded-2xl bg-danger-soft p-5">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <h2
                   id="problem-summary"
-                  className="flex items-center gap-2 font-semibold text-destructive"
+                  className="flex items-center gap-2 font-semibold text-danger-soft-foreground"
                 >
                   <AlertTriangle aria-hidden="true" className="size-4" />
                   {issues.length === 1
@@ -699,12 +723,10 @@ export function DraftEditor({
                 </h2>
                 {issues.length > 3 ? (
                   <Button
-                    type="button"
                     variant="ghost"
-                    className="h-11"
                     aria-expanded={summaryOpen}
                     aria-controls="problem-list"
-                    onClick={() => setSummaryOpen(!summaryOpen)}
+                    onPress={() => setSummaryOpen(!summaryOpen)}
                   >
                     {summaryOpen ? "Hide list" : "Show list"}
                   </Button>
@@ -720,7 +742,7 @@ export function DraftEditor({
                         <button
                           type="button"
                           onClick={() => jumpTo(issue)}
-                          className="min-h-9 text-left text-sm underline-offset-4 hover:underline focus-visible:underline focus-visible:outline-none"
+                          className="min-h-9 cursor-pointer text-left text-sm underline-offset-4 hover:underline focus-visible:underline focus-visible:outline-none"
                         >
                           {issueContext(issue)}
                           {issue.message}
@@ -735,72 +757,66 @@ export function DraftEditor({
 
           <section aria-labelledby="questions-title" className="space-y-3">
             <div className="flex flex-wrap items-end justify-between gap-2">
-              <h2 id="questions-title" className="text-lg font-semibold">
+              <h2 id="questions-title" className="font-display text-xl">
                 Questions{" "}
-                <span className="font-normal text-muted-foreground tabular-nums">
+                <span className="font-medium font-stretch-normal text-muted tabular-nums">
                   ({content.questions.length})
                 </span>
               </h2>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-muted">
                 In the order scouts are asked. Lines link questions that depend on an earlier
                 answer.
               </p>
             </div>
             {content.questions.length ? (
-              <fieldset disabled={readOnly}>
+              <fieldset
+                disabled={readOnly}
+                className="lg:grid lg:grid-cols-[minmax(0,24rem)_minmax(0,1fr)] lg:items-start lg:gap-5"
+              >
                 <legend className="sr-only">Questions</legend>
                 <QuestionList
                   kind={kind}
                   questions={content.questions}
                   selectedId={selectedId}
-                  onSelect={setSelectedId}
+                  onSelect={select}
                   problems={problemsByQuestion}
+                  compact={wide}
                   renderBody={(question, index) => (
                     <div className="space-y-6">
-                      <div className="flex flex-wrap gap-1 border-b pb-4">
+                      <div className="flex flex-wrap gap-1 border-b border-separator pb-4">
                         <Button
                           id={`move-up-${question.id}`}
-                          type="button"
                           variant="ghost"
-                          className="h-11"
-                          disabled={index === 0}
-                          onClick={() => move(question, -1)}
+                          isDisabled={index === 0}
+                          onPress={() => move(question, -1)}
                         >
-                          <ArrowUp aria-hidden="true" />
+                          <ArrowUp aria-hidden="true" className="size-4" />
                           Move up
                         </Button>
                         <Button
                           id={`move-down-${question.id}`}
-                          type="button"
                           variant="ghost"
-                          className="h-11"
-                          disabled={index === content.questions.length - 1}
-                          onClick={() => move(question, 1)}
+                          isDisabled={index === content.questions.length - 1}
+                          onPress={() => move(question, 1)}
                         >
-                          <ArrowDown aria-hidden="true" />
+                          <ArrowDown aria-hidden="true" className="size-4" />
                           Move down
                         </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          className="h-11"
-                          onClick={() => duplicate(question)}
-                        >
-                          <Copy aria-hidden="true" />
+                        <Button variant="ghost" onPress={() => duplicate(question)}>
+                          <Copy aria-hidden="true" className="size-4" />
                           Duplicate
                         </Button>
                         {identities.find((p) => p.key === question.key)?.policy === "required" ? (
-                          <span className="inline-flex min-h-11 items-center px-3 text-sm text-muted-foreground">
+                          <span className="inline-flex min-h-11 items-center px-3 text-sm text-muted">
                             Required identity questions cannot be removed.
                           </span>
                         ) : (
                           <Button
-                            type="button"
                             variant="ghost"
-                            className="h-11 text-destructive hover:text-destructive"
-                            onClick={() => setRemoving(question)}
+                            className="text-danger hover:bg-danger-soft"
+                            onPress={() => setRemoving(question)}
                           >
-                            <Trash2 aria-hidden="true" />
+                            <Trash2 aria-hidden="true" className="size-4" />
                             Remove
                           </Button>
                         )}
@@ -815,17 +831,60 @@ export function DraftEditor({
                     </div>
                   )}
                 />
+                {wide ? (
+                  <div className="sticky top-[calc(var(--site-header-height)+var(--sub-header-height)+1rem)] max-h-[calc(100svh-var(--site-header-height)-var(--sub-header-height)-8rem)] overflow-y-auto rounded-2xl">
+                    {selectedQuestion ? (
+                      <QuestionInspector
+                        kind={kind}
+                        question={selectedQuestion}
+                        index={selectedIndex}
+                        questions={content.questions}
+                        contract={validation.ok ? validation.contract : null}
+                        problems={fieldProblems(selectedQuestion.id)}
+                        tab={inspectorTab}
+                        onTabChange={setInspectorTab}
+                        onQuestionsChange={editQuestions}
+                        onMove={(step) => move(selectedQuestion, step)}
+                        onDuplicate={() => duplicate(selectedQuestion)}
+                        onRemove={
+                          identities.find((p) => p.key === selectedQuestion.key)?.policy ===
+                          "required"
+                            ? null
+                            : () => setRemoving(selectedQuestion)
+                        }
+                        onClose={() => {
+                          const id = selectedQuestion.id;
+                          setSelectedId(null);
+                          requestAnimationFrame(() =>
+                            document
+                              .querySelector<HTMLElement>(
+                                `#block-${CSS.escape(id)} button[aria-expanded]`,
+                              )
+                              ?.focus(),
+                          );
+                        }}
+                      />
+                    ) : (
+                      <div className="rounded-2xl border-2 border-dashed border-border-secondary px-6 py-12 text-center">
+                        <p className="font-semibold">Select a question</p>
+                        <p className="mx-auto mt-1 max-w-sm text-sm text-muted">
+                          Its settings open here, with the message scouts get in Telegram.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                ) : null}
               </fieldset>
             ) : (
-              <div className="rounded-xl border border-dashed bg-card px-6 py-10 text-center">
-                <p className="font-medium">No questions yet</p>
-                <p className="mt-1 text-sm text-muted-foreground">
+              <div className="rounded-2xl border-2 border-dashed border-border-secondary px-6 py-10 text-center">
+                <p className="font-semibold">No questions yet</p>
+                <p className="mx-auto mt-1 max-w-md text-sm text-muted">
                   Add the first thing scouts should report. Each question needs a follow-up for when
                   the answer is missing.
                 </p>
                 {!readOnly ? (
-                  <Button type="button" className="mt-4 h-11" onClick={addQuestion}>
-                    <Plus aria-hidden="true" />
+                  <Button className="mt-4" onPress={addQuestion}>
+                    <Plus aria-hidden="true" className="size-4" />
                     Add question
                   </Button>
                 ) : null}
@@ -834,8 +893,8 @@ export function DraftEditor({
             {!readOnly ? (
               <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
                 {content.questions.length ? (
-                  <Button type="button" variant="outline" className="h-11" onClick={addQuestion}>
-                    <Plus aria-hidden="true" />
+                  <Button variant="outline" onPress={addQuestion}>
+                    <Plus aria-hidden="true" className="size-4" />
                     Add question
                   </Button>
                 ) : null}
@@ -901,37 +960,33 @@ export function DraftEditor({
       </p>
 
       {/* The action bar stays in reach while the list scrolls. */}
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t bg-card/95 backdrop-blur-sm supports-[backdrop-filter]:bg-card/85">
-        <div className="mx-auto flex max-w-[60rem] flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3 sm:px-6">
+      <div className="fixed inset-x-0 bottom-0 z-30 mx-auto max-w-6xl px-2 pb-2 sm:px-6 sm:pb-4">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl bg-surface px-4 py-3 shadow-overlay sm:px-5">
           <span role="status" aria-live="polite" className="flex items-center gap-2">
             <StatusBadge tone={tone}>{label}</StatusBadge>
           </span>
           {status.kind === "error" ? (
-            <span className="flex flex-wrap items-center gap-2 text-sm text-destructive">
+            <span className="flex flex-wrap items-center gap-2 text-sm font-medium text-danger">
               {status.message}
-              <Button type="button" variant="outline" className="h-9" onClick={() => void save()}>
+              <Button size="sm" variant="outline" onPress={() => void save()}>
                 Try again
               </Button>
             </span>
           ) : status.kind === "unsaved" ? (
-            <Button
-              type="button"
-              variant="ghost"
-              className="h-9 max-sm:hidden"
-              onClick={() => void save()}
-            >
+            <Button size="sm" variant="ghost" className="max-sm:hidden" onPress={() => void save()}>
               Save now
             </Button>
           ) : null}
           {issues.length ? (
             <button
               type="button"
-              className="inline-flex h-9 items-center rounded-full bg-destructive-soft px-3 text-sm font-medium text-destructive"
+              className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-full bg-danger-soft px-3 text-sm font-semibold text-danger-soft-foreground hover:bg-danger-soft-hover"
               onClick={() => {
                 setSummaryOpen(true);
                 document.getElementById("problem-summary")?.scrollIntoView({ block: "center" });
               }}
             >
+              <AlertTriangle aria-hidden="true" className="size-3.5" />
               {issues.length === 1 ? "1 problem" : `${issues.length} problems`}
             </button>
           ) : null}
@@ -939,19 +994,17 @@ export function DraftEditor({
           {!readOnly ? (
             <>
               <Button
-                type="button"
                 variant="outline"
-                className={cn("h-11 max-sm:hidden", view !== "questions" && "hidden")}
-                onClick={addQuestion}
+                className={cn("max-sm:hidden", view !== "questions" && "hidden")}
+                onPress={addQuestion}
               >
-                <Plus aria-hidden="true" />
+                <Plus aria-hidden="true" className="size-4" />
                 Add question
               </Button>
               <Button
-                type="button"
-                className="h-11 px-5 max-sm:w-full"
-                disabled={status.kind === "conflict"}
-                onClick={() => {
+                className="px-5 max-sm:w-full"
+                isDisabled={status.kind === "conflict"}
+                onPress={() => {
                   setPublishError(null);
                   setPublishOpen(true);
                 }}
@@ -963,127 +1016,118 @@ export function DraftEditor({
         </div>
       </div>
 
-      <AlertDialog
-        open={removing !== null}
+      <AlertDialog.Backdrop
+        isOpen={removing !== null}
         onOpenChange={(open) => (open ? null : setRemoving(null))}
       >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              Remove “{removing?.label || removing?.key || "this question"}”?
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {removing && dependents(removing).length
-                ? `Rules on ${dependents(removing)
-                    .map((q) => `“${q.label || q.key}”`)
-                    .join(", ")} use its answer. Those rules will need fixing before you publish.`
-                : "The question and its rules are removed from this draft."}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel asChild>
-              <Button type="button" variant="outline" className="h-11">
+        <AlertDialog.Container>
+          <AlertDialog.Dialog className="sm:max-w-md">
+            <AlertDialog.Header>
+              <AlertDialog.Icon status="danger" />
+              <AlertDialog.Heading className="[overflow-wrap:anywhere]">
+                Remove “{removing?.label || removing?.key || "this question"}”?
+              </AlertDialog.Heading>
+            </AlertDialog.Header>
+            <AlertDialog.Body>
+              <p className="text-pretty text-muted">
+                {removing && dependents(removing).length
+                  ? `Rules on ${dependents(removing)
+                      .map((q) => `“${q.label || q.key}”`)
+                      .join(", ")} use its answer. Those rules will need fixing before you publish.`
+                  : "The question and its rules are removed from this draft."}
+              </p>
+            </AlertDialog.Body>
+            <AlertDialog.Footer className="max-sm:flex-col-reverse max-sm:items-stretch">
+              <Button variant="tertiary" slot="close" autoFocus>
                 Keep question
               </Button>
-            </AlertDialogCancel>
-            <Button
-              type="button"
-              variant="destructive"
-              className="h-11"
-              onClick={() => removing && remove(removing)}
-            >
-              Remove question
-            </Button>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+              <Button variant="danger" onPress={() => removing && remove(removing)}>
+                Remove question
+              </Button>
+            </AlertDialog.Footer>
+          </AlertDialog.Dialog>
+        </AlertDialog.Container>
+      </AlertDialog.Backdrop>
 
-      <Dialog
-        open={publishOpen}
-        onOpenChange={(open) => (publishing ? null : setPublishOpen(open))}
+      <FormDialog
+        isOpen={publishOpen}
+        onOpenChange={setPublishOpen}
+        isPending={publishing}
+        title={
+          issues.length
+            ? issues.length === 1
+              ? "Fix 1 problem before publishing"
+              : `Fix ${issues.length} problems before publishing`
+            : `Publish “${content.name.trim()}”?`
+        }
+        description={
+          issues.length
+            ? "Select a problem to go to it. Your draft is kept."
+            : "A published version cannot be edited. To change it later, create a new draft from it."
+        }
+        size="lg"
       >
-        <DialogContent className="max-h-[calc(100dvh-2rem)] max-w-lg overflow-y-auto">
-          {issues.length ? (
-            <>
-              <DialogHeader>
-                <DialogTitle>
-                  {issues.length === 1
-                    ? "Fix 1 problem before publishing"
-                    : `Fix ${issues.length} problems before publishing`}
-                </DialogTitle>
-                <DialogDescription>
-                  Select a problem to go to it. Your draft is kept.
-                </DialogDescription>
-              </DialogHeader>
-              <ul className="max-h-72 space-y-1 overflow-y-auto">
-                {summary.map((issue, index) => (
-                  // biome-ignore lint/suspicious/noArrayIndexKey: issues have no identity.
-                  <li key={index}>
-                    <button
-                      type="button"
-                      onClick={() => jumpTo(issue)}
-                      className="min-h-9 text-left text-sm text-destructive underline-offset-4 hover:underline"
-                    >
-                      {issueContext(issue)}
-                      {issue.message}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-              <DialogFooter>
-                <DialogClose asChild>
-                  <Button type="button" variant="outline" className="h-11">
-                    Back to editing
-                  </Button>
-                </DialogClose>
-              </DialogFooter>
-            </>
-          ) : (
-            <>
-              <DialogHeader>
-                <DialogTitle>Publish “{content.name.trim()}”?</DialogTitle>
-                <DialogDescription>
-                  A published version cannot be edited. To change it later, create a new draft from
-                  it.
-                </DialogDescription>
-              </DialogHeader>
-              <dl className="grid grid-cols-3 gap-px overflow-hidden rounded-lg border bg-border text-center">
-                {[
-                  ["Season", String(draft.season)],
-                  ["Kind", kindLabels[kind]],
-                  ["Version", nextVersion],
-                ].map(([term, value]) => (
-                  <div key={term} className="bg-card px-3 py-3">
-                    <dt className="text-xs text-muted-foreground">{term}</dt>
-                    <dd className="font-extrabold font-stretch-125% text-xl text-navy tabular-nums">
-                      {value}
-                    </dd>
-                  </div>
-                ))}
-              </dl>
-              <p className="text-sm">
-                {content.questions.length} questions. Publishing does not change any event. Next,
-                you choose which events use it for new scouting sessions.
+        {issues.length ? (
+          <>
+            <ul className="max-h-72 space-y-1 overflow-y-auto">
+              {summary.map((issue, index) => (
+                // biome-ignore lint/suspicious/noArrayIndexKey: issues have no identity.
+                <li key={index}>
+                  <button
+                    type="button"
+                    onClick={() => jumpTo(issue)}
+                    className="min-h-9 cursor-pointer text-left text-sm text-danger underline-offset-4 hover:underline"
+                  >
+                    {issueContext(issue)}
+                    {issue.message}
+                  </button>
+                </li>
+              ))}
+            </ul>
+            <DialogActions>
+              <Button variant="tertiary" onPress={() => setPublishOpen(false)}>
+                Back to editing
+              </Button>
+            </DialogActions>
+          </>
+        ) : (
+          <div className="space-y-4">
+            <dl className="grid grid-cols-3 gap-2 text-center">
+              {[
+                ["Season", String(draft.season)],
+                ["Kind", kindLabels[kind]],
+                ["Version", nextVersion],
+              ].map(([term, value]) => (
+                <div key={term} className="rounded-xl bg-bumper px-2 py-3 text-white">
+                  <dt className="text-xs font-semibold text-bumper-ink">{term}</dt>
+                  <dd className="font-bumper mt-0.5 text-xl [overflow-wrap:anywhere]">{value}</dd>
+                </div>
+              ))}
+            </dl>
+            <p className="text-sm">
+              {content.questions.length} questions. Publishing does not change any event. Next, you
+              choose which events use it for new scouting sessions.
+            </p>
+            {publishError ? (
+              <p role="alert" className="text-sm font-medium text-danger">
+                {publishError}
               </p>
-              {publishError ? (
-                <p role="alert" className="text-sm text-destructive">
-                  {publishError}
-                </p>
-              ) : null}
-              <DialogFooter>
-                <DialogClose asChild>
-                  <Button type="button" variant="outline" disabled={publishing} className="h-11">
-                    Cancel
-                  </Button>
-                </DialogClose>
-                <Button type="button" disabled={publishing} className="h-11 px-5" onClick={publish}>
-                  {publishing ? "Publishing…" : `Publish ${nextVersion}`}
-                </Button>
-              </DialogFooter>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
+            ) : null}
+            <DialogActions>
+              <Button
+                variant="tertiary"
+                isDisabled={publishing}
+                onPress={() => setPublishOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button isPending={publishing} className="px-5" onPress={publish}>
+                {publishing ? "Publishing…" : `Publish ${nextVersion}`}
+              </Button>
+            </DialogActions>
+          </div>
+        )}
+      </FormDialog>
     </div>
   );
 }

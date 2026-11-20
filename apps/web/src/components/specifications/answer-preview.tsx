@@ -7,10 +7,10 @@ import {
   type Question,
   sampleCasesFor,
 } from "@ai-scouting/scouting";
+import { Button, Checkbox, Input } from "@heroui/react";
 import { RotateCcw } from "lucide-react";
 import { useMemo, useState } from "react";
 import { StatusBadge } from "@/components/status-badge";
-import { Button } from "@/components/ui/button";
 import { answerSummary, type EditorQuestion, ruleSentence } from "@/lib/specification-model";
 import {
   answerFromInput,
@@ -21,10 +21,9 @@ import {
 } from "@/lib/specification-preview";
 import { cn } from "@/lib/utils";
 import { ChoiceSelect } from "./choice-select";
-import { controlClass } from "./fields";
 import { FollowUpMessage, RuleLine } from "./preview-parts";
 
-const input = `${controlClass} h-11`;
+const textAction = "min-h-9 px-2 text-accent-soft-foreground";
 
 function AnswerInput({
   question,
@@ -43,9 +42,10 @@ function AnswerInput({
   const common = { id, "aria-describedby": describedBy };
   if (answer.type === "text" || answer.type === "number")
     return (
-      <input
+      <Input
         {...common}
-        className={cn(input, answer.type === "number" && "max-w-48 tabular-nums")}
+        fullWidth
+        className={cn(answer.type === "number" && "max-w-48 tabular-nums")}
         inputMode={answer.type === "number" ? "decimal" : undefined}
         placeholder="Not stated"
         value={typeof value === "string" ? value : ""}
@@ -85,46 +85,47 @@ function AnswerInput({
       <legend className="sr-only">{question.label}</legend>
       <div className="flex flex-wrap gap-x-5 gap-y-1">
         {answer.options.map((option) => (
-          <label key={option.code} className="inline-flex min-h-9 items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              className="size-4 accent-primary"
-              checked={chosen?.includes(option.code) ?? false}
-              onChange={(e) =>
-                onChange(
-                  e.target.checked
-                    ? [...(chosen ?? []), option.code]
-                    : (chosen ?? []).filter((c) => c !== option.code),
-                )
-              }
-            />
-            {option.label}
-          </label>
+          <Checkbox
+            key={option.code}
+            className="min-h-9"
+            isSelected={chosen?.includes(option.code) ?? false}
+            onChange={(checked) =>
+              onChange(
+                checked
+                  ? [...(chosen ?? []), option.code]
+                  : (chosen ?? []).filter((c) => c !== option.code),
+              )
+            }
+          >
+            <Checkbox.Content className="text-sm">
+              <Checkbox.Control>
+                <Checkbox.Indicator />
+              </Checkbox.Control>
+              {option.label}
+            </Checkbox.Content>
+          </Checkbox>
         ))}
       </div>
-      <p className="flex flex-wrap items-center gap-x-3 text-sm text-muted-foreground">
+      <p className="flex flex-wrap items-center gap-x-1 text-sm text-muted">
         {chosen === null
           ? "Not stated."
           : chosen.length
             ? `${chosen.length} selected.`
             : "None of these. This counts as an answer."}
         {chosen?.length !== 0 ? (
-          <button
-            type="button"
-            className="min-h-9 text-primary underline-offset-4 hover:underline"
-            onClick={() => onChange([])}
-          >
+          <Button size="sm" variant="ghost" className={textAction} onPress={() => onChange([])}>
             Set to none of these
-          </button>
+          </Button>
         ) : null}
         {chosen !== null ? (
-          <button
-            type="button"
-            className="min-h-9 text-primary underline-offset-4 hover:underline"
-            onClick={() => onChange(undefined)}
+          <Button
+            size="sm"
+            variant="ghost"
+            className={textAction}
+            onPress={() => onChange(undefined)}
           >
             Clear
-          </button>
+          </Button>
         ) : null}
       </p>
     </fieldset>
@@ -179,8 +180,8 @@ export function AnswerPreview({
     <div className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="min-w-0 space-y-1">
-          <h2 className="text-lg font-semibold">Preview answers</h2>
-          <p className="max-w-[65ch] text-sm text-muted-foreground">
+          <h2 className="font-display text-xl">Preview answers</h2>
+          <p className="max-w-[65ch] text-sm text-muted">
             Enter answers a scout might give. The same rules as live scouting decide what is asked,
             what is required and what the scout is asked next. No AI is used, and nothing is saved.
           </p>
@@ -196,22 +197,20 @@ export function AnswerPreview({
             choices={samples.map((s) => ({ value: s.id, label: s.title }))}
           />
           <Button
-            type="button"
             variant="outline"
-            className="h-11"
-            disabled={!Object.keys(inputs).length}
-            onClick={() => {
+            isDisabled={!Object.keys(inputs).length}
+            onPress={() => {
               setInputs({});
               setSample("");
             }}
           >
-            <RotateCcw aria-hidden="true" />
+            <RotateCcw aria-hidden="true" className="size-4" />
             Clear answers
           </Button>
         </div>
       </div>
       {sample ? (
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-muted">
           {samples.find((s) => s.id === sample)?.shows} Sample answers fill only questions with the
           same code as the worked example.
         </p>
@@ -220,7 +219,7 @@ export function AnswerPreview({
       <section
         aria-labelledby="preview-outcome"
         aria-live="polite"
-        className="space-y-3 rounded-xl border bg-card p-5"
+        className="space-y-4 rounded-2xl bg-surface p-5 shadow-surface sm:p-6"
       >
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           <h3 id="preview-outcome" className="font-semibold">
@@ -229,7 +228,7 @@ export function AnswerPreview({
           <StatusBadge tone={complete ? "success" : "warning"}>
             {complete ? "Complete" : "Needs follow-up"}
           </StatusBadge>
-          <span className="text-sm text-muted-foreground tabular-nums">
+          <span className="text-sm text-muted tabular-nums">
             {answered} of {contract.questions.length} answered
             {result.missing.length ? ` · ${result.missing.length} missing or unusable` : ""}
           </span>
@@ -237,7 +236,7 @@ export function AnswerPreview({
         <FollowUpMessage question={result.question} />
       </section>
 
-      <ol className="divide-y rounded-xl border bg-card">
+      <ol className="divide-y divide-separator rounded-2xl bg-surface shadow-surface">
         {evaluation.questions.map((outcome, index) => {
           const question = contract.questions[index] as Question;
           const editor = questions.find((q) => q.key === question.key);
@@ -249,9 +248,9 @@ export function AnswerPreview({
           return (
             <li
               key={question.key}
-              className="grid gap-x-4 gap-y-3 px-4 py-5 sm:grid-cols-[2rem_1fr] sm:px-5"
+              className="grid gap-x-4 gap-y-3 px-4 py-5 sm:grid-cols-[2rem_1fr] sm:px-6"
             >
-              <span className="text-sm text-muted-foreground tabular-nums max-sm:hidden">
+              <span className="font-bumper pt-0.5 text-sm text-muted max-sm:hidden">
                 {index + 1}
               </span>
               <div className="min-w-0 space-y-3">
@@ -260,13 +259,13 @@ export function AnswerPreview({
                     <label
                       htmlFor={id}
                       className={cn(
-                        "block text-base leading-snug font-medium text-navy [overflow-wrap:anywhere]",
-                        hidden && "text-muted-foreground",
+                        "block text-[1.0625rem] leading-snug font-semibold text-foreground [overflow-wrap:anywhere]",
+                        hidden && "text-muted",
                       )}
                     >
                       {question.prompt}
                     </label>
-                    <p className="mt-1 text-sm text-muted-foreground [overflow-wrap:anywhere]">
+                    <p className="mt-1 text-sm text-muted [overflow-wrap:anywhere]">
                       <span className="font-medium text-foreground">{question.label}</span>
                       {" · "}
                       {editor ? answerSummary(editor) : question.answer.type}
@@ -292,7 +291,7 @@ export function AnswerPreview({
                 />
                 <div id={`${id}-why`} className="space-y-1.5 text-sm">
                   {outcome.problem ? (
-                    <p className="text-destructive">
+                    <p className="font-medium text-danger">
                       This answer cannot be used: {outcome.problem}.
                     </p>
                   ) : null}
@@ -300,7 +299,7 @@ export function AnswerPreview({
                     <p key={reason}>{reason}</p>
                   ))}
                   {kept ? (
-                    <p className="text-muted-foreground">
+                    <p className="text-muted">
                       The answer is kept as history only. It is not used while the question is not
                       asked.
                     </p>
