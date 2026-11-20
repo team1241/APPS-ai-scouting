@@ -5,7 +5,7 @@ import {
   InvitationActions,
   RemoveOperator,
 } from "@/components/operator-management";
-import { PageHeading } from "@/components/page-heading";
+import { PageBody, PageHeading } from "@/components/page-heading";
 import { StatusBadge } from "@/components/status-badge";
 import { operatorAccess, operatorLists } from "@/lib/operator";
 
@@ -22,94 +22,96 @@ export default async function OperatorsPage() {
   const invitations = access === null ? null : (lists?.invitations ?? null);
   const now = Date.now();
   return (
-    <main id="main" className="mx-auto max-w-3xl space-y-10 px-6 py-12">
+    <main id="main">
       <PageHeading description="Operators review access applications, manage this list, and can remove any team’s administrators and revoke its API keys. They are not members of any team.">
         Operators
       </PageHeading>
-      {operators === null || invitations === null ? (
-        <ApplicationsUnavailable href="/operator/operators" />
-      ) : (
-        <>
-          <section aria-labelledby="current-heading" className="space-y-4">
-            <CurrentOperatorsHeading count={operators.length} />
-            <ul className="divide-y overflow-hidden rounded-lg border bg-card">
-              {operators.map((operator) => (
-                <li
-                  key={operator.clerkUserId}
-                  className="flex flex-col gap-2 p-6 sm:flex-row sm:items-center sm:justify-between"
-                >
-                  <div className="min-w-0 [overflow-wrap:anywhere]">
-                    <p className="flex flex-wrap items-center gap-x-3 gap-y-1 font-semibold">
-                      {operator.name}
-                      {operator.isSelf ? <StatusBadge tone="neutral">You</StatusBadge> : null}
-                    </p>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      Added{" "}
-                      <time dateTime={operator.createdAt}>
-                        {dateFormat.format(new Date(operator.createdAt))}
-                      </time>
-                      {operator.addedByName ? ` by ${operator.addedByName}` : " by setup command"}
-                    </p>
-                  </div>
-                  {operator.isSelf ? null : (
-                    <RemoveOperator clerkUserId={operator.clerkUserId} name={operator.name} />
-                  )}
-                </li>
-              ))}
-            </ul>
-          </section>
-          {invitations.length ? (
-            <section aria-labelledby="invited-heading" className="space-y-4">
-              <h2 id="invited-heading" className="text-lg font-semibold">
-                Invited <span className="tabular-nums">({invitations.length})</span>
-              </h2>
-              <ul className="divide-y overflow-hidden rounded-lg border bg-card">
-                {invitations.map((invitation) => {
-                  const expired = new Date(invitation.expiresAt).getTime() <= now;
-                  return (
-                    <li
-                      key={invitation.id}
-                      className="flex flex-col gap-3 p-6 sm:flex-row sm:items-start sm:justify-between"
-                    >
-                      <div className="min-w-0 [overflow-wrap:anywhere]">
-                        <p className="flex flex-wrap items-center gap-x-3 gap-y-1 font-semibold">
-                          {invitation.name}
-                          {!invitation.sent ? (
-                            <StatusBadge tone="danger">Not sent</StatusBadge>
-                          ) : expired ? (
-                            <StatusBadge tone="danger">Expired</StatusBadge>
-                          ) : (
-                            <StatusBadge tone="waiting">Invited</StatusBadge>
-                          )}
-                        </p>
-                        <p className="mt-1 text-sm text-muted-foreground">{invitation.email}</p>
-                        <p className="mt-1 text-sm text-muted-foreground">
-                          {!invitation.sent ? (
-                            "The email failed. Resend to try again."
-                          ) : expired ? (
-                            "Resend to give them another 7 days."
-                          ) : (
-                            <>
-                              Expires{" "}
-                              <time dateTime={invitation.expiresAt}>
-                                {dateFormat.format(new Date(invitation.expiresAt))}
-                              </time>
-                              {invitation.invitedByName
-                                ? ` · Invited by ${invitation.invitedByName}`
-                                : null}
-                            </>
-                          )}
-                        </p>
-                      </div>
-                      <InvitationActions invitationId={invitation.id} email={invitation.email} />
-                    </li>
-                  );
-                })}
+      <PageBody className="space-y-10">
+        {operators === null || invitations === null ? (
+          <ApplicationsUnavailable href="/operator/operators" />
+        ) : (
+          <>
+            <section aria-labelledby="current-heading" className="space-y-4">
+              <CurrentOperatorsHeading count={operators.length} />
+              <ul className="divide-y divide-separator overflow-hidden rounded-2xl bg-surface shadow-surface">
+                {operators.map((operator) => (
+                  <li
+                    key={operator.clerkUserId}
+                    className="flex flex-col gap-2 p-5 sm:flex-row sm:p-6 sm:items-center sm:justify-between"
+                  >
+                    <div className="min-w-0 [overflow-wrap:anywhere]">
+                      <p className="flex flex-wrap items-center gap-x-3 gap-y-1 font-semibold">
+                        {operator.name}
+                        {operator.isSelf ? <StatusBadge tone="neutral">You</StatusBadge> : null}
+                      </p>
+                      <p className="mt-1 text-sm text-muted">
+                        Added{" "}
+                        <time dateTime={operator.createdAt}>
+                          {dateFormat.format(new Date(operator.createdAt))}
+                        </time>
+                        {operator.addedByName ? ` by ${operator.addedByName}` : " by setup command"}
+                      </p>
+                    </div>
+                    {operator.isSelf ? null : (
+                      <RemoveOperator clerkUserId={operator.clerkUserId} name={operator.name} />
+                    )}
+                  </li>
+                ))}
               </ul>
             </section>
-          ) : null}
-        </>
-      )}
+            {invitations.length ? (
+              <section aria-labelledby="invited-heading" className="space-y-4">
+                <h2 id="invited-heading" className="font-display text-xl text-foreground">
+                  Invited <span className="tabular-nums">({invitations.length})</span>
+                </h2>
+                <ul className="divide-y divide-separator overflow-hidden rounded-2xl bg-surface shadow-surface">
+                  {invitations.map((invitation) => {
+                    const expired = new Date(invitation.expiresAt).getTime() <= now;
+                    return (
+                      <li
+                        key={invitation.id}
+                        className="flex flex-col gap-3 p-5 sm:flex-row sm:p-6 sm:items-start sm:justify-between"
+                      >
+                        <div className="min-w-0 [overflow-wrap:anywhere]">
+                          <p className="flex flex-wrap items-center gap-x-3 gap-y-1 font-semibold">
+                            {invitation.name}
+                            {!invitation.sent ? (
+                              <StatusBadge tone="danger">Not sent</StatusBadge>
+                            ) : expired ? (
+                              <StatusBadge tone="danger">Expired</StatusBadge>
+                            ) : (
+                              <StatusBadge tone="waiting">Invited</StatusBadge>
+                            )}
+                          </p>
+                          <p className="mt-1 text-sm text-muted">{invitation.email}</p>
+                          <p className="mt-1 text-sm text-muted">
+                            {!invitation.sent ? (
+                              "The email failed. Resend to try again."
+                            ) : expired ? (
+                              "Resend to give them another 7 days."
+                            ) : (
+                              <>
+                                Expires{" "}
+                                <time dateTime={invitation.expiresAt}>
+                                  {dateFormat.format(new Date(invitation.expiresAt))}
+                                </time>
+                                {invitation.invitedByName
+                                  ? ` · Invited by ${invitation.invitedByName}`
+                                  : null}
+                              </>
+                            )}
+                          </p>
+                        </div>
+                        <InvitationActions invitationId={invitation.id} email={invitation.email} />
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
+            ) : null}
+          </>
+        )}
+      </PageBody>
     </main>
   );
 }

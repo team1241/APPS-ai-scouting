@@ -1,8 +1,9 @@
 import { type ObservationKind, observationKinds } from "@ai-scouting/scouting";
-import { CheckCircle2, Lock } from "lucide-react";
+import { ArrowLeft, CheckCircle2, ChevronRight, Lock } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { adminHeading, PageHeading } from "@/components/page-heading";
+import { LinkButton } from "@/components/link-button";
+import { PageBody, PageHeading } from "@/components/page-heading";
 import { EventAssignmentList } from "@/components/specifications/event-assignments";
 import { NewSpecificationDialog } from "@/components/specifications/new-specification-dialog";
 import { PublishedQuestions } from "@/components/specifications/question-details";
@@ -19,7 +20,6 @@ import {
   specificationsPath,
 } from "@/lib/specifications";
 import { teamAccess } from "@/lib/team-access";
-import { cn } from "@/lib/utils";
 
 export const metadata = { title: "Published specification" };
 
@@ -56,16 +56,22 @@ export default async function PublicationPage({
     return (
       <>
         {navigation}
-        <main id="main" className="mx-auto max-w-3xl space-y-4 px-6 py-12">
-          <PageHeading>{missing ? "Version not found" : "This version is unavailable"}</PageHeading>
-          <p>
-            {missing
-              ? "This team has no such published version."
-              : "We couldn’t load it. Try again shortly."}
-          </p>
-          <Link className="text-primary underline" href={specificationsPath(organizationId)}>
-            Back to specifications
-          </Link>
+        <main id="main">
+          <PageHeading
+            description={
+              missing
+                ? "This team has no such published version."
+                : "We couldn’t load it. Try again shortly."
+            }
+          >
+            {missing ? "Version not found" : "This version is unavailable"}
+          </PageHeading>
+          <PageBody>
+            <LinkButton href={specificationsPath(organizationId)} variant="outline">
+              <ArrowLeft aria-hidden="true" className="size-4" />
+              Back to specifications
+            </LinkButton>
+          </PageBody>
         </main>
       </>
     );
@@ -84,46 +90,28 @@ export default async function PublicationPage({
   return (
     <>
       {navigation}
-      <main id="main" className="mx-auto max-w-[60rem] space-y-8 px-4 py-10 sm:px-6">
-        <nav aria-label="Breadcrumb" className="text-sm text-muted-foreground">
-          <Link
-            href={specificationsPath(organizationId)}
-            className="text-primary underline underline-offset-4"
-          >
-            Scouting specifications
-          </Link>
-          <span aria-hidden="true" className="px-2">
-            /
-          </span>
-          <span className="tabular-nums">{season}</span>
-          <span aria-hidden="true" className="px-2">
-            /
-          </span>
-          <span>{kindLabels[kind]}</span>
-        </nav>
-        {published ? (
-          <div
-            role="status"
-            className="flex gap-3 rounded-xl border border-success/30 bg-success-soft p-5"
-          >
-            <CheckCircle2 aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-success" />
-            <div>
-              <p className="font-semibold text-success">
-                Published {version} for {season} {kindLabels[kind].toLowerCase()} scouting.
-              </p>
-              <p className="mt-1 text-sm">
-                No event uses it yet. Choose events below to use it for new sessions.
-              </p>
-            </div>
-          </div>
-        ) : null}
-        <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
-          <div className="min-w-0 flex-1 basis-80 space-y-3">
-            <h1 className={cn(adminHeading, "[overflow-wrap:anywhere]")}>
-              <span className="text-primary tabular-nums">{version}</span> {name}
-            </h1>
-            <p className="flex flex-wrap items-center gap-x-3 gap-y-2 text-muted-foreground">
-              <StatusBadge tone="neutral">
+      <main id="main">
+        <PageHeading
+          before={
+            <nav
+              aria-label="Breadcrumb"
+              className="flex flex-wrap items-center text-sm font-medium text-bumper-ink"
+            >
+              <Link
+                href={specificationsPath(organizationId)}
+                className="inline-flex min-h-11 items-center rounded-full px-3 underline decoration-white/40 underline-offset-4 hover:bg-white/10 hover:text-white"
+              >
+                Scouting specifications
+              </Link>
+              <ChevronRight aria-hidden="true" className="size-4 opacity-60" />
+              <span className="px-2 tabular-nums">{season}</span>
+              <ChevronRight aria-hidden="true" className="size-4 opacity-60" />
+              <span className="px-2">{kindLabels[kind]}</span>
+            </nav>
+          }
+          description={
+            <span className="flex flex-wrap items-center gap-x-3 gap-y-2">
+              <StatusBadge tone="neutral" className="bg-white/15 text-white">
                 <Lock aria-hidden="true" className="-ml-1 size-3.5" />
                 Published, read-only
               </StatusBadge>
@@ -133,41 +121,64 @@ export default async function PublicationPage({
                   {dateFormat.format(new Date(publication.publishedAt))}
                 </time>
               </span>
-            </p>
-          </div>
-          <NewSpecificationDialog
-            organizationId={organizationId}
-            title="Create an editable draft"
-            trigger="Create editable draft"
-            publications={publications}
-            defaults={{
-              season: Math.max(season, defaultSeason()),
-              kind,
-              name: `${name} (draft)`.slice(0, 80),
-              source: `publication:${season}:${version}`,
-              fixedSource: { label: `${season} ${version}` },
-            }}
-          />
-        </div>
-        {publication.contract.description ? (
-          <p className="max-w-prose text-muted-foreground">{publication.contract.description}</p>
-        ) : null}
-        <EventAssignmentList
-          organizationId={organizationId}
-          kind={kind}
-          season={season}
-          version={version}
-          events={events}
-        />
-        <section aria-labelledby="questions-title" className="space-y-3">
-          <h2 id="questions-title" className="text-lg font-semibold">
-            Questions{" "}
-            <span className="font-normal text-muted-foreground tabular-nums">
-              ({publication.contract.questions.length})
             </span>
-          </h2>
-          <PublishedQuestions kind={kind} questions={publication.contract.questions} />
-        </section>
+          }
+          actions={
+            <NewSpecificationDialog
+              organizationId={organizationId}
+              title="Create an editable draft"
+              trigger="Create editable draft"
+              variant="field"
+              publications={publications}
+              defaults={{
+                season: Math.max(season, defaultSeason()),
+                kind,
+                name: `${name} (draft)`.slice(0, 80),
+                source: `publication:${season}:${version}`,
+                fixedSource: { label: `${season} ${version}` },
+              }}
+            />
+          }
+        >
+          <span className="font-bumper text-sky">{version}</span> {name}
+        </PageHeading>
+        <PageBody className="space-y-8">
+          {published ? (
+            <div role="status" className="flex gap-3 rounded-2xl bg-success-soft p-5">
+              <CheckCircle2
+                aria-hidden="true"
+                className="mt-0.5 size-5 shrink-0 text-success-soft-foreground"
+              />
+              <div>
+                <p className="font-semibold text-success-soft-foreground">
+                  Published {version} for {season} {kindLabels[kind].toLowerCase()} scouting.
+                </p>
+                <p className="mt-1 text-sm">
+                  No event uses it yet. Choose events below to use it for new sessions.
+                </p>
+              </div>
+            </div>
+          ) : null}
+          {publication.contract.description ? (
+            <p className="max-w-prose text-muted">{publication.contract.description}</p>
+          ) : null}
+          <EventAssignmentList
+            organizationId={organizationId}
+            kind={kind}
+            season={season}
+            version={version}
+            events={events}
+          />
+          <section aria-labelledby="questions-title" className="space-y-3">
+            <h2 id="questions-title" className="font-display text-xl">
+              Questions{" "}
+              <span className="font-sans font-medium text-muted tabular-nums">
+                ({publication.contract.questions.length})
+              </span>
+            </h2>
+            <PublishedQuestions kind={kind} questions={publication.contract.questions} />
+          </section>
+        </PageBody>
       </main>
     </>
   );

@@ -40,8 +40,7 @@ function Details({
       <ul key="options" className="space-y-0.5">
         {question.answer.options.map((o) => (
           <li key={o.id}>
-            {o.label}{" "}
-            <code className="font-mono text-[0.8125rem] text-muted-foreground">{o.code}</code>
+            {o.label} <code className="font-mono text-[0.8125rem] text-muted">{o.code}</code>
           </li>
         ))}
       </ul>,
@@ -58,7 +57,7 @@ function Details({
     <dl className="grid gap-x-6 gap-y-3 text-sm sm:grid-cols-[10rem_1fr]">
       {rows.map(([term, value]) => (
         <div key={term} className="contents">
-          <dt className="font-medium text-muted-foreground">{term}</dt>
+          <dt className="font-semibold text-muted">{term}</dt>
           <dd className="[overflow-wrap:anywhere] whitespace-pre-wrap">{value}</dd>
         </div>
       ))}

@@ -1,30 +1,23 @@
 "use client";
 
+import {
+  Alert,
+  Button,
+  Checkbox,
+  Description,
+  FieldError,
+  Input,
+  Label,
+  ListBox,
+  Select,
+  TextField,
+} from "@heroui/react";
 import { revalidateLogic, useForm } from "@tanstack/react-form";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
 import { type ApplicationState, submitApplication } from "@/app/request-access/actions";
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Field,
-  FieldContent,
-  FieldDescription,
-  FieldError,
-  FieldGroup,
-  FieldLabel,
-  FieldLegend,
-  FieldSet,
-} from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { LinkButton } from "@/components/link-button";
 
 const roles = [
   { value: "mentor", label: "Mentor" },
@@ -46,18 +39,20 @@ const applicationSchema = z.object({
   adultAttested: z.boolean().refine((value) => value, "Confirm that you meet the age requirement."),
 });
 const initialState: ApplicationState = { status: "idle", values: {}, errors: {} };
-const inputClass = "min-h-11 bg-card shadow-none md:text-base";
+const inputClass = "md:text-base";
 
 // TanStack exposes schema issues and server strings through the same field metadata.
 function fieldErrors(errors: unknown[]) {
-  return errors.map((error) => ({
-    message:
+  const messages = errors
+    .map((error) =>
       typeof error === "string"
         ? error
         : error && typeof error === "object" && "message" in error
           ? String(error.message)
           : undefined,
-  }));
+    )
+    .filter((message): message is string => Boolean(message));
+  return [...new Set(messages)].join(" ");
 }
 
 export function AccessApplicationForm({ requestId }: { requestId: string }) {
@@ -73,7 +68,9 @@ export function AccessApplicationForm({ requestId }: { requestId: string }) {
     },
     onSubmitInvalid: () => {
       requestAnimationFrame(() =>
-        formElement.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus(),
+        formElement.current
+          ?.querySelector<HTMLElement>('[aria-invalid="true"], [data-invalid="true"] button')
+          ?.focus(),
       );
     },
     onSubmit: async ({ value, formApi }) => {
@@ -114,32 +111,30 @@ export function AccessApplicationForm({ requestId }: { requestId: string }) {
       <div
         ref={feedback}
         tabIndex={-1}
-        className="rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-8"
+        className="rounded-md outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-8"
       >
         <svg
           aria-hidden="true"
           viewBox="0 0 48 48"
           fill="none"
-          className="size-12 text-navy"
+          className="size-12 text-bumper-deep"
           strokeLinecap="round"
           strokeLinejoin="round"
         >
           <circle cx="24" cy="24" r="22" fill="var(--sky)" />
           <path d="M15 24.5l6 6 12-13" stroke="currentColor" strokeWidth="3.5" />
         </svg>
-        <h2 className="mt-5 text-2xl font-extrabold font-stretch-125% tracking-[-0.02em]">
-          Application received
-        </h2>
-        <p className="mt-3 text-muted-foreground">
+        <h2 className="font-display mt-5 text-2xl">Application received</h2>
+        <p className="mt-3 text-muted">
           Thank you for requesting access. Your application is saved and pending review by an
           application owner or administrator.
         </p>
-        <p className="mt-3 text-muted-foreground">
+        <p className="mt-3 text-muted">
           Submitting an application does not grant access. No confirmation email has been sent.
         </p>
-        <Button asChild variant="outline" className="mt-6 min-h-11 shadow-none">
-          <Link href="/">Return home</Link>
-        </Button>
+        <LinkButton href="/" variant="outline" className="mt-6">
+          Return home
+        </LinkButton>
       </div>
     );
 
@@ -157,42 +152,43 @@ export function AccessApplicationForm({ requestId }: { requestId: string }) {
           ref={feedback}
           tabIndex={-1}
           role="alert"
-          className="mb-6 rounded-md border border-destructive p-4 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="mb-6 rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-focus"
         >
-          <p className="font-medium">{result.message}</p>
-          {result.errors.id ? <p className="mt-2">{result.errors.id}</p> : null}
+          <Alert status="danger">
+            <Alert.Indicator />
+            <Alert.Content>
+              <Alert.Title>{result.message}</Alert.Title>
+              {result.errors.id ? <Alert.Description>{result.errors.id}</Alert.Description> : null}
+            </Alert.Content>
+          </Alert>
         </div>
       ) : null}
       <form.Subscribe selector={(state) => state.isSubmitting}>
         {(isSubmitting) => (
-          <FieldSet disabled={isSubmitting} aria-busy={isSubmitting}>
-            <FieldLegend className="sr-only">
-              Your access application. All fields are required.
-            </FieldLegend>
-            <FieldGroup>
+          <fieldset disabled={isSubmitting} aria-busy={isSubmitting} className="min-w-0">
+            <legend className="sr-only">Your access application. All fields are required.</legend>
+            <div className="flex flex-col gap-6">
               <form.Field name="name">
                 {(field) => {
                   const invalid = field.state.meta.isTouched && !field.state.meta.isValid;
                   return (
-                    <Field data-invalid={invalid}>
-                      <FieldLabel htmlFor={field.name}>Your name</FieldLabel>
-                      <Input
-                        id={field.name}
-                        name={field.name}
-                        autoComplete="name"
-                        required
-                        maxLength={120}
-                        value={field.state.value}
-                        onChange={(event) => field.handleChange(event.target.value)}
-                        onBlur={field.handleBlur}
-                        aria-invalid={invalid}
-                        aria-describedby={invalid ? "name-error" : undefined}
-                        className={inputClass}
-                      />
-                      {invalid ? (
-                        <FieldError id="name-error" errors={fieldErrors(field.state.meta.errors)} />
-                      ) : null}
-                    </Field>
+                    <TextField
+                      name={field.name}
+                      autoComplete="name"
+                      isRequired
+                      maxLength={120}
+                      value={field.state.value}
+                      onChange={field.handleChange}
+                      onBlur={field.handleBlur}
+                      isInvalid={invalid}
+                      isDisabled={isSubmitting}
+                      validationBehavior="aria"
+                      fullWidth
+                    >
+                      <Label>Your name</Label>
+                      <Input className={inputClass} />
+                      <FieldError>{fieldErrors(field.state.meta.errors)}</FieldError>
+                    </TextField>
                   );
                 }}
               </form.Field>
@@ -200,29 +196,24 @@ export function AccessApplicationForm({ requestId }: { requestId: string }) {
                 {(field) => {
                   const invalid = field.state.meta.isTouched && !field.state.meta.isValid;
                   return (
-                    <Field data-invalid={invalid}>
-                      <FieldLabel htmlFor={field.name}>Email address</FieldLabel>
-                      <Input
-                        id={field.name}
-                        name={field.name}
-                        type="email"
-                        autoComplete="email"
-                        required
-                        maxLength={254}
-                        value={field.state.value}
-                        onChange={(event) => field.handleChange(event.target.value)}
-                        onBlur={field.handleBlur}
-                        aria-invalid={invalid}
-                        aria-describedby={invalid ? "email-error" : undefined}
-                        className={inputClass}
-                      />
-                      {invalid ? (
-                        <FieldError
-                          id="email-error"
-                          errors={fieldErrors(field.state.meta.errors)}
-                        />
-                      ) : null}
-                    </Field>
+                    <TextField
+                      name={field.name}
+                      type="email"
+                      autoComplete="email"
+                      isRequired
+                      maxLength={254}
+                      value={field.state.value}
+                      onChange={field.handleChange}
+                      onBlur={field.handleBlur}
+                      isInvalid={invalid}
+                      isDisabled={isSubmitting}
+                      validationBehavior="aria"
+                      fullWidth
+                    >
+                      <Label>Email address</Label>
+                      <Input className={inputClass} />
+                      <FieldError>{fieldErrors(field.state.meta.errors)}</FieldError>
+                    </TextField>
                   );
                 }}
               </form.Field>
@@ -230,33 +221,24 @@ export function AccessApplicationForm({ requestId }: { requestId: string }) {
                 {(field) => {
                   const invalid = field.state.meta.isTouched && !field.state.meta.isValid;
                   return (
-                    <Field data-invalid={invalid}>
-                      <FieldLabel htmlFor={field.name}>FRC team number</FieldLabel>
-                      <Input
-                        id={field.name}
-                        name={field.name}
-                        inputMode="numeric"
-                        pattern="[1-9][0-9]{0,4}"
-                        required
-                        value={field.state.value}
-                        onChange={(event) =>
-                          field.handleChange(event.target.value.replace(/\D/g, "").slice(0, 5))
-                        }
-                        onBlur={field.handleBlur}
-                        aria-invalid={invalid}
-                        aria-describedby={`teamNumber-hint${invalid ? " teamNumber-error" : ""}`}
-                        className={inputClass}
-                      />
-                      <FieldDescription id="teamNumber-hint">
-                        Use your team’s number, for example 1241.
-                      </FieldDescription>
-                      {invalid ? (
-                        <FieldError
-                          id="teamNumber-error"
-                          errors={fieldErrors(field.state.meta.errors)}
-                        />
-                      ) : null}
-                    </Field>
+                    <TextField
+                      name={field.name}
+                      inputMode="numeric"
+                      pattern="[1-9][0-9]{0,4}"
+                      isRequired
+                      value={field.state.value}
+                      onChange={(value) => field.handleChange(value.replace(/\D/g, "").slice(0, 5))}
+                      onBlur={field.handleBlur}
+                      isInvalid={invalid}
+                      isDisabled={isSubmitting}
+                      validationBehavior="aria"
+                      fullWidth
+                    >
+                      <Label>FRC team number</Label>
+                      <Input className={`${inputClass} tabular-nums`} />
+                      <Description>Use your team’s number, for example 1241.</Description>
+                      <FieldError>{fieldErrors(field.state.meta.errors)}</FieldError>
+                    </TextField>
                   );
                 }}
               </form.Field>
@@ -264,40 +246,40 @@ export function AccessApplicationForm({ requestId }: { requestId: string }) {
                 {(field) => {
                   const invalid = field.state.meta.isTouched && !field.state.meta.isValid;
                   return (
-                    <Field data-invalid={invalid}>
-                      <FieldLabel htmlFor={field.name}>Role on the team</FieldLabel>
-                      <Select
-                        name={field.name}
-                        value={field.state.value}
-                        onValueChange={field.handleChange}
-                        required
-                        disabled={isSubmitting}
-                      >
-                        <SelectTrigger
-                          id={field.name}
-                          onBlur={field.handleBlur}
-                          aria-invalid={invalid}
-                          aria-describedby={invalid ? "role-error" : undefined}
-                          className="min-h-11 w-full bg-card text-base shadow-none"
-                        >
-                          <SelectValue placeholder="Select your role" />
-                        </SelectTrigger>
-                        <SelectContent position="popper">
+                    <Select
+                      name={field.name}
+                      placeholder="Select your role"
+                      value={field.state.value || null}
+                      onChange={(value) => field.handleChange(value ? String(value) : "")}
+                      onBlur={field.handleBlur}
+                      isRequired
+                      isInvalid={invalid}
+                      isDisabled={isSubmitting}
+                      validationBehavior="aria"
+                      fullWidth
+                    >
+                      <Label>Role on the team</Label>
+                      <Select.Trigger className="min-h-11">
+                        <Select.Value className={inputClass} />
+                        <Select.Indicator />
+                      </Select.Trigger>
+                      <FieldError>{fieldErrors(field.state.meta.errors)}</FieldError>
+                      <Select.Popover>
+                        <ListBox>
                           {roles.map((role) => (
-                            <SelectItem
+                            <ListBox.Item
                               key={role.value}
-                              value={role.value}
+                              id={role.value}
+                              textValue={role.label}
                               className="min-h-11 text-base"
                             >
                               {role.label}
-                            </SelectItem>
+                              <ListBox.ItemIndicator />
+                            </ListBox.Item>
                           ))}
-                        </SelectContent>
-                      </Select>
-                      {invalid ? (
-                        <FieldError id="role-error" errors={fieldErrors(field.state.meta.errors)} />
-                      ) : null}
-                    </Field>
+                        </ListBox>
+                      </Select.Popover>
+                    </Select>
                   );
                 }}
               </form.Field>
@@ -305,62 +287,66 @@ export function AccessApplicationForm({ requestId }: { requestId: string }) {
                 {(field) => {
                   const invalid = field.state.meta.isTouched && !field.state.meta.isValid;
                   return (
-                    <Field data-invalid={invalid} orientation="horizontal">
-                      <div className="flex h-6 shrink-0 items-center">
-                        <Checkbox
-                          id={field.name}
-                          name={field.name}
-                          checked={field.state.value}
-                          onCheckedChange={(checked) => field.handleChange(checked === true)}
-                          onBlur={field.handleBlur}
-                          required
-                          disabled={isSubmitting}
-                          aria-invalid={invalid}
-                          aria-describedby={invalid ? "adultAttested-error" : undefined}
-                          className="shadow-none"
-                        />
-                      </div>
-                      <FieldContent>
-                        <FieldLabel
-                          htmlFor={field.name}
-                          className="min-h-11 cursor-pointer items-start font-normal leading-6"
+                    <div className="space-y-1.5">
+                      <Checkbox
+                        name={field.name}
+                        isSelected={field.state.value}
+                        onChange={field.handleChange}
+                        onBlur={field.handleBlur}
+                        isRequired
+                        isInvalid={invalid}
+                        isDisabled={isSubmitting}
+                        validationBehavior="aria"
+                        aria-describedby={invalid ? "adultAttested-error" : undefined}
+                      >
+                        <Checkbox.Content className="min-h-11 items-start gap-3">
+                          <Checkbox.Control className="mt-0.5 shrink-0">
+                            <Checkbox.Indicator />
+                          </Checkbox.Control>
+                          <span className="leading-6">
+                            I confirm that I am at least 18 years old and the age of majority where
+                            I live.
+                          </span>
+                        </Checkbox.Content>
+                      </Checkbox>
+                      {invalid ? (
+                        <p
+                          id="adultAttested-error"
+                          className="pl-8 text-sm font-medium text-danger"
                         >
-                          I confirm that I am at least 18 years old and the age of majority where I
-                          live.
-                        </FieldLabel>
-                        {invalid ? (
-                          <FieldError
-                            id="adultAttested-error"
-                            errors={fieldErrors(field.state.meta.errors)}
-                          />
-                        ) : null}
-                      </FieldContent>
-                    </Field>
+                          {fieldErrors(field.state.meta.errors)}
+                        </p>
+                      ) : null}
+                    </div>
                   );
                 }}
               </form.Field>
-              <FieldDescription>
+              <p className="text-sm text-muted">
                 We store these details so an application owner or administrator can review your
                 request. See our{" "}
-                <Link href="/privacy" className="rounded-sm text-foreground">
+                <Link
+                  href="/privacy"
+                  className="rounded-sm font-medium text-foreground underline underline-offset-4"
+                >
                   privacy notice
                 </Link>
                 .
-              </FieldDescription>
-              <Field orientation="horizontal">
+              </p>
+              <div className="flex items-center gap-3">
                 <Button
                   type="submit"
-                  disabled={isSubmitting}
-                  className="min-h-12 w-full bg-navy px-6 text-base font-semibold shadow-none hover:bg-navy-raised sm:w-auto"
+                  size="lg"
+                  isPending={isSubmitting}
+                  className="w-full sm:w-auto"
                 >
                   {isSubmitting ? "Submitting application…" : "Submit application"}
                 </Button>
                 <span role="status" className="sr-only">
                   {isSubmitting ? "Submitting your application. Please wait." : ""}
                 </span>
-              </Field>
-            </FieldGroup>
-          </FieldSet>
+              </div>
+            </div>
+          </fieldset>
         )}
       </form.Subscribe>
     </form>

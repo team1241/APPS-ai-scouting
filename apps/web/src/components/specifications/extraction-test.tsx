@@ -8,11 +8,11 @@ import {
   type ObservationKind,
   sampleCasesFor,
 } from "@ai-scouting/scouting";
+import { Button, Input, TextArea } from "@heroui/react";
 import { AlertTriangle, Plus, Sparkles, X } from "lucide-react";
 import { useId, useState } from "react";
 import { type DraftTestMessage, testSpecificationDraft } from "@/app/admin/specification-actions";
 import { StatusBadge } from "@/components/status-badge";
-import { Button } from "@/components/ui/button";
 import { newId } from "@/lib/specification-model";
 import {
   formatValue,
@@ -23,10 +23,7 @@ import {
 } from "@/lib/specification-preview";
 import { cn } from "@/lib/utils";
 import { ChoiceSelect } from "./choice-select";
-import { controlClass } from "./fields";
 import { FollowUpMessage } from "./preview-parts";
-
-const textarea = `${controlClass} min-h-20 py-2.5 leading-relaxed`;
 
 interface Message extends DraftTestMessage {
   id: string;
@@ -43,9 +40,7 @@ const blankNote = (): Message => ({ id: newId("m"), role: "note", text: "" });
 
 function Counter({ length, max }: { length: number; max: number }) {
   return (
-    <span
-      className={cn("tabular-nums", length > max ? "text-destructive" : "text-muted-foreground")}
-    >
+    <span className={cn("tabular-nums", length > max ? "font-semibold text-danger" : "text-muted")}>
       {length.toLocaleString("en-CA")} / {max.toLocaleString("en-CA")}
     </span>
   );
@@ -56,7 +51,10 @@ function Results({ outcome, stale }: { outcome: Outcome; stale: boolean }) {
   const stated = latestStated(result);
   const complete = result.status === "complete";
   return (
-    <section aria-labelledby="test-result" className="space-y-5 rounded-xl border bg-card p-5">
+    <section
+      aria-labelledby="test-result"
+      className="space-y-5 rounded-2xl bg-surface p-5 shadow-surface sm:p-6"
+    >
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <h3 id="test-result" className="font-semibold">
           Result
@@ -64,28 +62,28 @@ function Results({ outcome, stale }: { outcome: Outcome; stale: boolean }) {
         <StatusBadge tone={complete ? "success" : "warning"}>
           {complete ? "Complete" : "Needs follow-up"}
         </StatusBadge>
-        <span className="text-sm text-muted-foreground">
+        <span className="text-sm text-muted">
           AI extraction of draft revision {outcome.revision}
         </span>
       </div>
       {stale ? (
-        <p className="rounded-lg bg-warning-soft px-4 py-3 text-sm text-warning">
+        <p className="rounded-xl bg-warning-soft px-4 py-3 text-sm font-medium text-warning-soft-foreground">
           The draft changed after this test. Run it again to test your changes.
         </p>
       ) : null}
       <FollowUpMessage question={result.question} />
 
       <div className="space-y-2">
-        <h4 className="text-sm font-medium">What each message stated</h4>
+        <h4 className="text-sm font-semibold">What each message stated</h4>
         <ol className="space-y-3">
           {outcome.messages.map((message, index) => {
             const values = Object.entries(result.turns[index] ?? {});
             return (
-              <li key={message.id} className="space-y-2 rounded-lg border px-4 py-3">
-                <p className="text-xs font-semibold text-muted-foreground">
+              <li key={message.id} className="space-y-2 rounded-xl bg-surface-secondary px-4 py-3">
+                <p className="text-xs font-semibold text-muted">
                   {index === 0 ? "Note" : `Reply ${index}`}
                 </p>
-                <p className="text-sm whitespace-pre-wrap text-muted-foreground [overflow-wrap:anywhere]">
+                <p className="text-sm whitespace-pre-wrap text-muted [overflow-wrap:anywhere]">
                   {message.text}
                 </p>
                 {values.length ? (
@@ -95,16 +93,16 @@ function Results({ outcome, stale }: { outcome: Outcome; stale: boolean }) {
                       return (
                         <div
                           key={key}
-                          className="inline-flex gap-1.5 rounded-md bg-accent px-2.5 py-1"
+                          className="inline-flex gap-1.5 rounded-full bg-accent-soft px-3 py-1 text-accent-soft-foreground"
                         >
-                          <dt className="font-medium">{question?.label ?? key}:</dt>
+                          <dt className="font-semibold">{question?.label ?? key}:</dt>
                           <dd>{formatValue(question, value)}</dd>
                         </div>
                       );
                     })}
                   </dl>
                 ) : (
-                  <p className="text-sm italic text-muted-foreground">Nothing extracted.</p>
+                  <p className="text-sm italic text-muted">Nothing extracted.</p>
                 )}
               </li>
             );
@@ -113,10 +111,10 @@ function Results({ outcome, stale }: { outcome: Outcome; stale: boolean }) {
       </div>
 
       <div className="space-y-2">
-        <h4 className="text-sm font-medium">Answers after every message</h4>
-        <div className="overflow-x-auto rounded-lg border">
+        <h4 className="text-sm font-semibold">Answers after every message</h4>
+        <div className="overflow-x-auto rounded-xl border border-separator">
           <table className="w-full min-w-[36rem] text-left text-sm">
-            <thead className="bg-muted/60 text-muted-foreground">
+            <thead className="bg-surface-secondary text-muted">
               <tr>
                 <th scope="col" className="px-3 py-2 font-medium">
                   Question
@@ -129,7 +127,7 @@ function Results({ outcome, stale }: { outcome: Outcome; stale: boolean }) {
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y">
+            <tbody className="divide-y divide-separator">
               {contract.questions.map((question) => {
                 const field = result.fields[question.key];
                 if (!field) return null;
@@ -140,7 +138,7 @@ function Results({ outcome, stale }: { outcome: Outcome; stale: boolean }) {
                   <tr key={question.key} className="align-top">
                     <th scope="row" className="px-3 py-2.5 font-medium [overflow-wrap:anywhere]">
                       {question.label}
-                      <span className="block font-normal text-muted-foreground">
+                      <span className="block font-normal text-muted">
                         {requirementLabel(field)}
                       </span>
                     </th>
@@ -148,15 +146,13 @@ function Results({ outcome, stale }: { outcome: Outcome; stale: boolean }) {
                       {has ? (
                         formatValue(question, stated[question.key])
                       ) : (
-                        <span className="text-muted-foreground">Not stated</span>
+                        <span className="text-muted">Not stated</span>
                       )}
                       {inactive ? (
-                        <span className="block text-muted-foreground">
-                          Kept as history; not used.
-                        </span>
+                        <span className="block text-muted">Kept as history; not used.</span>
                       ) : null}
                       {field.problem ? (
-                        <span className="block text-destructive">{field.problem}</span>
+                        <span className="block font-medium text-danger">{field.problem}</span>
                       ) : null}
                     </td>
                     <td className="px-3 py-2.5">
@@ -261,8 +257,8 @@ export function ExtractionTest({
   return (
     <div className="space-y-5">
       <div className="space-y-1">
-        <h2 className="text-lg font-semibold">Test extraction</h2>
-        <p className="max-w-[65ch] text-sm text-muted-foreground">
+        <h2 className="font-display text-xl">Test extraction</h2>
+        <p className="max-w-[65ch] text-sm text-muted">
           Runs the AI extraction used in live scouting on a sample note and replies, against this
           draft as saved. Each run makes one AI request. No scouting session is created, nothing is
           sent to Telegram and no version changes.
@@ -271,7 +267,7 @@ export function ExtractionTest({
 
       <section
         aria-labelledby={`${base}-sample`}
-        className="space-y-4 rounded-xl border bg-card p-5"
+        className="space-y-4 rounded-2xl bg-surface p-5 shadow-surface sm:p-6"
       >
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h3 id={`${base}-sample`} className="font-semibold">
@@ -288,7 +284,7 @@ export function ExtractionTest({
             choices={samples.map((s) => ({ value: s.id, label: s.title }))}
           />
         </div>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-muted">
           Use invented notes only. Do not paste real scout messages here.
           {sample ? ` ${samples.find((s) => s.id === sample)?.shows}` : ""}
         </p>
@@ -297,41 +293,46 @@ export function ExtractionTest({
           {messages.map((message, index) => {
             const id = `${base}-${message.id}`;
             return (
-              <div key={message.id} className={cn("space-y-2", index > 0 && "border-t pt-4")}>
+              <div
+                key={message.id}
+                className={cn("space-y-2", index > 0 && "border-t border-separator pt-4")}
+              >
                 <div className="flex items-center justify-between gap-3">
-                  <label htmlFor={`${id}-text`} className="text-sm font-medium">
+                  <label htmlFor={`${id}-text`} className="text-sm font-semibold">
                     {index === 0 ? "Scout’s note" : `Reply ${index}`}
                   </label>
                   {index > 0 ? (
                     <Button
-                      type="button"
+                      size="sm"
                       variant="ghost"
-                      className="h-9 text-muted-foreground"
-                      onClick={() => setMessages((list) => list.filter((m) => m.id !== message.id))}
+                      className="text-muted"
+                      isDisabled={running}
+                      onPress={() => setMessages((list) => list.filter((m) => m.id !== message.id))}
                     >
-                      <X aria-hidden="true" />
+                      <X aria-hidden="true" className="size-4" />
                       Remove reply
                     </Button>
                   ) : null}
                 </div>
                 {index > 0 ? (
                   <div className="space-y-1.5">
-                    <label htmlFor={`${id}-asked`} className="text-sm text-muted-foreground">
+                    <label htmlFor={`${id}-asked`} className="text-sm text-muted">
                       Follow-up it answers (optional)
                     </label>
-                    <input
+                    <Input
                       id={`${id}-asked`}
-                      className={`${controlClass} h-11`}
+                      fullWidth
                       value={message.asked ?? ""}
                       placeholder="For example: Which level did the robot climb to?"
                       onChange={(e) => update(message.id, { asked: e.target.value })}
                     />
                   </div>
                 ) : null}
-                <textarea
+                <TextArea
                   id={`${id}-text`}
                   rows={index === 0 ? 3 : 2}
-                  className={textarea}
+                  fullWidth
+                  className="leading-relaxed"
                   value={message.text}
                   aria-describedby={`${id}-count`}
                   placeholder={
@@ -347,13 +348,11 @@ export function ExtractionTest({
               </div>
             );
           })}
-          <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-separator pt-4">
             <Button
-              type="button"
               variant="outline"
-              className="h-11"
-              disabled={messages.length >= LIMITS_DRAFT_TEST.messages}
-              onClick={() =>
+              isDisabled={running || messages.length >= LIMITS_DRAFT_TEST.messages}
+              onPress={() =>
                 setMessages((list) => [
                   ...list,
                   {
@@ -365,7 +364,7 @@ export function ExtractionTest({
                 ])
               }
             >
-              <Plus aria-hidden="true" />
+              <Plus aria-hidden="true" className="size-4" />
               Add reply
             </Button>
             <span className="text-sm">
@@ -376,7 +375,7 @@ export function ExtractionTest({
         {error ? (
           <p
             role="alert"
-            className="flex gap-2 rounded-lg bg-destructive-soft px-4 py-3 text-sm text-destructive"
+            className="flex gap-2 rounded-xl bg-danger-soft px-4 py-3 text-sm font-medium text-danger-soft-foreground"
           >
             <AlertTriangle aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
             {error}
@@ -384,16 +383,16 @@ export function ExtractionTest({
         ) : null}
         <div className="flex flex-wrap items-center gap-3">
           <Button
-            type="button"
-            className="h-11 px-5 max-sm:w-full"
-            disabled={running || empty || tooLong}
-            onClick={run}
+            className="max-sm:w-full"
+            isPending={running}
+            isDisabled={empty || tooLong}
+            onPress={run}
           >
-            <Sparkles aria-hidden="true" />
+            <Sparkles aria-hidden="true" className="size-4" />
             {running ? "Testing… this can take 30 seconds" : "Run test"}
           </Button>
           {empty && !running ? (
-            <span className="text-sm text-muted-foreground">
+            <span className="text-sm text-muted">
               Write the note{messages.length > 1 ? " and every reply" : ""} to run the test.
             </span>
           ) : null}

@@ -7,12 +7,14 @@ import { usePathname } from "next/navigation";
 import { type ReactNode, useRef } from "react";
 import logo from "@/assets/apps-logo.png";
 import { useStickyHeight } from "@/lib/use-sticky-height";
+import { cn } from "@/lib/utils";
 
 const quietAction =
-  "inline-flex min-h-11 items-center justify-center rounded-md px-3 text-sm font-medium text-sky-soft hover:bg-white/10 hover:text-white";
+  "inline-flex min-h-11 items-center justify-center rounded-full px-4 text-sm font-semibold text-bumper-ink hover:bg-white/10 hover:text-white";
 
+// Pills on the bumper field; the current section is a lighter pill.
 const navigationClass =
-  "relative inline-flex min-h-11 items-center rounded-md px-3 text-sm font-medium text-sky-soft hover:text-white aria-[current]:text-white aria-[current]:after:absolute aria-[current]:after:inset-x-3 aria-[current]:after:bottom-1.5 aria-[current]:after:h-0.5 aria-[current]:after:rounded-full aria-[current]:after:bg-sky";
+  "inline-flex min-h-11 shrink-0 items-center rounded-full px-3 text-sm sm:px-4 font-semibold text-bumper-ink transition-colors hover:bg-white/10 hover:text-white aria-[current]:bg-white/15 aria-[current]:text-white motion-reduce:transition-none";
 
 // Rendered only after the server confirms platform-operator access.
 export function OperatorNavLink({ waiting }: { waiting: number | null }) {
@@ -31,7 +33,7 @@ export function OperatorNavLink({ waiting }: { waiting: number | null }) {
     >
       Operator
       {waiting ? (
-        <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-sky px-1.5 text-xs font-semibold text-navy tabular-nums">
+        <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-sky px-1.5 text-xs font-bold text-bumper-deep tabular-nums">
           {waiting}
           <span className="sr-only"> {waiting === 1 ? "application" : "applications"} waiting</span>
         </span>
@@ -53,11 +55,8 @@ function HeaderContent({
   const header = useRef<HTMLElement>(null);
   useStickyHeight(header, "--site-header-height");
   return (
-    <header
-      ref={header}
-      className="public-band sticky top-0 z-40 border-b border-sky/15 bg-navy text-white"
-    >
-      <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3 sm:gap-x-6 sm:px-6">
+    <header ref={header} className="bumper-field sticky top-0 z-40 bg-bumper text-white">
+      <div className="mx-auto flex max-w-6xl items-center gap-x-2 px-4 py-2 sm:gap-x-5 sm:px-6 sm:py-2.5">
         <Link
           href={signedIn ? "/admin" : "/"}
           aria-label="Theory6 Apps home"
@@ -66,24 +65,26 @@ function HeaderContent({
           <Image
             src={logo}
             alt=""
-            width={44}
-            height={44}
-            sizes="44px"
-            className="size-11 rounded-full ring-1 ring-sky/40 transition-shadow group-hover:ring-2 group-hover:ring-sky"
+            width={40}
+            height={40}
+            sizes="40px"
+            className="size-10 rounded-full ring-2 ring-white/80 transition-shadow group-hover:ring-white"
             preload
           />
           <span className="hidden flex-col leading-none sm:flex">
-            <span className="font-extrabold text-base font-stretch-125% tracking-[-0.01em]">
-              Theory6
-            </span>
-            <span className="mt-1 text-xs font-medium text-sky">Administration</span>
+            <span className="font-display text-base">Theory6</span>
+            <span className="mt-1 text-xs font-semibold text-sky">Administration</span>
           </span>
         </Link>
-        <nav aria-label="Main navigation" className="flex flex-1 items-center gap-1">
+        <nav
+          aria-label="Main navigation"
+          className="flex min-w-0 flex-1 items-center gap-0.5 sm:gap-1"
+        >
           <Link
             href="/"
             aria-current={pathname === "/" ? "page" : undefined}
-            className={navigationClass}
+            // Signed in, the logo already leads to Teams; drop Home on phones to keep one row.
+            className={cn(navigationClass, signedIn && "max-sm:hidden")}
           >
             Home
           </Link>
@@ -104,7 +105,7 @@ function HeaderContent({
           ) : null}
           {signedIn ? operatorEntry : null}
         </nav>
-        <div className="flex shrink-0 items-center gap-1">{account}</div>
+        <div className="ml-auto flex shrink-0 items-center gap-1">{account}</div>
       </div>
     </header>
   );
@@ -124,7 +125,7 @@ function AccountHeader({ operatorEntry }: { operatorEntry?: ReactNode }) {
               elements: {
                 userButtonTrigger:
                   "min-h-11 min-w-11 justify-center rounded-full p-1.5 focus-visible:outline-2 focus-visible:outline-sky",
-                avatarBox: "size-8 ring-1 ring-sky/50",
+                avatarBox: "size-8 ring-2 ring-white/70",
               },
             }}
           />
@@ -138,14 +139,14 @@ function AccountHeader({ operatorEntry }: { operatorEntry?: ReactNode }) {
             {pathname.startsWith("/sign-in") ? null : (
               <Link
                 href="/sign-in"
-                className="inline-flex min-h-11 items-center justify-center rounded-md bg-sky px-4 text-sm font-semibold text-navy hover:bg-sky-soft"
+                className="inline-flex min-h-11 items-center justify-center rounded-full bg-white px-5 text-sm font-semibold text-bumper-deep shadow-sm transition-colors hover:bg-bumper-ink motion-reduce:transition-none"
               >
                 Sign in
               </Link>
             )}
           </>
         ) : (
-          <span role="status" className="px-3 text-sm text-sky-soft">
+          <span role="status" className="px-3 text-sm text-bumper-ink">
             Loading account…
           </span>
         )

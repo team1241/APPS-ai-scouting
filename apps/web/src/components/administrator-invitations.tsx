@@ -1,12 +1,12 @@
 "use client";
 
+import { Button } from "@heroui/react";
 import { useActionState } from "react";
 import {
   type AdminInvitationState,
   acceptAdministratorInvitation,
 } from "@/app/admin/administrator-actions";
 import { TeamNumber } from "@/components/page-heading";
-import { Button } from "@/components/ui/button";
 
 export interface AccountInvitation {
   id: string;
@@ -28,11 +28,11 @@ function InvitationRow({ invitation }: { invitation: AccountInvitation }) {
     { status: "idle" },
   );
   return (
-    <li className="flex flex-col gap-4 p-6 sm:flex-row sm:items-center">
-      <TeamNumber value={invitation.teamNumber} className="w-24 shrink-0 text-2xl" />
+    <li className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:p-6">
+      <TeamNumber value={invitation.teamNumber} className="w-24 shrink-0 text-3xl" />
       <div className="min-w-0 flex-1 space-y-1">
         <p className="font-semibold [overflow-wrap:anywhere]">{invitation.organizationName}</p>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-muted">
           {invitation.invitedByName} invited you to administer this team. Expires{" "}
           <time dateTime={invitation.expiresAt}>
             {dateFormat.format(new Date(invitation.expiresAt))}
@@ -40,14 +40,14 @@ function InvitationRow({ invitation }: { invitation: AccountInvitation }) {
           .
         </p>
         {state.status === "error" && state.message ? (
-          <p role="alert" className="text-sm text-destructive">
+          <p role="alert" className="text-sm font-medium text-danger">
             {state.message}
           </p>
         ) : null}
       </div>
       <form action={accept} className="shrink-0">
         <input type="hidden" name="invitationId" value={invitation.id} />
-        <Button type="submit" disabled={accepting} className="h-11 w-full px-5 sm:w-auto">
+        <Button type="submit" isPending={accepting} className="w-full sm:w-auto">
           {accepting ? "Accepting…" : "Accept and open team"}
         </Button>
       </form>
@@ -64,7 +64,7 @@ export function AdministratorInvitations({ invitations }: { invitations: Account
       <h2 id="invitations-title" className="text-lg font-semibold">
         Invitations
       </h2>
-      <ul className="divide-y overflow-hidden rounded-lg border bg-card">
+      <ul className="divide-y divide-separator overflow-hidden rounded-2xl bg-surface shadow-surface">
         {invitations.map((invitation) => (
           <InvitationRow key={invitation.id} invitation={invitation} />
         ))}

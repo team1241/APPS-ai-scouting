@@ -1,13 +1,7 @@
 "use client";
 
-import type { ReactNode } from "react";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { ListBox, Select } from "@heroui/react";
+import { type ReactNode, useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 
 export interface Choice {
@@ -17,11 +11,12 @@ export interface Choice {
   tone?: "danger";
 }
 
-// Radix reserves the empty string, so "nothing chosen" travels as this value internally.
+// Collection keys avoid the empty string, so "nothing chosen" travels as this value internally.
 const EMPTY = "__empty__";
 
-// The builder's dropdown: the shadcn Select with the 44px admin control size. Values are
+// The builder's dropdown: the HeroUI Select with the 44px admin control size. Values are
 // plain strings; an empty string is a real choice ("Not stated") when listed in `choices`.
+// A visible <label for={id}> names it, as for a native control.
 export function ChoiceSelect({
   value,
   onChange,
@@ -50,40 +45,60 @@ export function ChoiceSelect({
   const encode = (v: string) => (v === "" ? EMPTY : v);
   // A draft can hold duplicate codes while it is being fixed; list each value once.
   const unique = choices.filter((c, i) => choices.findIndex((o) => o.value === c.value) === i);
-  const listed = unique.some((c) => c.value === value);
+  const selected = unique.find((c) => c.value === value);
+  const listed = selected !== undefined;
+  // The trigger is a button, so an outside label names it through aria-labelledby.
+  const [labelledBy, setLabelledBy] = useState<string>();
+  useEffect(() => {
+    if (ariaLabel || !id) return;
+    const label = document.querySelector<HTMLLabelElement>(`label[for="${CSS.escape(id)}"]`);
+    if (!label) return;
+    if (!label.id) label.id = `${id}-label`;
+    setLabelledBy(label.id);
+  }, [ariaLabel, id]);
   return (
     <Select
+      id={id}
       name={name}
-      value={listed ? encode(value) : ""}
-      onValueChange={(next) => onChange(next === EMPTY ? "" : next)}
-      disabled={disabled}
+      fullWidth
+      aria-label={ariaLabel}
+      aria-labelledby={ariaLabel ? undefined : labelledBy}
+      aria-describedby={ariaDescribedBy}
+      isInvalid={ariaInvalid || undefined}
+      isDisabled={disabled}
+      placeholder={placeholder ?? "Choose"}
+      value={listed ? encode(value) : null}
+      onChange={(next) => {
+        if (next === null) return;
+        const key = String(next);
+        onChange(key === EMPTY ? "" : key);
+      }}
+      className={cn("min-w-0", className)}
     >
-      <SelectTrigger
-        id={id}
-        aria-label={ariaLabel}
-        aria-invalid={ariaInvalid || undefined}
-        aria-describedby={ariaDescribedBy}
-        className={cn(
-          "min-h-11 w-full bg-card text-base shadow-xs disabled:bg-muted disabled:opacity-100 md:text-sm [&>span]:min-w-0 [&>span]:truncate",
-          className,
-        )}
-      >
-        <SelectValue placeholder={placeholder ?? "Choose"} />
-      </SelectTrigger>
-      <SelectContent position="popper" className="max-h-80">
-        {unique.map((choice) => (
-          <SelectItem
-            key={choice.value}
-            value={encode(choice.value)}
-            className={cn(
-              "min-h-11 text-base md:min-h-9 md:text-sm",
-              choice.tone === "danger" && "text-destructive",
-            )}
-          >
-            {choice.label}
-          </SelectItem>
-        ))}
-      </SelectContent>
+      <Select.Trigger className="min-h-11 w-full">
+        <Select.Value
+          className={cn("min-w-0 truncate", selected?.tone === "danger" && "text-danger")}
+        />
+        <Select.Indicator />
+      </Select.Trigger>
+      <Select.Popover className="max-h-80">
+        <ListBox>
+          {unique.map((choice) => (
+            <ListBox.Item
+              key={choice.value}
+              id={encode(choice.value)}
+              textValue={typeof choice.label === "string" ? choice.label : choice.value}
+              className={cn(
+                "min-h-11 md:min-h-9",
+                choice.tone === "danger" && "text-danger-soft-foreground",
+              )}
+            >
+              {choice.label}
+              <ListBox.ItemIndicator />
+            </ListBox.Item>
+          ))}
+        </ListBox>
+      </Select.Popover>
     </Select>
   );
 }

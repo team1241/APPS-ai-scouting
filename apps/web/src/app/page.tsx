@@ -1,32 +1,21 @@
-import Link from "next/link";
+import { ArrowRight, ChevronRight } from "lucide-react";
+import { LinkButton } from "@/components/link-button";
 import { displayHeading, PublicBand } from "@/components/public-band";
-import { Button } from "@/components/ui/button";
-
-const bandFocus =
-  "focus-visible:ring-2 focus-visible:ring-sky focus-visible:ring-offset-4 focus-visible:ring-offset-navy";
 
 export default function Home() {
   return (
     <main id="main" className="flex flex-1 flex-col">
       <PublicBand
-        className="flex flex-1 flex-col pt-12 sm:pt-16"
+        className="flex flex-1 flex-col pt-12 sm:pt-20"
         footer={
-          <div className="mt-12 grid gap-x-8 border-t border-sky/20 py-4 text-sm text-sky-soft sm:mt-16 md:grid-cols-[auto_minmax(0,1fr)] md:items-start">
+          <div className="mt-12 grid gap-x-8 border-t border-white/15 py-4 text-sm text-bumper-ink sm:mt-20 md:grid-cols-[auto_minmax(0,1fr)] md:items-start">
             <p className="flex min-h-11 items-center">For approved adult administrators.</p>
             <details className="group">
-              <summary className="flex min-h-11 w-fit cursor-pointer list-none items-center gap-2 rounded-sm font-medium text-white [&::-webkit-details-marker]:hidden">
-                <svg
+              <summary className="flex min-h-11 w-fit cursor-pointer list-none items-center gap-2 rounded-full font-semibold text-white [&::-webkit-details-marker]:hidden">
+                <ChevronRight
                   aria-hidden="true"
-                  viewBox="0 0 16 16"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
                   className="size-4 text-sky transition-transform group-open:rotate-90 motion-reduce:transition-none"
-                >
-                  <path d="M6 3l5 5-5 5" />
-                </svg>
+                />
                 Access requirements
               </summary>
               <p className="max-w-xl pb-2 pl-6">
@@ -45,38 +34,28 @@ export default function Home() {
         >
           <h1
             id="home-title"
-            className={`${displayHeading} text-[clamp(1.75rem,9.4vw,2.5rem)] sm:text-6xl lg:text-7xl`}
+            className={`${displayHeading} text-[clamp(2.25rem,11vw,3rem)] sm:text-7xl lg:text-8xl`}
           >
             Team <span className="text-sky">administration</span>
           </h1>
-          <p className="mt-5 max-w-md text-lg text-sky-soft">Sign in to choose your team.</p>
+          <p className="mt-5 max-w-md text-lg text-bumper-ink">Sign in to choose your team.</p>
           <div className="mt-8 flex max-w-md flex-col gap-3 sm:flex-row sm:items-center">
-            <Button
-              asChild
-              className={`min-h-12 w-full gap-3 whitespace-normal bg-sky px-6 text-base font-semibold text-navy shadow-none hover:bg-sky-soft sm:w-auto ${bandFocus}`}
+            <LinkButton
+              href="/sign-in"
+              size="lg"
+              className="w-full bg-white px-6 text-bumper-deep hover:bg-bumper-ink sm:w-auto"
             >
-              <Link href="/sign-in">
-                Sign in
-                <svg
-                  aria-hidden="true"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M5 12h14M13 6l6 6-6 6" />
-                </svg>
-              </Link>
-            </Button>
-            <Button
-              asChild
+              Sign in
+              <ArrowRight aria-hidden="true" className="size-5" />
+            </LinkButton>
+            <LinkButton
+              href="/request-access"
               variant="outline"
-              className={`min-h-12 w-full border-sky/60 bg-transparent px-6 text-base text-white shadow-none hover:bg-white/10 hover:text-white sm:w-auto ${bandFocus}`}
+              size="lg"
+              className="w-full border-white/50 px-6 text-white hover:bg-white/10 sm:w-auto"
             >
-              <Link href="/request-access">Request access</Link>
-            </Button>
+              Request access
+            </LinkButton>
           </div>
         </section>
       </PublicBand>

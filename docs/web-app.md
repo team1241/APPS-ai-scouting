@@ -1,6 +1,6 @@
 # Administration web app
 
-Issue #20 introduces `apps/web`: Next.js App Router, Clerk, Tailwind CSS and locally owned shadcn/ui components. The app runs independently from the Telegram backend and is intended for Vercel. There is no Railway configuration for the web app.
+Issue #20 introduces `apps/web`: Next.js App Router, Clerk, Tailwind CSS and HeroUI v3 components (originally shadcn/ui; migrated to HeroUI in the product redesign). The app runs independently from the Telegram backend and is intended for Vercel. There is no Railway configuration for the web app.
 
 ## Local development
 
@@ -160,13 +160,13 @@ The operator confirmed the local Google login and organization-selection test wo
 - [Clerk custom OIDC](https://clerk.com/docs/guides/configure/auth-strategies/social-connections/custom-provider) and [Telegram OIDC](https://core.telegram.org/bots/telegram-login)
 - [Clerk token verification](https://clerk.com/docs/reference/backend/verify-token) and [pricing](https://clerk.com/pricing)
 - [Vercel monorepos](https://vercel.com/docs/monorepos)
-- [shadcn/ui Next.js installation](https://ui.shadcn.com/docs/installation/next)
+- [HeroUI quick start](https://heroui.com/docs/react/getting-started/quick-start)
 
 ## Public access applications
 
 Issue #30 adds `/request-access`, linked from the home page and available without Clerk configuration. It collects name, contact email, FRC team number, a single role (mentor, lead mentor, teacher, other), and an adult attestation. Signed-in visitors are directed to their existing teams; signed-in team creation is tracked separately in #31.
 
-The website uses TanStack Form with Zod validation and shadcn Field, Input, Select and Checkbox components; controlled values persist after validation and transport failures. The public Next.js server action posts only these details plus a submission UUID to `POST /web/access-applications`. Configure the existing server-only `BACKEND_URL`; production uses HTTPS. The backend validates a bounded request and saves an `access_application` with status `pending` and a server timestamp. Retrying a submission or applying again for the same email/team while pending returns the same generic receipt without creating a second pending record or revealing whether one already exists. The endpoint never accepts approval state or creates identities, memberships, teams, or approval links.
+The website uses TanStack Form with Zod validation and HeroUI TextField, Select and Checkbox components; controlled values persist after validation and transport failures. The public Next.js server action posts only these details plus a submission UUID to `POST /web/access-applications`. Configure the existing server-only `BACKEND_URL`; production uses HTTPS. The backend validates a bounded request and saves an `access_application` with status `pending` and a server timestamp. Retrying a submission or applying again for the same email/team while pending returns the same generic receipt without creating a second pending record or revealing whether one already exists. The endpoint never accepts approval state or creates identities, memberships, teams, or approval links.
 
 Apply the versioned migration through the normal `db:sync` process. Since #33, the runtime submits through a database function and reads applications only as a recorded platform operator; see [Operator review and team provisioning](#operator-review-and-team-provisioning). Do not grant this table's SELECT privileges to public or tenant-scoped routes. Email/Resend integration remains out of scope. The completion state confirms receipt and explicitly says no email has been sent.
 

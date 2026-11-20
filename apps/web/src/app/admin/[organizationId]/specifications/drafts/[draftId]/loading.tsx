@@ -1,38 +1,35 @@
-import { Skeleton } from "@/components/ui/skeleton";
+import { Bar, LoadingBand } from "@/components/loading-skeletons";
 
 export default function Loading() {
   return (
     <>
-      <div aria-hidden="true" className="border-b bg-card">
-        <div className="mx-auto flex min-h-[60px] max-w-5xl items-center px-4 sm:px-6">
-          <Skeleton className="h-4 w-48" />
+      <div aria-hidden="true" className="border-t border-white/10 bg-bumper">
+        <div className="mx-auto flex min-h-[56px] max-w-6xl items-center gap-3 px-4 sm:px-6">
+          <div className="h-7 w-14 rounded-lg bg-white/20" />
+          <div className="h-4 w-40 rounded-lg bg-white/15" />
         </div>
       </div>
-      <main
-        id="main"
-        aria-busy="true"
-        className="mx-auto max-w-[60rem] space-y-6 px-4 pt-10 sm:px-6"
-      >
+      <main id="main" aria-busy="true">
         <p role="status" className="sr-only">
           Loading the draft…
         </p>
-        <Skeleton className="h-4 w-56" />
-        <div className="space-y-3">
-          <Skeleton className="h-10 w-80 max-w-full" />
-          <Skeleton className="h-7 w-72 max-w-full rounded-full" />
-        </div>
-        <div className="rounded-xl border bg-card p-5">
-          <Skeleton className="h-11 w-full" />
-        </div>
-        {[0, 1, 2, 3].map((index) => (
-          <div key={index} className="flex gap-4 rounded-xl border bg-card px-5 py-4">
-            <Skeleton className="h-4 w-4" />
-            <div className="flex-1 space-y-2">
-              <Skeleton className="h-6 w-96 max-w-full" />
-              <Skeleton className="h-4 w-64 max-w-full" />
-            </div>
+        <LoadingBand />
+        <div className="mx-auto max-w-[60rem] space-y-4 px-4 py-8 sm:px-6">
+          <div className="flex gap-2">
+            <Bar className="h-11 w-24 rounded-full" />
+            <Bar className="h-11 w-36 rounded-full" />
+            <Bar className="h-11 w-36 rounded-full" />
           </div>
-        ))}
+          {[0, 1, 2, 3].map((index) => (
+            <div key={index} className="flex gap-4 rounded-2xl bg-surface px-5 py-4 shadow-surface">
+              <Bar className="h-4 w-4" />
+              <div className="flex-1 space-y-2">
+                <Bar className="h-6 w-96 max-w-full" />
+                <Bar className="h-4 w-64 max-w-full" />
+              </div>
+            </div>
+          ))}
+        </div>
       </main>
     </>
   );

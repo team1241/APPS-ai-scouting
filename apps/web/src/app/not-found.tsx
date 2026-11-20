@@ -1,12 +1,17 @@
-import Link from "next/link";
+import { LinkButton } from "@/components/link-button";
+import { PageBody, PageHeading } from "@/components/page-heading";
+
 export default function NotFound() {
   return (
-    <main id="main" className="mx-auto max-w-3xl space-y-4 px-6 py-12">
-      <h1 className="text-2xl font-semibold">Workspace unavailable</h1>
-      <p>Check your current access or choose another organization.</p>
-      <Link href="/admin" className="text-primary underline">
-        Choose an organization
-      </Link>
+    <main id="main">
+      <PageHeading description="Check your current access or choose another organization.">
+        Workspace unavailable
+      </PageHeading>
+      <PageBody>
+        <LinkButton href="/admin" variant="secondary">
+          Choose an organization
+        </LinkButton>
+      </PageBody>
     </main>
   );
 }

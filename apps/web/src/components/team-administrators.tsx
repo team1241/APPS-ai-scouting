@@ -1,5 +1,6 @@
 "use client";
 
+import { Button, Card, Checkbox, FieldError, Input, Label, TextField } from "@heroui/react";
 import { UserPlus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useRef, useState } from "react";
@@ -11,21 +12,9 @@ import {
   resendAdministratorInvitation,
 } from "@/app/admin/administrator-actions";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { DialogActions, FormDialog } from "@/components/form-dialog";
 import { StatusBadge } from "@/components/status-badge";
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { useEditedErrors } from "@/lib/use-edited-errors";
 
 export interface TeamAdmin {
   memberId: string;
@@ -46,6 +35,9 @@ export interface AdminInvitation {
   sent: boolean;
 }
 
+// A full-width divider between a card's sections.
+const cardDivider = "-mx-5 border-t border-separator sm:-mx-6";
+
 const dateFormat = new Intl.DateTimeFormat("en-CA", {
   dateStyle: "medium",
   timeZone: "America/Toronto",
@@ -57,15 +49,17 @@ const initialInvite: InviteAdminState = {
   values: { name: "", email: "" },
 };
 
-// Radix unmounts this form when the dialog closes, so each open starts empty.
+// The dialog unmounts this form when it closes, so each open starts empty.
 function InviteForm({
   organizationId,
   onDone,
   onPendingChange,
+  onCancel,
 }: {
   organizationId: string;
   onDone: (message: string) => void;
   onPendingChange: (pending: boolean) => void;
+  onCancel: () => void;
 }) {
   const [state, submit, pending] = useActionState(inviteAdministrator, initialInvite);
   const form = useRef<HTMLFormElement>(null);
@@ -75,85 +69,73 @@ function InviteForm({
     if (state.status === "error")
       form.current?.querySelector<HTMLElement>("[aria-invalid=true]")?.focus();
   }, [state, onDone]);
+  const { edit, shown } = useEditedErrors<"name" | "email" | "adultAttested">(state);
   const field = (name: "name" | "email", label: string, type: string) => {
-    const error = state.errors[name];
+    const error = shown(name, state.errors[name]);
     return (
-      <div className="space-y-1.5">
-        <Label htmlFor={`admin-${name}`}>{label}</Label>
-        <Input
-          id={`admin-${name}`}
-          name={name}
-          type={type}
-          required
-          maxLength={name === "name" ? 120 : 254}
-          autoComplete="off"
-          defaultValue={state.values[name]}
-          key={`${name}-${state.status}-${state.values[name]}`}
-          disabled={pending}
-          aria-invalid={error ? true : undefined}
-          aria-describedby={error ? `admin-${name}-error` : undefined}
-          className="h-11"
-        />
-        {error ? (
-          <p id={`admin-${name}-error`} className="text-sm text-destructive">
-            {error}
-          </p>
-        ) : null}
-      </div>
+      <TextField
+        key={`${name}-${state.status}-${state.values[name]}`}
+        name={name}
+        type={type}
+        isRequired
+        maxLength={name === "name" ? 120 : 254}
+        autoComplete="off"
+        defaultValue={state.values[name]}
+        isDisabled={pending}
+        isInvalid={Boolean(error)}
+        onChange={() => edit(name)}
+        fullWidth
+      >
+        <Label>{label}</Label>
+        <Input />
+        <FieldError>{error}</FieldError>
+      </TextField>
     );
   };
-  const attestError = state.errors.adultAttested;
+  const attestError = shown("adultAttested", state.errors.adultAttested);
   return (
     <form ref={form} action={submit} className="grid gap-5">
       <input type="hidden" name="organizationId" value={organizationId} />
-      <DialogHeader>
-        <DialogTitle>Invite administrator</DialogTitle>
-        <DialogDescription>
-          If they already have an account, they accept from Teams the next time they sign in.
-          Otherwise we email them an invitation. Invitations expire after 7 days.
-        </DialogDescription>
-      </DialogHeader>
       {field("name", "Name", "text")}
       {field("email", "Email", "email")}
-      <div className="flex gap-3">
-        <div className="flex h-6 shrink-0 items-center">
-          <Checkbox
-            id="admin-adultAttested"
-            name="adultAttested"
-            required
-            disabled={pending}
-            aria-invalid={attestError ? true : undefined}
-            aria-describedby={attestError ? "admin-adultAttested-error" : undefined}
-            className="shadow-none"
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="admin-adultAttested" className="cursor-pointer font-normal leading-6">
-            I confirm this person is at least 18 and the age of majority where they live, and is
-            authorized to administer this team.
-          </Label>
-          {attestError ? (
-            <p id="admin-adultAttested-error" className="text-sm text-destructive">
-              {attestError}
-            </p>
-          ) : null}
-        </div>
+      <div className="space-y-1.5">
+        <Checkbox
+          name="adultAttested"
+          isRequired
+          isDisabled={pending}
+          isInvalid={Boolean(attestError)}
+          onChange={() => edit("adultAttested")}
+          aria-describedby={attestError ? "admin-adultAttested-error" : undefined}
+        >
+          <Checkbox.Content className="items-start gap-3">
+            <Checkbox.Control className="mt-0.5 shrink-0">
+              <Checkbox.Indicator />
+            </Checkbox.Control>
+            <span className="text-sm leading-6">
+              I confirm this person is at least 18 and the age of majority where they live, and is
+              authorized to administer this team.
+            </span>
+          </Checkbox.Content>
+        </Checkbox>
+        {attestError ? (
+          <p id="admin-adultAttested-error" className="pl-8 text-sm font-medium text-danger">
+            {attestError}
+          </p>
+        ) : null}
       </div>
       {state.status === "error" && state.message ? (
-        <p role="alert" className="text-sm text-destructive">
+        <p role="alert" className="text-sm font-medium text-danger">
           {state.message}
         </p>
       ) : null}
-      <DialogFooter>
-        <DialogClose asChild>
-          <Button type="button" variant="outline" disabled={pending} className="h-11">
-            Cancel
-          </Button>
-        </DialogClose>
-        <Button type="submit" disabled={pending} className="h-11 px-5">
+      <DialogActions>
+        <Button variant="tertiary" isDisabled={pending} onPress={onCancel}>
+          Cancel
+        </Button>
+        <Button type="submit" isPending={pending}>
           {pending ? "Inviting…" : "Send invitation"}
         </Button>
-      </DialogFooter>
+      </DialogActions>
     </form>
   );
 }
@@ -172,17 +154,27 @@ function InviteDialog({
     setOpen(false);
   };
   return (
-    <Dialog open={open} onOpenChange={(next) => (pending ? null : setOpen(next))}>
-      <DialogTrigger asChild>
-        <Button type="button" className="h-11 px-5">
-          <UserPlus aria-hidden="true" />
-          Invite administrator
-        </Button>
-      </DialogTrigger>
-      <DialogContent>
-        <InviteForm organizationId={organizationId} onDone={done} onPendingChange={setPending} />
-      </DialogContent>
-    </Dialog>
+    <>
+      <Button onPress={() => setOpen(true)}>
+        <UserPlus aria-hidden="true" className="size-4" />
+        Invite administrator
+      </Button>
+      <FormDialog
+        isOpen={open}
+        onOpenChange={setOpen}
+        isPending={pending}
+        title="Invite administrator"
+        description="If they already have an account, they accept from Teams the next time they sign in. Otherwise we email them an invitation. Invitations expire after 7 days."
+        icon={<UserPlus aria-hidden="true" className="size-5" />}
+      >
+        <InviteForm
+          organizationId={organizationId}
+          onDone={done}
+          onPendingChange={setPending}
+          onCancel={() => setOpen(false)}
+        />
+      </FormDialog>
+    </>
   );
 }
 
@@ -204,10 +196,10 @@ function InvitationRow({
   const busy = resending || cancelling;
   const fields = { organizationId, invitationId: invitation.id };
   return (
-    <li className="flex flex-col gap-3 px-6 py-4 sm:flex-row sm:items-start sm:justify-between">
+    <li className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-start sm:justify-between sm:px-6">
       <div className="min-w-0 space-y-1">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <p className="font-medium [overflow-wrap:anywhere]">{invitation.name}</p>
+          <p className="font-semibold [overflow-wrap:anywhere]">{invitation.name}</p>
           {invitation.existingAccount ? (
             <StatusBadge tone="waiting">Waiting to accept</StatusBadge>
           ) : invitation.sent ? (
@@ -216,8 +208,8 @@ function InvitationRow({
             <StatusBadge tone="danger">Email not sent</StatusBadge>
           )}
         </div>
-        <p className="text-sm text-muted-foreground [overflow-wrap:anywhere]">{invitation.email}</p>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-muted [overflow-wrap:anywhere]">{invitation.email}</p>
+        <p className="text-sm text-muted">
           Expires{" "}
           <time dateTime={invitation.expiresAt}>
             {dateFormat.format(new Date(invitation.expiresAt))}
@@ -232,7 +224,7 @@ function InvitationRow({
               {Object.entries(fields).map(([name, value]) => (
                 <input key={name} type="hidden" name={name} value={value} />
               ))}
-              <Button type="submit" variant="outline" disabled={busy} className="h-11">
+              <Button type="submit" variant="outline" isDisabled={busy} isPending={resending}>
                 {resending ? "Sending…" : "Resend"}
               </Button>
             </form>
@@ -259,9 +251,7 @@ function InvitationRow({
           <p
             role={resent.status === "error" ? "alert" : "status"}
             className={
-              resent.status === "error"
-                ? "text-sm text-destructive"
-                : "text-sm text-muted-foreground"
+              resent.status === "error" ? "text-sm font-medium text-danger" : "text-sm text-muted"
             }
           >
             {resent.message}
@@ -282,40 +272,40 @@ export function TeamAdministrators({
   const router = useRouter();
   const [notice, setNotice] = useState("");
   return (
-    <section className="rounded-xl border bg-card" aria-labelledby="administrators-title">
-      <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-4 p-6">
+    <Card aria-labelledby="administrators-title" render={(props) => <section {...props} />}>
+      <Card.Header className="flex-row flex-wrap items-start justify-between gap-x-6 gap-y-4">
         <div className="min-w-0 flex-1 basis-64">
-          <h2 id="administrators-title" className="text-lg font-semibold">
+          <Card.Title id="administrators-title" render={(props) => <h2 {...props} />}>
             Administrators
-          </h2>
-          <p className="mt-1 text-sm text-muted-foreground">
+          </Card.Title>
+          <Card.Description className="mt-1">
             Adults who manage this team’s Telegram connection, API keys and administrators. Each
             signs in with their own account.
-          </p>
+          </Card.Description>
         </div>
         {data ? <InviteDialog organizationId={organizationId} onDone={setNotice} /> : null}
-      </div>
-      <p role="status" className="px-6 pb-4 text-sm text-success empty:hidden">
+      </Card.Header>
+      <p role="status" className="text-sm font-medium text-success-soft-foreground empty:hidden">
         {notice}
       </p>
       {data === null ? (
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t px-6 py-4">
+        <Card.Footer className={`${cardDivider} flex-wrap justify-between gap-3 px-5 pt-4 sm:px-6`}>
           <p className="text-sm">We couldn’t load your team’s administrators.</p>
-          <Button type="button" variant="outline" className="h-11" onClick={() => router.refresh()}>
+          <Button variant="outline" onPress={() => router.refresh()}>
             Check again
           </Button>
-        </div>
+        </Card.Footer>
       ) : (
-        <>
-          <ul className="divide-y border-t">
+        <div className={`${cardDivider} -mb-5 sm:-mb-6`}>
+          <ul className="divide-y divide-separator">
             {data.administrators.map((admin) => (
               <li
                 key={admin.memberId}
-                className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-6 py-4"
+                className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-5 py-4 sm:px-6"
               >
                 <div className="min-w-0">
-                  <p className="font-medium [overflow-wrap:anywhere]">{admin.name}</p>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="font-semibold [overflow-wrap:anywhere]">{admin.name}</p>
+                  <p className="text-sm text-muted">
                     Approved{" "}
                     <time dateTime={admin.approvedAt}>
                       {dateFormat.format(new Date(admin.approvedAt))}
@@ -332,8 +322,10 @@ export function TeamAdministrators({
           </ul>
           {data.invitations.length ? (
             <>
-              <h3 className="border-t px-6 pt-5 pb-1 text-sm font-semibold">Invited</h3>
-              <ul className="divide-y">
+              <h3 className="border-t border-separator bg-surface-secondary px-5 py-2.5 text-sm font-semibold text-muted sm:px-6">
+                Invited
+              </h3>
+              <ul className="divide-y divide-separator">
                 {data.invitations.map((invitation) => (
                   <InvitationRow
                     key={invitation.id}
@@ -344,8 +336,8 @@ export function TeamAdministrators({
               </ul>
             </>
           ) : null}
-        </>
+        </div>
       )}
-    </section>
+    </Card>
   );
 }

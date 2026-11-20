@@ -1,18 +1,21 @@
 "use client";
 
+import { Button, buttonVariants, Card } from "@heroui/react";
 import { Check, ExternalLink, LoaderCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { type ReactNode, useActionState, useEffect, useState } from "react";
 import { telegramAction, telegramConnected } from "@/app/admin/telegram-actions";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { StatusBadge } from "@/components/status-badge";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const dateFormat = new Intl.DateTimeFormat("en-CA", {
   dateStyle: "medium",
   timeZone: "America/Toronto",
 });
+
+// A full-width divider between a card's header and its body.
+const cardDivider = "-mx-5 border-t border-separator px-5 pt-4 sm:-mx-6 sm:px-6";
 
 // Seconds left until `expiresAt`, ticking once a second. Null without a link.
 function useSecondsLeft(expiresAt?: string) {
@@ -44,13 +47,13 @@ function Step({
         aria-hidden="true"
         className={cn(
           "flex size-8 items-center justify-center rounded-full text-sm font-semibold tabular-nums",
-          done ? "bg-success-soft text-success" : "bg-accent text-primary",
+          done ? "bg-success text-success-foreground" : "bg-accent text-accent-foreground",
         )}
       >
         {done ? <Check className="size-4" strokeWidth={2.5} /> : number}
       </span>
       <div className="min-w-0 space-y-3 pt-1">
-        <p className="font-medium">
+        <p className="font-semibold">
           {title}
           {done ? <span className="sr-only"> (done)</span> : null}
         </p>
@@ -104,111 +107,120 @@ export function TelegramConnection({
       <StatusBadge tone="neutral">Not connected</StatusBadge>
     );
 
-  return (
-    <section className="rounded-xl border bg-card" aria-labelledby="telegram-title">
-      <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3 p-6">
-        <div className="min-w-0 flex-1 basis-64">
-          <h2 id="telegram-title" className="text-lg font-semibold">
-            Telegram
-          </h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {connected === null
-              ? "We couldn’t check your Telegram connection."
-              : connected
-                ? "Your account administers this team in Telegram. Use /invite there to invite scouts."
-                : "Connect your Telegram account to administer this team and invite scouts."}
-          </p>
-        </div>
-        <div aria-live="polite">{status}</div>
-      </div>
+  const connectedLine = connectedAt ? (
+    <>
+      Connected <time dateTime={connectedAt}>{dateFormat.format(new Date(connectedAt))}</time>.
+    </>
+  ) : (
+    "Connected."
+  );
 
-      {connected === null ? (
-        <div className="border-t px-6 py-4">
-          <Button type="button" variant="outline" className="h-11" onClick={() => router.refresh()}>
-            Check again
-          </Button>
-        </div>
-      ) : connected ? (
-        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t py-3 pr-3 pl-6">
-          <p className="text-sm text-muted-foreground">
-            {connectedAt ? (
+  return (
+    <Card aria-labelledby="telegram-title" render={(props) => <section {...props} />}>
+      {/* Title and state on one line; the action sits on the right so the card stays short. */}
+      <Card.Header className="flex-row flex-wrap items-center justify-between gap-x-4 gap-y-1 sm:gap-y-3">
+        <div className="min-w-0 flex-1 basis-64">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+            <Card.Title id="telegram-title" render={(props) => <h2 {...props} />}>
+              Telegram
+            </Card.Title>
+            <div aria-live="polite">{status}</div>
+          </div>
+          <Card.Description className="mt-1">
+            {connected === null ? (
+              "We couldn’t check your Telegram connection."
+            ) : connected ? (
               <>
-                Connected{" "}
-                <time dateTime={connectedAt}>{dateFormat.format(new Date(connectedAt))}</time>
+                {connectedLine} Your account administers this team in Telegram. Use /invite there to
+                invite scouts.
               </>
             ) : (
-              "Connected"
+              "Connect your Telegram account to administer this team and invite scouts."
             )}
-          </p>
-          <ConfirmDialog
-            trigger="Disconnect"
-            title="Disconnect Telegram?"
-            description="Your Telegram account will lose access to this team. You can connect it again here."
-            confirmLabel="Disconnect Telegram"
-            pendingLabel="Disconnecting…"
-            action={action}
-            pending={pending}
-            error={state.error}
-            fields={{ organizationId, action: "disconnect" }}
-          />
+          </Card.Description>
         </div>
-      ) : (
-        <ol className="space-y-6 border-t p-6">
-          <Step number={1} done={linkOpen} title="Create a one-time link">
-            <form action={action}>
-              <input type="hidden" name="organizationId" value={organizationId} />
-              <Button
-                type="submit"
-                variant={linkOpen ? "outline" : "default"}
-                disabled={pending}
-                className="h-11 px-5"
-              >
-                {pending ? "Creating link…" : link ? "Create a new link" : "Create link"}
-              </Button>
-            </form>
-            {state.error ? (
-              <p role="alert" className="text-sm text-destructive">
-                {state.error}
-              </p>
-            ) : null}
-          </Step>
-          <Step number={2} done={false} title="Open it in Telegram and tap Start">
-            {linkOpen && link?.url ? (
-              <>
-                <Button asChild className="h-11 px-5">
-                  <a href={link.url} target="_blank" rel="noopener noreferrer">
+        {connected === null ? (
+          <Button variant="outline" onPress={() => router.refresh()}>
+            Check again
+          </Button>
+        ) : connected ? (
+          <div className="max-sm:-mb-2 max-sm:-ml-4 sm:-mr-2">
+            <ConfirmDialog
+              trigger="Disconnect"
+              title="Disconnect Telegram?"
+              description="Your Telegram account will lose access to this team. You can connect it again here."
+              confirmLabel="Disconnect Telegram"
+              pendingLabel="Disconnecting…"
+              action={action}
+              pending={pending}
+              error={state.error}
+              fields={{ organizationId, action: "disconnect" }}
+            />
+          </div>
+        ) : null}
+      </Card.Header>
+
+      {connected !== false ? null : (
+        <Card.Content className={cn(cardDivider, "pt-5")}>
+          <ol className="space-y-6">
+            <Step number={1} done={linkOpen} title="Create a one-time link">
+              <form action={action}>
+                <input type="hidden" name="organizationId" value={organizationId} />
+                <Button
+                  type="submit"
+                  variant={linkOpen ? "outline" : "primary"}
+                  isPending={pending}
+                >
+                  {pending ? "Creating link…" : link ? "Create a new link" : "Create link"}
+                </Button>
+              </form>
+              {state.error ? (
+                <p role="alert" className="text-sm font-medium text-danger">
+                  {state.error}
+                </p>
+              ) : null}
+            </Step>
+            <Step number={2} done={false} title="Open it in Telegram and tap Start">
+              {linkOpen && link?.url ? (
+                <>
+                  <a
+                    href={link.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={cn(buttonVariants({ variant: "primary" }), "gap-2")}
+                  >
                     Open Telegram
                     <ExternalLink aria-hidden="true" className="size-4" />
                     <span className="sr-only">(opens in a new tab)</span>
                   </a>
-                </Button>
-                <p className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <LoaderCircle
-                    aria-hidden="true"
-                    className="size-4 shrink-0 motion-safe:animate-spin"
-                  />
-                  <span>
-                    This page updates when you confirm. The link expires in{" "}
-                    <span className="font-medium text-foreground tabular-nums">
-                      {Math.floor((secondsLeft ?? 0) / 60)}:
-                      {String((secondsLeft ?? 0) % 60).padStart(2, "0")}
-                    </span>{" "}
-                    and works once.
-                  </span>
+                  <p className="flex items-center gap-2 text-sm text-muted">
+                    <LoaderCircle
+                      aria-hidden="true"
+                      className="size-4 shrink-0 motion-safe:animate-spin"
+                    />
+                    <span>
+                      This page updates when you confirm. The link expires in{" "}
+                      <span className="font-semibold text-foreground tabular-nums">
+                        {Math.floor((secondsLeft ?? 0) / 60)}:
+                        {String((secondsLeft ?? 0) % 60).padStart(2, "0")}
+                      </span>{" "}
+                      and works once.
+                    </span>
+                  </p>
+                </>
+              ) : expired ? (
+                <p role="alert" className="text-sm font-medium text-danger">
+                  This link expired. Create a new link to try again.
                 </p>
-              </>
-            ) : expired ? (
-              <p role="alert" className="text-sm font-medium text-destructive">
-                This link expired. Create a new link to try again.
-              </p>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                The link opens our bot in Telegram. It expires after 10 minutes.
-              </p>
-            )}
-          </Step>
-        </ol>
+              ) : (
+                <p className="text-sm text-muted">
+                  The link opens our bot in Telegram. It expires after 10 minutes.
+                </p>
+              )}
+            </Step>
+          </ol>
+        </Card.Content>
       )}
-    </section>
+    </Card>
   );
 }

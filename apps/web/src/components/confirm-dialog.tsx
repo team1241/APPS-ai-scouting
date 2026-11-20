@@ -1,17 +1,7 @@
 "use client";
 
+import { AlertDialog, Button } from "@heroui/react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
-import {
-  AlertDialog,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
 
 // Confirms a destructive form action in a modal. The dialog stays open while
 // the action runs, shows its error, and closes once it succeeds.
@@ -47,43 +37,55 @@ export function ConfirmDialog({
     wasPending.current = pending;
   }, [pending, error]);
   return (
-    <AlertDialog open={open} onOpenChange={(next) => (pending ? null : setOpen(next))}>
-      <AlertDialogTrigger asChild>
-        <Button
-          type="button"
-          variant="ghost"
-          disabled={disabled}
-          className="h-11 text-destructive hover:text-destructive"
-        >
-          {trigger}
-        </Button>
-      </AlertDialogTrigger>
-      <AlertDialogContent>
-        <form action={action} className="grid gap-5">
-          {Object.entries(fields).map(([name, value]) => (
-            <input key={name} type="hidden" name={name} value={value} />
-          ))}
-          <AlertDialogHeader>
-            <AlertDialogTitle>{title}</AlertDialogTitle>
-            <AlertDialogDescription>{description}</AlertDialogDescription>
-          </AlertDialogHeader>
-          {error ? (
-            <p role="alert" className="text-sm text-destructive">
-              {error}
-            </p>
-          ) : null}
-          <AlertDialogFooter>
-            <AlertDialogCancel asChild>
-              <Button type="button" variant="outline" disabled={pending} className="h-11">
-                {cancelLabel}
-              </Button>
-            </AlertDialogCancel>
-            <Button type="submit" variant="destructive" disabled={pending} className="h-11">
-              {pending ? pendingLabel : confirmLabel}
-            </Button>
-          </AlertDialogFooter>
-        </form>
-      </AlertDialogContent>
-    </AlertDialog>
+    <>
+      <Button
+        variant="ghost"
+        isDisabled={disabled}
+        className="text-danger hover:bg-danger-soft"
+        onPress={() => setOpen(true)}
+      >
+        {trigger}
+      </Button>
+      <AlertDialog.Backdrop
+        isOpen={open}
+        onOpenChange={(next) => (pending ? null : setOpen(next))}
+        isDismissable={!pending}
+      >
+        <AlertDialog.Container>
+          <AlertDialog.Dialog className="sm:max-w-md">
+            <form action={action} className="contents">
+              {Object.entries(fields).map(([name, value]) => (
+                <input key={name} type="hidden" name={name} value={value} />
+              ))}
+              <AlertDialog.Header>
+                <AlertDialog.Icon status="danger" />
+                <AlertDialog.Heading>{title}</AlertDialog.Heading>
+              </AlertDialog.Header>
+              <AlertDialog.Body>
+                <p className="text-pretty text-muted">{description}</p>
+                {error ? (
+                  <p role="alert" className="mt-3 text-sm font-medium text-danger">
+                    {error}
+                  </p>
+                ) : null}
+              </AlertDialog.Body>
+              <AlertDialog.Footer className="max-sm:flex-col-reverse max-sm:items-stretch">
+                <Button
+                  variant="tertiary"
+                  isDisabled={pending}
+                  onPress={() => setOpen(false)}
+                  autoFocus
+                >
+                  {cancelLabel}
+                </Button>
+                <Button type="submit" variant="danger" isPending={pending}>
+                  {pending ? pendingLabel : confirmLabel}
+                </Button>
+              </AlertDialog.Footer>
+            </form>
+          </AlertDialog.Dialog>
+        </AlertDialog.Container>
+      </AlertDialog.Backdrop>
+    </>
   );
 }

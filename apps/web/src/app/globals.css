@@ -1,65 +1,97 @@
 @import "tailwindcss";
+@import "@heroui/styles";
 
+/*
+ * Bumper numbers: the shell (header, page band, footer) is a saturated
+ * bumper-blue field with team numbers set in heavy, wide white numerals.
+ * Work happens below it on a cool light ground with white surfaces.
+ */
 @theme inline {
-  --font-sans: var(--font-archivo), Arial, Helvetica, sans-serif;
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-card: var(--card);
-  --color-card-foreground: var(--foreground);
-  --color-popover: var(--card);
-  --color-popover-foreground: var(--foreground);
-  --color-primary: var(--primary);
-  --color-primary-foreground: oklch(1 0 0);
-  --color-secondary: oklch(0.96 0 0);
-  --color-secondary-foreground: var(--foreground);
-  --color-muted: oklch(0.96 0 0);
-  --color-skeleton: oklch(0.93 0.006 260);
-  --color-muted-foreground: oklch(0.45 0 0);
-  --color-accent: oklch(0.95 0.015 260);
-  --color-accent-foreground: var(--foreground);
-  --color-destructive: oklch(0.5 0.18 25);
-  --color-destructive-foreground: oklch(0.985 0 0);
-  --color-border: oklch(0.88 0 0);
-  --color-input: oklch(0.87 0 0);
-  --color-ring: var(--primary);
-  --color-navy: var(--navy);
-  --color-navy-raised: var(--navy-raised);
+  --font-sans: var(--font-mona), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-martian), ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --color-bumper: var(--bumper);
+  --color-bumper-deep: var(--bumper-deep);
+  --color-bumper-raised: var(--bumper-raised);
+  --color-bumper-ink: var(--bumper-ink);
   --color-sky: var(--sky);
-  --color-sky-soft: var(--sky-soft);
-  --color-success: oklch(0.45 0.12 155);
-  --color-success-soft: oklch(0.95 0.045 155);
-  --color-warning: oklch(0.47 0.11 65);
-  --color-warning-soft: oklch(0.96 0.06 85);
-  --color-destructive-soft: oklch(0.96 0.025 25);
-  --radius-lg: 0.75rem;
-  --radius-md: 0.5rem;
-  --radius-sm: 0.25rem;
+  --color-skeleton: var(--skeleton);
 }
 
-:root {
+:root,
+.light,
+[data-theme="light"] {
   /* Sticky bar heights, updated from the rendered bars. Defaults match one row. */
-  --site-header-height: 69px;
+  --site-header-height: 64px;
   --sub-header-height: 0px;
   scroll-padding-top: calc(var(--site-header-height) + var(--sub-header-height) + 1.5rem);
-  --background: oklch(0.985 0 0);
-  --foreground: oklch(0.23 0.015 260);
-  --card: oklch(1 0 0);
-  --primary: oklch(0.46 0.16 260);
-  /* Public entrance colours, sampled from the Theory6 Apps badge. */
-  --navy: oklch(0.2 0.07 264);
-  --navy-raised: oklch(0.26 0.08 262);
-  --sky: oklch(0.78 0.11 240);
-  --sky-soft: oklch(0.88 0.04 245);
+
+  /* Shell field, from a robot bumper: saturated blue with white numerals. */
+  --bumper: oklch(0.47 0.2 264);
+  --bumper-deep: oklch(0.36 0.16 265);
+  --bumper-raised: oklch(0.53 0.19 263);
+  --bumper-ink: oklch(0.9 0.045 262);
+  /* Highlight on the field, sampled from the Theory6 Apps badge. */
+  --sky: oklch(0.84 0.1 232);
+
+  --radius: 0.5rem;
+  --field-radius: 0.75rem;
+
+  --background: oklch(0.972 0.006 262);
+  --foreground: oklch(0.22 0.035 265);
+  --surface: oklch(1 0 0);
+  --surface-foreground: var(--foreground);
+  --surface-secondary: oklch(0.962 0.008 262);
+  --surface-tertiary: oklch(0.942 0.011 262);
+  --overlay: oklch(1 0 0);
+  --overlay-foreground: var(--foreground);
+  --muted: oklch(0.5 0.025 262);
+  --skeleton: oklch(0.93 0.012 262);
+
+  --default: oklch(0.945 0.012 262);
+  --default-foreground: var(--foreground);
+
+  --accent: var(--bumper);
+  --accent-foreground: oklch(0.99 0 0);
+  --accent-soft-foreground: oklch(0.42 0.19 264);
+
+  --success: oklch(0.6 0.15 152);
+  --success-foreground: oklch(0.99 0 0);
+  --success-soft-foreground: oklch(0.42 0.11 152);
+  --warning: oklch(0.79 0.155 75);
+  --warning-foreground: oklch(0.25 0.05 60);
+  --warning-soft-foreground: oklch(0.45 0.1 60);
+  --danger: oklch(0.57 0.21 26);
+  --danger-foreground: oklch(0.99 0 0);
+  --danger-soft-foreground: oklch(0.47 0.18 26);
+
+  --field-background: oklch(1 0 0);
+  --field-foreground: var(--foreground);
+  --field-border: oklch(0.88 0.014 262);
+  --field-border-width: 1px;
+
+  --border: oklch(0.905 0.012 262);
+  --separator: oklch(0.925 0.01 262);
+  --focus: var(--bumper);
+  --link: var(--accent-soft-foreground);
+  --backdrop: oklch(0.2 0.08 265 / 0.55);
+
+  --surface-shadow:
+    0 1px 2px 0 oklch(0.3 0.06 264 / 0.06), 0 4px 16px -4px oklch(0.3 0.06 264 / 0.08);
+  --overlay-shadow:
+    0 2px 8px 0 oklch(0.3 0.06 264 / 0.08), 0 20px 40px -8px oklch(0.3 0.08 264 / 0.18);
+  --field-shadow: 0 1px 2px 0 oklch(0.3 0.06 264 / 0.05);
+
+  --skeleton-animation: pulse;
 }
 
 ::selection {
-  background: oklch(0.85 0.08 240);
-  color: var(--navy);
+  background: oklch(0.86 0.08 250);
+  color: var(--bumper-deep);
 }
 
-.public-band ::selection {
+.bumper-field ::selection {
   background: var(--sky);
-  color: var(--navy);
+  color: var(--bumper-deep);
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -76,6 +108,12 @@
   }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --skeleton-animation: none;
+  }
+}
+
 @keyframes circuit-draw {
   to {
     stroke-dashoffset: 0;
@@ -89,13 +127,16 @@
 }
 
 @layer base {
-  * {
-    border-color: var(--color-border);
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
   }
   body {
     background: var(--background);
     color: var(--foreground);
     font-family: var(--font-sans);
+    caret-color: var(--bumper);
   }
   button,
   a,
@@ -103,12 +144,22 @@
     -webkit-tap-highlight-color: transparent;
   }
   a:focus-visible,
-  button:focus-visible {
-    outline: 2px solid var(--primary);
-    outline-offset: 4px;
+  button:focus-visible,
+  summary:focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 3px;
+  }
+  .bumper-field :is(a, button, summary):focus-visible {
+    outline-color: var(--sky);
   }
   p {
-    line-height: 1.65;
+    line-height: 1.6;
+  }
+  code,
+  kbd,
+  samp {
+    font-family: var(--font-mono);
+    font-size: 0.9em;
   }
   /* The body is a flex column so the footer stays at the bottom; keep pages shrinkable. */
   body > main {
@@ -117,9 +168,55 @@
   }
 }
 
-@layer base {
-  .public-band :is(a, button, summary):focus-visible {
-    outline: 2px solid var(--sky);
-    outline-offset: 4px;
+@layer components {
+  /* Event venues are busy and many admins use phones: keep 44px targets. */
+  .button:not(.button--sm) {
+    min-height: 2.75rem;
+  }
+  .button {
+    font-weight: 600;
+  }
+  .input,
+  .textarea {
+    min-height: 2.75rem;
+  }
+  .card {
+    border-radius: 1rem;
+    gap: 1rem;
+    padding: 1.25rem;
+  }
+  @media (min-width: 40rem) {
+    .card {
+      padding: 1.5rem;
+    }
+  }
+  .card__title {
+    font-size: 1.0625rem;
+    line-height: 1.4;
+    font-weight: 650;
+  }
+  .card__description {
+    line-height: 1.5;
+  }
+  .modal__dialog,
+  .alert-dialog__dialog {
+    border-radius: 1.25rem;
+  }
+}
+
+@layer utilities {
+  /* Bumper numerals: heavy, wide, tabular. Team numbers and versions lead in this face. */
+  .font-bumper {
+    font-family: var(--font-sans);
+    font-weight: 900;
+    font-stretch: 125%;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+  }
+  .font-display {
+    font-family: var(--font-sans);
+    font-weight: 800;
+    font-stretch: 112.5%;
+    letter-spacing: -0.02em;
   }
 }

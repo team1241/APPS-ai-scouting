@@ -1,5 +1,6 @@
 "use client";
 
+import { Button, FieldError, Input, Label, TextField } from "@heroui/react";
 import { UserPlus } from "lucide-react";
 import { useActionState, useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -12,19 +13,8 @@ import {
   resendOperatorInvitation,
 } from "@/app/operator/operators/actions";
 import { ConfirmDialog } from "@/components/confirm-dialog";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { DialogActions, FormDialog } from "@/components/form-dialog";
+import { useEditedErrors } from "@/lib/use-edited-errors";
 
 const initialForm: OperatorFormState = {
   status: "idle",
@@ -32,12 +22,14 @@ const initialForm: OperatorFormState = {
   values: { name: "", email: "" },
 };
 
-// Radix unmounts this form when the dialog closes, so each open starts empty.
+// The modal unmounts this form when it closes, so each open starts empty.
 function AddOperatorForm({
   onDone,
+  onCancel,
   onPendingChange,
 }: {
   onDone: (message: string) => void;
+  onCancel: () => void;
   onPendingChange: (pending: boolean) => void;
 }) {
   const [state, submit, pending] = useActionState(addOperator, initialForm);
@@ -48,59 +40,47 @@ function AddOperatorForm({
     if (state.status === "error")
       form.current?.querySelector<HTMLInputElement>("[aria-invalid=true]")?.focus();
   }, [state, onDone]);
+  const { edit, shown } = useEditedErrors<"name" | "email">(state);
   const field = (name: "name" | "email", label: string, type: string) => {
-    const error = state.errors[name];
+    const error = shown(name, state.errors[name]);
     return (
-      <div className="space-y-1.5">
-        <Label htmlFor={`operator-${name}`}>{label}</Label>
-        <Input
-          id={`operator-${name}`}
-          name={name}
-          type={type}
-          required
-          maxLength={name === "name" ? 120 : 254}
-          autoComplete="off"
-          defaultValue={state.values[name]}
-          key={`${name}-${state.status}-${state.values[name]}`}
-          disabled={pending}
-          aria-invalid={error ? true : undefined}
-          aria-describedby={error ? `operator-${name}-error` : undefined}
-          className="h-11"
-        />
-        {error ? (
-          <p id={`operator-${name}-error`} className="text-sm text-destructive">
-            {error}
-          </p>
-        ) : null}
-      </div>
+      <TextField
+        key={`${name}-${state.status}-${state.values[name]}`}
+        name={name}
+        type={type}
+        isRequired
+        maxLength={name === "name" ? 120 : 254}
+        autoComplete="off"
+        defaultValue={state.values[name]}
+        isDisabled={pending}
+        isInvalid={error ? true : undefined}
+        onChange={() => edit(name)}
+        validationBehavior="aria"
+        fullWidth
+      >
+        <Label>{label}</Label>
+        <Input />
+        <FieldError>{error}</FieldError>
+      </TextField>
     );
   };
   return (
-    <form ref={form} action={submit} className="grid gap-5">
-      <DialogHeader>
-        <DialogTitle>Add operator</DialogTitle>
-        <DialogDescription>
-          People with an account become operators right away. Anyone else gets an email invitation
-          that expires in 7 days.
-        </DialogDescription>
-      </DialogHeader>
+    <form ref={form} action={submit} className="grid gap-4">
       {field("name", "Name", "text")}
       {field("email", "Email", "email")}
       {state.status === "error" && state.message ? (
-        <p role="alert" className="text-sm text-destructive">
+        <p role="alert" className="text-sm font-medium text-danger">
           {state.message}
         </p>
       ) : null}
-      <DialogFooter>
-        <DialogClose asChild>
-          <Button type="button" variant="outline" disabled={pending} className="h-11">
-            Cancel
-          </Button>
-        </DialogClose>
-        <Button type="submit" disabled={pending} className="h-11 px-5">
+      <DialogActions>
+        <Button variant="tertiary" isDisabled={pending} onPress={onCancel}>
+          Cancel
+        </Button>
+        <Button type="submit" isPending={pending} className="px-5">
           {pending ? "Adding…" : "Add or invite"}
         </Button>
-      </DialogFooter>
+      </DialogActions>
     </form>
   );
 }
@@ -117,22 +97,29 @@ export function CurrentOperatorsHeading({ count }: { count: number }) {
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
-        <h2 id="current-heading" className="text-lg font-semibold">
+        <h2 id="current-heading" className="font-display text-xl text-foreground">
           Current operators <span className="tabular-nums">({count})</span>
         </h2>
-        <Dialog open={open} onOpenChange={(next) => (pending ? null : setOpen(next))}>
-          <DialogTrigger asChild>
-            <Button type="button" className="h-11 px-5">
-              <UserPlus aria-hidden="true" />
-              Add operator
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <AddOperatorForm onDone={done} onPendingChange={setPending} />
-          </DialogContent>
-        </Dialog>
+        <Button className="px-5" onPress={() => setOpen(true)}>
+          <UserPlus aria-hidden="true" className="size-4" />
+          Add operator
+        </Button>
+        <FormDialog
+          isOpen={open}
+          onOpenChange={setOpen}
+          isPending={pending}
+          title="Add operator"
+          description="People with an account become operators right away. Anyone else gets an email invitation that expires in 7 days."
+          icon={<UserPlus aria-hidden="true" className="size-5" />}
+        >
+          <AddOperatorForm
+            onDone={done}
+            onCancel={() => setOpen(false)}
+            onPendingChange={setPending}
+          />
+        </FormDialog>
       </div>
-      <p role="status" className="text-sm text-success empty:hidden">
+      <p role="status" className="text-sm font-medium text-success-soft-foreground empty:hidden">
         {notice}
       </p>
     </div>
@@ -184,7 +171,7 @@ export function InvitationActions({
       <div className="flex flex-wrap items-center gap-2 sm:justify-end">
         <form action={resend}>
           <input type="hidden" name="invitationId" value={invitationId} />
-          <Button type="submit" variant="outline" disabled={busy} className="h-11">
+          <Button type="submit" variant="outline" isDisabled={busy} isPending={resending}>
             {resending ? "Sending…" : "Resend"}
           </Button>
         </form>
@@ -211,7 +198,7 @@ export function InvitationActions({
         <p
           role={resent.status === "error" ? "alert" : "status"}
           className={
-            resent.status === "error" ? "text-sm text-destructive" : "text-sm text-muted-foreground"
+            resent.status === "error" ? "text-sm font-medium text-danger" : "text-sm text-muted"
           }
         >
           {resent.message}

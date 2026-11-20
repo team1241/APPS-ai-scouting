@@ -1,15 +1,18 @@
+"use client";
+
+import { Chip } from "@heroui/react";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
-const tones = {
-  success: "bg-success-soft text-success",
-  waiting: "bg-accent text-primary",
-  warning: "bg-warning-soft text-warning",
-  danger: "bg-destructive-soft text-destructive",
-  neutral: "bg-muted text-muted-foreground",
+const colors = {
+  success: "success",
+  waiting: "accent",
+  warning: "warning",
+  danger: "danger",
+  neutral: "default",
 } as const;
 
-export type StatusTone = keyof typeof tones;
+export type StatusTone = keyof typeof colors;
 
 // One status vocabulary for every admin list and card. The text carries the
 // state; the colour and dot only reinforce it.
@@ -23,15 +26,18 @@ export function StatusBadge({
   className?: string;
 }) {
   return (
-    <span
+    <Chip
+      color={colors[tone]}
+      variant="soft"
+      size="lg"
       className={cn(
-        "inline-flex h-7 shrink-0 items-center gap-2 rounded-full px-3 text-sm font-medium whitespace-nowrap",
-        tones[tone],
+        "h-7 gap-2 rounded-full px-3 text-[0.8125rem] font-semibold whitespace-nowrap",
+        tone === "neutral" && "bg-default text-muted",
         className,
       )}
     >
-      <span aria-hidden="true" className="size-1.5 rounded-full bg-current" />
-      {children}
-    </span>
+      <span aria-hidden="true" className="size-1.5 shrink-0 rounded-full bg-current" />
+      <Chip.Label className="inline-flex items-center gap-1.5">{children}</Chip.Label>
+    </Chip>
   );
 }

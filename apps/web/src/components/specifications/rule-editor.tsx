@@ -1,8 +1,8 @@
 "use client";
 
 import type { ComparisonOperator, ObservationKind, RuleEffect } from "@ai-scouting/scouting";
+import { Button, Checkbox, Input } from "@heroui/react";
 import { Plus, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import {
   allowedEffects,
   changeOperator,
@@ -18,7 +18,7 @@ import {
   startComparison,
 } from "@/lib/specification-model";
 import { ChoiceSelect } from "./choice-select";
-import { controlClass, ProblemList } from "./fields";
+import { invalidClass, ProblemList } from "./fields";
 
 function ValueControl({
   comparison,
@@ -47,10 +47,11 @@ function ValueControl({
     );
   if (type === "number")
     return (
-      <input
+      <Input
         aria-label={label}
         inputMode="decimal"
-        className={`${controlClass} h-11`}
+        fullWidth
+        className={`tabular-nums ${invalidClass}`}
         value={typeof comparison.value === "string" ? comparison.value : ""}
         onChange={(e) => onChange(e.target.value)}
         placeholder="Number"
@@ -61,39 +62,43 @@ function ValueControl({
     const chosen = new Set(comparison.value);
     const missing = comparison.value.filter((code) => !options.some((o) => o.code === code));
     return (
-      <fieldset className="rounded-md border border-input bg-card px-3 py-2">
+      <fieldset className="rounded-field border border-(--field-border) bg-field px-3 py-1.5 shadow-field">
         <legend className="sr-only">{label}</legend>
         <div className="flex flex-wrap gap-x-4">
           {options.map((option) => (
-            <label key={option.id} className="inline-flex min-h-9 items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                className="size-4 accent-primary"
-                checked={chosen.has(option.code)}
-                onChange={(e) =>
-                  onChange(
-                    e.target.checked
-                      ? [...(comparison.value as string[]), option.code]
-                      : (comparison.value as string[]).filter((c) => c !== option.code),
-                  )
-                }
-              />
-              {option.label || option.code}
-            </label>
+            <Checkbox
+              key={option.id}
+              isSelected={chosen.has(option.code)}
+              onChange={(checked) =>
+                onChange(
+                  checked
+                    ? [...(comparison.value as string[]), option.code]
+                    : (comparison.value as string[]).filter((c) => c !== option.code),
+                )
+              }
+            >
+              <Checkbox.Content className="min-h-9 text-sm">
+                <Checkbox.Control>
+                  <Checkbox.Indicator />
+                </Checkbox.Control>
+                {option.label || option.code}
+              </Checkbox.Content>
+            </Checkbox>
           ))}
           {missing.map((code) => (
-            <label
+            <Checkbox
               key={code}
-              className="inline-flex min-h-9 items-center gap-2 text-sm text-destructive"
+              isSelected
+              isInvalid
+              onChange={() => onChange((comparison.value as string[]).filter((c) => c !== code))}
             >
-              <input
-                type="checkbox"
-                className="size-4 accent-destructive"
-                checked
-                onChange={() => onChange((comparison.value as string[]).filter((c) => c !== code))}
-              />
-              Deleted option “{code}”
-            </label>
+              <Checkbox.Content className="min-h-9 text-sm text-danger">
+                <Checkbox.Control>
+                  <Checkbox.Indicator />
+                </Checkbox.Control>
+                Deleted option “{code}”
+              </Checkbox.Content>
+            </Checkbox>
           ))}
         </div>
       </fieldset>
@@ -181,13 +186,12 @@ function ComparisonRow({
       />
       {onRemove ? (
         <Button
-          type="button"
           variant="ghost"
-          className="h-11 justify-self-start text-muted-foreground"
-          onClick={onRemove}
+          className="justify-self-start text-muted max-sm:px-3 sm:w-11 sm:px-0"
+          onPress={onRemove}
           aria-label={`Remove condition ${position}`}
         >
-          <X aria-hidden="true" />
+          <X aria-hidden="true" className="size-4" />
           <span className="sm:sr-only">Remove condition</span>
         </Button>
       ) : (
@@ -231,8 +235,8 @@ export function RuleEditor({
   return (
     <div className="space-y-3">
       <div>
-        <h4 className="text-sm font-medium">Conditions</h4>
-        <p className="text-sm text-muted-foreground">
+        <h4 className="text-sm font-semibold">Conditions</h4>
+        <p className="text-sm text-muted">
           {question.rules.length
             ? "Rules read other answers in the same observation."
             : effects.length
@@ -245,8 +249,10 @@ export function RuleEditor({
       {question.rules.map((rule, index) => {
         const ruleEffects = effects.includes(rule.effect) ? effects : [rule.effect, ...effects];
         return (
-          <div key={rule.id} className="space-y-3 rounded-lg bg-accent/70 p-3 sm:p-4">
-            <p className="font-medium text-primary">{ruleSentence(rule, questions)}</p>
+          <div key={rule.id} className="space-y-3 rounded-xl bg-accent-soft p-3 sm:p-4">
+            <p className="font-semibold text-accent-soft-foreground">
+              {ruleSentence(rule, questions)}
+            </p>
             {rule.nested !== undefined ? (
               <p className="text-sm">
                 This rule uses nested groups, which this editor cannot show. It is kept as it is;
@@ -314,10 +320,9 @@ export function RuleEditor({
             <div className="flex flex-wrap gap-2">
               {rule.nested === undefined && sources[0] ? (
                 <Button
-                  type="button"
                   variant="outline"
-                  className="h-11"
-                  onClick={() =>
+                  className="bg-surface"
+                  onPress={() =>
                     update(rule.id, {
                       ...rule,
                       comparisons: [
@@ -327,15 +332,14 @@ export function RuleEditor({
                     })
                   }
                 >
-                  <Plus aria-hidden="true" />
+                  <Plus aria-hidden="true" className="size-4" />
                   Add condition
                 </Button>
               ) : null}
               <Button
-                type="button"
                 variant="ghost"
-                className="h-11 text-destructive hover:text-destructive"
-                onClick={() => onChange(question.rules.filter((r) => r.id !== rule.id))}
+                className="text-danger hover:bg-danger-soft"
+                onPress={() => onChange(question.rules.filter((r) => r.id !== rule.id))}
               >
                 Remove rule
               </Button>
@@ -346,12 +350,12 @@ export function RuleEditor({
       <ProblemList errors={problems.get("rules") ?? []} />
       {effects.length ? (
         sources.length ? (
-          <Button type="button" variant="outline" className="h-11" onClick={addRule}>
-            <Plus aria-hidden="true" />
+          <Button variant="outline" onPress={addRule}>
+            <Plus aria-hidden="true" className="size-4" />
             Add rule
           </Button>
         ) : (
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-muted">
             Add a yes-or-no, number or choice question to use it in a rule.
           </p>
         )
