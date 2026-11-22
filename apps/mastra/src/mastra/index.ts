@@ -32,6 +32,9 @@ export const mastra = new Mastra({
   agents: { extractor },
   workflows: { "scouting-session": sessionWorkflow },
   observability: createObservability(),
+  // The recovery loop renews a lease every 5 seconds, so Neon never scales to zero.
+  // Suspended sessions resume through the turn endpoint; interrupted runs need manual recovery.
+  recovery: { workflows: "off" },
   storage: process.env.MASTRA_DATABASE_URL
     ? new PostgresStore({
         id: "ai-scouting-storage",
