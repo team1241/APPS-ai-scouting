@@ -2,7 +2,6 @@
 
 import {
   type Contract,
-  type ContractIssue,
   type ExtractionResult,
   LIMITS_DRAFT_TEST,
   type ObservationKind,
@@ -11,7 +10,7 @@ import {
 import { Button, Input, TextArea } from "@heroui/react";
 import { AlertTriangle, Plus, Sparkles, X } from "lucide-react";
 import { useId, useState } from "react";
-import { type DraftTestMessage, testSpecificationDraft } from "@/app/admin/specification-actions";
+import type { DraftTestMessage } from "@/app/admin/specification-actions";
 import { StatusBadge } from "@/components/status-badge";
 import { newId } from "@/lib/specification-model";
 import {
@@ -29,8 +28,14 @@ interface Message extends DraftTestMessage {
   id: string;
 }
 
+// The outcome of one run. `revision` is set for a draft, to mark the result out of date later.
+export type TestRun =
+  | { outcome: "tested"; result: ExtractionResult; label: string; revision?: number }
+  | { outcome: "error"; message: string };
+
 interface Outcome {
-  revision: number;
+  label: string;
+  revision?: number;
   contract: Contract;
   messages: Message[];
   result: ExtractionResult;
@@ -62,9 +67,7 @@ function Results({ outcome, stale }: { outcome: Outcome; stale: boolean }) {
         <StatusBadge tone={complete ? "success" : "warning"}>
           {complete ? "Complete" : "Needs follow-up"}
         </StatusBadge>
-        <span className="text-sm text-muted">
-          AI extraction of draft revision {outcome.revision}
-        </span>
+        <span className="text-sm text-muted">AI extraction of {outcome.label}</span>
       </div>
       {stale ? (
         <p className="rounded-xl bg-warning-soft px-4 py-3 text-sm font-medium text-warning-soft-foreground">
@@ -172,25 +175,21 @@ function Results({ outcome, stale }: { outcome: Outcome; stale: boolean }) {
 // Model test (#49): runs the production extraction once on synthetic text, on an explicit
 // action. The panel keeps its inputs whatever happens to the request.
 export function ExtractionTest({
-  organizationId,
-  draftId,
   kind,
   contract,
+  target,
+  run: runTest,
   revision,
-  dirty,
-  prepare,
-  onInvalid,
+  dirty = false,
 }: {
-  organizationId: string;
-  draftId: string;
   kind: ObservationKind;
   contract: Contract;
-  // The saved revision and whether there are unsaved edits, to mark a result as out of date.
-  revision: number;
-  dirty: boolean;
-  // Saves pending edits; resolves to the saved revision, or null with a reason.
-  prepare: () => Promise<number | { error: string }>;
-  onInvalid: (issues: ContractIssue[]) => void;
+  // What the test runs against, for example "this draft as saved".
+  target: string;
+  run: (messages: DraftTestMessage[]) => Promise<TestRun>;
+  // A draft's saved revision and whether it has unsaved edits, to mark a result as out of date.
+  revision?: number;
+  dirty?: boolean;
 }) {
   const base = useId();
   const samples = sampleCasesFor(kind);
@@ -220,33 +219,23 @@ export function ExtractionTest({
     setError(null);
     setRunning(true);
     try {
-      const prepared = await prepare();
-      if (typeof prepared !== "number") {
-        setError(prepared.error);
-        return;
-      }
       const sent = messages.map((m) => ({
         ...m,
         text: m.text.trim(),
         asked: m.asked?.trim() || undefined,
       }));
-      const response = await testSpecificationDraft(organizationId, draftId, {
-        revision: prepared,
-        messages: sent.map(({ role, asked, text }) =>
-          asked ? { role, asked, text } : { role, text },
-        ),
-      });
+      const response = await runTest(
+        sent.map(({ role, asked, text }) => (asked ? { role, asked, text } : { role, text })),
+      );
       if (response.outcome === "tested")
         setOutcome({
+          label: response.label,
           revision: response.revision,
           contract,
           messages: sent,
           result: response.result,
         });
-      else if (response.outcome === "invalid") {
-        setError(response.message);
-        onInvalid(response.issues);
-      } else setError(response.message);
+      else setError(response.message);
     } catch {
       setError("The test did not run. Your sample is kept; try again shortly.");
     } finally {
@@ -259,9 +248,9 @@ export function ExtractionTest({
       <div className="space-y-1">
         <h2 className="font-display text-xl">Test extraction</h2>
         <p className="max-w-[65ch] text-sm text-muted">
-          Runs the AI extraction used in live scouting on a sample note and replies, against this
-          draft as saved. Each run makes one AI request. No scouting session is created, nothing is
-          sent to Telegram and no version changes.
+          Runs the AI extraction used in live scouting on a sample note and replies, against{" "}
+          {target}. Each run makes one AI request. No scouting session is created, nothing is sent
+          to Telegram and no version changes.
         </p>
       </div>
 
@@ -401,7 +390,10 @@ export function ExtractionTest({
 
       <div aria-live="polite">
         {outcome ? (
-          <Results outcome={outcome} stale={dirty || revision !== outcome.revision} />
+          <Results
+            outcome={outcome}
+            stale={outcome.revision !== undefined && (dirty || revision !== outcome.revision)}
+          />
         ) : null}
       </div>
     </div>

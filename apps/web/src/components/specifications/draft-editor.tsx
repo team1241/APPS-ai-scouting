@@ -17,8 +17,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  type DraftTestMessage,
   publishSpecificationDraft,
   saveSpecificationDraft,
+  testSpecificationDraft,
 } from "@/app/admin/specification-actions";
 import { DialogActions, FormDialog } from "@/components/form-dialog";
 import { LinkButton } from "@/components/link-button";
@@ -49,12 +51,13 @@ import { useMediaQuery } from "@/lib/use-media-query";
 import { cn } from "@/lib/utils";
 import { AnswerPreview } from "./answer-preview";
 import { DeleteDraftButton } from "./delete-draft-button";
-import { ExtractionTest } from "./extraction-test";
+import { ExtractionTest, type TestRun } from "./extraction-test";
 import { Field, invalidClass } from "./fields";
 import { FixProblemsFirst } from "./preview-parts";
 import { QuestionFields, sectionForField } from "./question-fields";
 import { QuestionInspector } from "./question-inspector";
 import { QuestionList } from "./question-list";
+import { ViewTabs } from "./view-tabs";
 
 type SaveStatus =
   | { kind: "saved"; at: string }
@@ -93,11 +96,6 @@ const statusView = (status: SaveStatus): [StatusTone, string] => {
 };
 
 type View = "questions" | "preview" | "test";
-const views: [View, string][] = [
-  ["questions", "Edit"],
-  ["preview", "Preview answers"],
-  ["test", "Test extraction"],
-];
 
 // Server issues arrive on a refused publish or test. They sit on the field they are about,
 // next to the editor's own checks, unless the editor already reports the same problem.
@@ -446,13 +444,33 @@ export function DraftEditor({
   };
 
   // A test runs against the stored draft, so pending edits are saved first.
-  const prepareTest = async (): Promise<number | { error: string }> => {
+  // Saves pending edits, then tests the saved revision.
+  const runTest = async (messages: DraftTestMessage[]): Promise<TestRun> => {
     if (edits.current !== savedEdits.current) await save();
     if (blockedRef.current)
-      return { error: "Resolve the message above the questions, then run the test." };
+      return {
+        outcome: "error",
+        message: "Resolve the message above the questions, then run the test.",
+      };
     if (edits.current !== savedEdits.current)
-      return { error: "Your latest changes are not saved yet. Save them, then run the test." };
-    return revision.current;
+      return {
+        outcome: "error",
+        message: "Your latest changes are not saved yet. Save them, then run the test.",
+      };
+    const response = await testSpecificationDraft(organizationId, draft.id, {
+      revision: revision.current,
+      messages,
+    });
+    if (response.outcome === "tested")
+      return {
+        outcome: "tested",
+        result: response.result,
+        revision: response.revision,
+        label: `draft revision ${response.revision}`,
+      };
+    if (response.outcome === "invalid")
+      setServerIssues(serverIssueMessages(response.issues, latest.current.questions, localIssues));
+    return { outcome: "error", message: response.message };
   };
   const showProblems = () => {
     setView("questions");
@@ -569,52 +587,16 @@ export function DraftEditor({
           </div>
         ) : null}
 
-        <div
-          role="tablist"
-          aria-label="Draft views"
-          className="-mx-4 flex gap-1 overflow-x-auto border-b border-separator px-4 sm:mx-0 sm:px-0"
-        >
-          {views.map(([id, name]) => (
-            <button
-              key={id}
-              id={`tab-${id}`}
-              type="button"
-              role="tab"
-              aria-selected={view === id}
-              aria-controls={`panel-${id}`}
-              tabIndex={view === id ? 0 : -1}
-              onClick={() => setView(id)}
-              onKeyDown={(e) => {
-                const index = views.findIndex(([v]) => v === id);
-                const step = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
-                if (!step) return;
-                e.preventDefault();
-                const next = views[(index + step + views.length) % views.length]?.[0];
-                if (!next) return;
-                setView(next);
-                document.getElementById(`tab-${next}`)?.focus();
-              }}
-              className={cn(
-                "relative inline-flex min-h-11 shrink-0 cursor-pointer items-center gap-2 rounded-t-xl px-3 text-sm font-semibold whitespace-nowrap outline-none transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-accent/40 motion-reduce:transition-none",
-                view === id
-                  ? "text-foreground after:absolute after:inset-x-2 after:-bottom-px after:h-[3px] after:rounded-full after:bg-accent"
-                  : "text-muted hover:text-foreground",
-              )}
-            >
-              {name}
-              {id === "questions" ? (
-                <span
-                  className={cn(
-                    "inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-xs font-bold tabular-nums",
-                    view === id ? "bg-accent text-accent-foreground" : "bg-default text-muted",
-                  )}
-                >
-                  {content.questions.length}
-                </span>
-              ) : null}
-            </button>
-          ))}
-        </div>
+        <ViewTabs
+          label="Draft views"
+          view={view}
+          onChange={setView}
+          tabs={[
+            { id: "questions", name: "Edit", count: content.questions.length },
+            { id: "preview", name: "Preview answers" },
+            { id: "test", name: "Test extraction" },
+          ]}
+        />
 
         <div
           role="tabpanel"
@@ -932,18 +914,12 @@ export function DraftEditor({
         <div role="tabpanel" id="panel-test" aria-labelledby="tab-test" hidden={view !== "test"}>
           {validation.ok ? (
             <ExtractionTest
-              organizationId={organizationId}
-              draftId={draft.id}
               kind={kind}
               contract={validation.contract}
+              target="this draft as saved"
+              run={runTest}
               revision={savedRevision}
               dirty={status.kind !== "saved"}
-              prepare={prepareTest}
-              onInvalid={(problems) =>
-                setServerIssues(
-                  serverIssueMessages(problems, latest.current.questions, localIssues),
-                )
-              }
             />
           ) : (
             <FixProblemsFirst

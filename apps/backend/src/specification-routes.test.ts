@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { readContract } from "@ai-scouting/scouting";
 import match from "@ai-scouting/scouting/examples/match.json" with { type: "json" };
 import { DraftTestFailed } from "./mastra-client.ts";
 import type { Draft } from "./repositories/specifications.ts";
@@ -384,4 +385,72 @@ test("draft tests report service failures and limit repeated model calls", async
   assert.equal((await limited.request(testPath, send("POST", sample))).status, 200);
   assert.equal((await limited.request(testPath, send("POST", sample))).status, 200);
   assert.equal((await limited.request(testPath, send("POST", sample))).status, 429);
+});
+
+const publicationTestPath = `/organizations/${org}/specifications/publications/2027/match/v3/test`;
+const matchPublication = async (id: string, subject: string) =>
+  admin(subject, id)
+    ? {
+        season: 2027,
+        kind: "match" as const,
+        version: "v3",
+        name: "Match 2027",
+        formatVersion: 2,
+        publishedAt: "2026-11-09T00:00:00.000Z",
+        assignedEventIds: [],
+        contract: readContract({ ...match, version: "v3" }, "match"),
+      }
+    : null;
+
+test("publication tests are admin-only and never reach the model for others", async () => {
+  let calls = 0;
+  const draftTest = async () => {
+    calls++;
+    return { specificationVersion: "v3", turns: [{}] };
+  };
+  const outsider = await app({ publication: matchPublication, draftTest }, "user_other").request(
+    publicationTestPath,
+    send("POST", { messages: sample.messages }),
+  );
+  assert.equal(outsider.status, 404);
+  const missing = await app({ draftTest }).request(
+    publicationTestPath,
+    send("POST", { messages: sample.messages }),
+  );
+  assert.equal(missing.status, 404);
+  assert.equal(calls, 0);
+});
+
+test("publication tests run the published contract through production finalization", async () => {
+  let sent: unknown;
+  const response = await app({
+    publication: matchPublication,
+    draftTest: async (contract, messages) => {
+      sent = { version: contract.version, messages };
+      return {
+        specificationVersion: contract.version,
+        turns: [{ match: "Q14", team_number: 1241, robot_status: "no_show" }],
+      };
+    },
+  }).request(publicationTestPath, send("POST", { messages: sample.messages }));
+  assert.equal(response.status, 200);
+  assert.deepEqual(sent, { version: "v3", messages: sample.messages });
+  const { test: result } = await response.json();
+  assert.equal(result.version, "v3");
+  assert.equal(result.result.status, "complete");
+  assert.equal(result.result.specificationVersion, "v3");
+});
+
+test("publication tests reject bad samples and report a missing model", async () => {
+  const never = async () => assert.fail("model called");
+  const long = await app({ publication: matchPublication, draftTest: never }).request(
+    publicationTestPath,
+    send("POST", { messages: [{ role: "note", text: "x".repeat(2001) }] }),
+  );
+  assert.equal(long.status, 400);
+  const off = await app({ publication: matchPublication, draftTest: null }).request(
+    publicationTestPath,
+    send("POST", { messages: sample.messages }),
+  );
+  assert.equal(off.status, 503);
 });

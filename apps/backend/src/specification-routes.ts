@@ -76,7 +76,7 @@ export interface SpecificationDeps {
     kind: ObservationKind,
     version: string | null,
   ): Promise<AssignResult | null>;
-  // Model extraction for draft tests (#49). Null when Mastra is not configured.
+  // Model extraction for draft and publication tests (#49). Null when Mastra is not configured.
   draftTest?:
     | ((contract: Contract, messages: ExtractionMessage[]) => Promise<ModelExtraction>)
     | null;
@@ -89,19 +89,20 @@ function draftTestLimiter({ count, windowMs }: { count: number; windowMs: number
   const starts = new Map<string, number[]>();
   const running = new Set<string>();
   return {
-    begin(org: string, draft: string, now = Date.now()): "ok" | "busy" | "limited" {
-      if (running.has(draft)) return "busy";
+    // `key` names the draft or publication under test; one run of each at a time.
+    begin(org: string, key: string, now = Date.now()): "ok" | "busy" | "limited" {
+      if (running.has(key)) return "busy";
       const recent = (starts.get(org) ?? []).filter((t) => now - t < windowMs);
       if (recent.length >= count) {
         starts.set(org, recent);
         return "limited";
       }
       starts.set(org, [...recent, now]);
-      running.add(draft);
+      running.add(key);
       return "ok";
     },
-    end(draft: string) {
-      running.delete(draft);
+    end(key: string) {
+      running.delete(key);
     },
   };
 }
@@ -328,31 +329,70 @@ export function specificationRoutes(deps: SpecificationDeps) {
     );
   });
 
-  // Draft test (#49). Runs the production extraction on synthetic messages against the saved
-  // draft at `revision`. Nothing is stored and no message is sent; publishing still validates.
+  // Extraction tests (#49). Run the production extraction on synthetic messages against a saved
+  // draft revision or a published version. Nothing is stored and no message is sent.
   const limiter = draftTestLimiter(deps.draftTestLimit ?? { count: 20, windowMs: 10 * 60_000 });
   const testLimit = bodyLimit({
     maxSize: 32 * 1024,
     onError: (c) => c.json({ error: "The sample is too large." }, 413),
   });
+  const sampleMessages = (value: unknown) => {
+    const messages = draftTestMessagesSchema.safeParse(value);
+    if (messages.success) return { messages: messages.data };
+    return {
+      error:
+        messages.error.issues.find((i) => i.code === "custom")?.message ??
+        `Enter a note, and up to ${LIMITS_DRAFT_TEST.messages - 1} replies of ${LIMITS_DRAFT_TEST.text} characters or fewer.`,
+    };
+  };
+  // Starts one model call for `key` once the caller is authorized and the contract is valid.
+  const runTest = async (
+    org: string,
+    key: string,
+    contract: Contract,
+    messages: ExtractionMessage[],
+    // "this draft" or "this version", for the busy message.
+    subject: string,
+  ): Promise<
+    | { ok: true; result: ReturnType<typeof finalizeTurns> }
+    | { ok: false; error: string; status: 429 | 502 | 503 | 504 }
+  > => {
+    if (!deps.draftTest)
+      return { ok: false, error: "Extraction testing is not set up on this server.", status: 503 };
+    const started = limiter.begin(org, key);
+    if (started === "busy")
+      return {
+        ok: false,
+        error: `A test of ${subject} is already running. Wait for it to finish.`,
+        status: 429,
+      };
+    if (started === "limited")
+      return {
+        ok: false,
+        error:
+          "Your team has run many tests in the last few minutes. Wait a few minutes, then try again.",
+        status: 429,
+      };
+    try {
+      const extracted = await deps.draftTest(contract, messages);
+      return { ok: true, result: finalizeTurns(contract, extracted.turns) };
+    } catch (error) {
+      const [message, status] =
+        draftTestFailures[error instanceof DraftTestFailed ? error.reason : "unavailable"];
+      return { ok: false, error: message, status };
+    } finally {
+      limiter.end(key);
+    }
+  };
+
   app.post(`${drafts}/:draftId/test`, testLimit, async (c) => {
     const id = draftId(c.req.param("draftId"));
     if (!id) return c.json(draftMissing, 404);
     const body = await json(c.req.raw);
     if (!isRevision(body.revision))
       return c.json({ errors: { revision: "Reload the draft and try again." } }, 400);
-    const messages = draftTestMessagesSchema.safeParse(body.messages);
-    if (!messages.success)
-      return c.json(
-        {
-          errors: {
-            messages:
-              messages.error.issues.find((i) => i.code === "custom")?.message ??
-              `Enter a note, and up to ${LIMITS_DRAFT_TEST.messages - 1} replies of ${LIMITS_DRAFT_TEST.text} characters or fewer.`,
-          },
-        },
-        400,
-      );
+    const sample = sampleMessages(body.messages);
+    if (!sample.messages) return c.json({ errors: { messages: sample.error } }, 400);
     const org = c.req.param("id");
     // Authorization comes first: a non-admin never reaches the model or the limiter.
     const draft = await deps.load(org, c.get("subject"), id);
@@ -376,37 +416,34 @@ export function specificationRoutes(deps: SpecificationDeps) {
         { error: "Fix the listed problems before testing extraction.", issues: validation.issues },
         422,
       );
-    if (!deps.draftTest)
-      return c.json({ error: "Extraction testing is not set up on this server." }, 503);
-    const started = limiter.begin(org, id);
-    if (started === "busy")
-      return c.json(
-        { error: "A test of this draft is already running. Wait for it to finish." },
-        429,
-      );
-    if (started === "limited")
-      return c.json(
-        {
-          error:
-            "Your team has run many tests in the last few minutes. Wait a few minutes, then try again.",
-        },
-        429,
-      );
-    try {
-      const extracted = await deps.draftTest(validation.contract, messages.data);
-      return c.json({
-        test: {
-          revision: draft.revision,
-          result: finalizeTurns(validation.contract, extracted.turns),
-        },
-      });
-    } catch (error) {
-      const [message, status] =
-        draftTestFailures[error instanceof DraftTestFailed ? error.reason : "unavailable"];
-      return c.json({ error: message }, status);
-    } finally {
-      limiter.end(id);
-    }
+    const run = await runTest(org, id, validation.contract, sample.messages, "this draft");
+    if (!run.ok) return c.json({ error: run.error }, run.status);
+    return c.json({ test: { revision: draft.revision, result: run.result } });
+  });
+
+  // The stored contract was validated when it was published and is read back as sessions read it.
+  app.post(`${base}/publications/:season/:kind/:version/test`, testLimit, async (c) => {
+    const season = Number(c.req.param("season"));
+    const kind = c.req.param("kind");
+    const version = c.req.param("version");
+    if (!isSeason(season) || !isKind(kind) || !versionPattern.test(version))
+      return c.json({ error: "Publication not found." }, 404);
+    const body = await json(c.req.raw);
+    const sample = sampleMessages(body.messages);
+    if (!sample.messages) return c.json({ errors: { messages: sample.error } }, 400);
+    const org = c.req.param("id");
+    const publication = await deps.publication(org, c.get("subject"), season, kind, version);
+    if (publication === null) return c.json(unavailable, 404);
+    if (publication === "not_found") return c.json({ error: "Publication not found." }, 404);
+    const run = await runTest(
+      org,
+      `publication:${season}:${kind}:${version}`,
+      publication.contract,
+      sample.messages,
+      "this version",
+    );
+    if (!run.ok) return c.json({ error: run.error }, run.status);
+    return c.json({ test: { version, result: run.result } });
   });
 
   const eventPath = "/organizations/:id/events/:eventId/specifications";
