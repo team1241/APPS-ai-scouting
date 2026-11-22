@@ -76,4 +76,4 @@ export async function extractDraftTest(
   return result.data;
 }
 
-export const DRAFT_TEST_TIMEOUT_MS = 45_000;
+export const DRAFT_TEST_TIMEOUT_MS = 60_000;
