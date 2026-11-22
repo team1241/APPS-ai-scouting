@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { z } from "zod";
 import {
   type Contract,
   checkAnswer,
@@ -9,6 +8,7 @@ import {
   modelContract,
   modelOutputSchema,
   type Question,
+  turnsFromModelOutput,
   validateContract,
 } from "./index.ts";
 
@@ -123,13 +123,45 @@ test("later messages merge counts by option", () => {
   assert.deepEqual(withdrawn.values.coral_scored, { l2: 1 });
 });
 
-test("the model reports one count per option code", () => {
-  const schema = modelOutputSchema(contract(), 1);
-  const parsed = schema.parse({ turns: [{ coral_scored: { l1: 2, l4: 3 } }] });
-  assert.deepEqual(parsed.turns[0]?.coral_scored, { l1: 2, l4: 3 });
-  const json = JSON.stringify(z.toJSONSchema(schema));
-  for (const code of ["l1", "l2", "l4"]) assert.ok(json.includes(`"${code}"`));
+test("the model reports one answer per tally option", () => {
+  const schema = modelOutputSchema(contract(), 2);
+  const output = schema.parse({
+    turns: [
+      {
+        answers: [
+          { question: "coral_scored", option: "l1", value: 2 },
+          { question: "coral_scored", option: "l4", value: 3 },
+          { question: "coral_scored", option: "l4", value: 4 },
+        ],
+      },
+      { answers: [{ question: "coral_scored", option: "l1", value: null }] },
+    ],
+  });
+  // A later answer for the same option replaces the earlier one; null withdraws one option.
+  assert.deepEqual(turnsFromModelOutput(contract(), output), [
+    { coral_scored: { l1: 2, l4: 4 } },
+    { coral_scored: { l1: null } },
+  ]);
+  // Without an option, null withdraws every count and anything else is checked as invalid.
+  const whole = schema.parse({
+    turns: [
+      { answers: [{ question: "coral_scored", value: null }] },
+      { answers: [{ question: "coral_scored", value: 5 }] },
+    ],
+  });
+  const turns = turnsFromModelOutput(contract(), whole);
+  assert.deepEqual(turns, [{ coral_scored: null }, { coral_scored: 5 }]);
+  assert.equal(checkAnswer(scored, turns[1]?.coral_scored).status, "invalid");
+  // An unlisted option code is kept, so the tally is reported as invalid, not dropped.
+  const unlisted = turnsFromModelOutput(
+    contract(),
+    schema.parse({
+      turns: [{ answers: [{ question: "coral_scored", option: "l9", value: 1 }] }, { answers: [] }],
+    }),
+  );
+  assert.equal(checkAnswer(scored, unlisted[0]?.coral_scored).status, "invalid");
   const answer = modelContract(contract()).questions[0]?.answer ?? "";
   assert.match(answer, /l2 \(Level 2\)/);
   assert.match(answer, /at most 12 for one option, at most 20 in total/);
+  assert.match(answer, /one answer per option/);
 });

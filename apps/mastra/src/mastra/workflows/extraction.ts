@@ -3,6 +3,7 @@ import {
   type ExtractionMessage,
   modelContract,
   modelOutputSchema,
+  turnsFromModelOutput,
 } from "@ai-scouting/scouting";
 import type { TracingContext } from "@mastra/core/observability";
 import { extractor } from "../agents/extractor.ts";
@@ -24,7 +25,7 @@ export async function extractTurns(
       tracingContext,
     },
   );
-  return { turns: response.object.turns };
+  return { turns: turnsFromModelOutput(contract, response.object) };
 }
 
 export const sessionWorkflow = createSessionWorkflow(extractTurns);
