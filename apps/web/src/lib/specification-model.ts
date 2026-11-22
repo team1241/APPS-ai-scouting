@@ -52,6 +52,8 @@ export interface EditorAnswer {
   options: EditorOption[];
   minSelected: string;
   maxSelected: string;
+  // Tally only. `max` is the highest count for one option.
+  maxTotal: string;
 }
 
 export interface EditorQuestion {
@@ -86,6 +88,7 @@ export const answerTypeLabels: Record<AnswerType, string> = {
   boolean: "Yes or no",
   single_choice: "One choice",
   multiple_choice: "Several choices",
+  tally: "Count for each option",
 };
 
 export const effectLabels: Record<RuleEffect, string> = {
@@ -106,7 +109,7 @@ const text = (value: unknown) => (typeof value === "string" ? value : "");
 const numberText = (value: unknown) =>
   typeof value === "number" ? String(value) : typeof value === "string" ? value : "";
 
-const answerTypes: AnswerType[] = ["text", "number", "boolean", "single_choice", "multiple_choice"];
+const answerTypes = Object.keys(answerTypeLabels) as AnswerType[];
 
 function toComparison(input: unknown): EditorComparison | null {
   const value = record(input);
@@ -173,6 +176,7 @@ export function toEditorQuestion(input: unknown): EditorQuestion {
       })),
       minSelected: numberText(answer.minSelected),
       maxSelected: numberText(answer.maxSelected),
+      maxTotal: numberText(answer.maxTotal),
     },
     rules: Array.isArray(value.rules) ? value.rules.map(toRule) : [],
     keyLocked: true,
@@ -232,14 +236,23 @@ export function serializeQuestion(question: EditorQuestion, questions: EditorQue
           ? { type: "boolean" }
           : answer.type === "single_choice"
             ? { type: "single_choice", options }
-            : {
-                type: "multiple_choice",
-                options,
-                ...bounds([
-                  ["minSelected", answer.minSelected],
-                  ["maxSelected", answer.maxSelected],
-                ]),
-              };
+            : answer.type === "tally"
+              ? {
+                  type: "tally",
+                  options,
+                  ...bounds([
+                    ["max", answer.max],
+                    ["maxTotal", answer.maxTotal],
+                  ]),
+                }
+              : {
+                  type: "multiple_choice",
+                  options,
+                  ...bounds([
+                    ["minSelected", answer.minSelected],
+                    ["maxSelected", answer.maxSelected],
+                  ]),
+                };
   return {
     key: question.key,
     label: question.label,
@@ -294,6 +307,7 @@ export function blankQuestion(questions: EditorQuestion[]): EditorQuestion {
       options: [],
       minSelected: "",
       maxSelected: "",
+      maxTotal: "",
     },
     rules: [],
     keyLocked: false,
@@ -366,9 +380,12 @@ export function allowedEffects(question: EditorQuestion, kind: ObservationKind):
   return effects;
 }
 
-// Questions this question's rules can depend on: any other question that is not free text.
+// Questions this question's rules can depend on: any other question whose type has comparisons.
+// Free text and tallies have none.
 export const conditionSources = (question: EditorQuestion, questions: EditorQuestion[]) =>
-  questions.filter((q) => q.id !== question.id && q.key && q.answer.type !== "text");
+  questions.filter(
+    (q) => q.id !== question.id && q.key && operatorsByType[q.answer.type].length > 0,
+  );
 
 export const operatorLabels: Record<ComparisonOperator, string> = {
   equals: "is",
@@ -470,6 +487,8 @@ export function answerSummary(question: EditorQuestion) {
       return `One of ${answer.options.length} options`;
     case "multiple_choice":
       return `Any of ${answer.options.length} options`;
+    case "tally":
+      return `Count for each of ${answer.options.length} options`;
   }
 }
 
@@ -568,7 +587,33 @@ function questionIssues(
     )
       add("maxLength", "Enter a whole number from 1 to 20,000, or leave it empty for no limit.");
   }
-  if (answer.type === "single_choice" || answer.type === "multiple_choice") {
+  if (answer.type === "tally") {
+    const whole = (value: string, field: string, message: string) => {
+      const parsed = parseNumber(value);
+      const bad =
+        "invalid" in parsed ||
+        ("value" in parsed && (!Number.isInteger(parsed.value) || parsed.value < 1));
+      if (bad) add(field, message);
+      return "value" in parsed && !bad ? parsed.value : undefined;
+    };
+    const max = whole(
+      answer.max,
+      "max",
+      "Enter a whole number of 1 or more for the highest count, or leave it empty.",
+    );
+    const total = whole(
+      answer.maxTotal,
+      "maxTotal",
+      "Enter a whole number of 1 or more for the highest total, or leave it empty.",
+    );
+    if (max !== undefined && total !== undefined && max > total)
+      add("max", "The highest count for one option must be at most the highest total.");
+  }
+  if (
+    answer.type === "single_choice" ||
+    answer.type === "multiple_choice" ||
+    answer.type === "tally"
+  ) {
     const least = answer.type === "single_choice" ? 2 : 1;
     if (answer.options.length < least)
       add("options", least === 2 ? "Add at least two options." : "Add at least one option.");
@@ -733,7 +778,8 @@ function issueField(issue: ContractIssue, question: EditorQuestion | undefined) 
   if (field === "answer") {
     if (index === "options" && typeof option === "number" && question?.answer.options[option])
       return `option:${question.answer.options[option].id}`;
-    if (index === "min" || index === "max" || index === "maxLength") return index;
+    if (index === "min" || index === "max" || index === "maxLength" || index === "maxTotal")
+      return index;
     return "answer";
   }
   return typeof field === "string" ? field : "questions";

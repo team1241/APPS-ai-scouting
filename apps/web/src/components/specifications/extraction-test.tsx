@@ -378,7 +378,7 @@ export function ExtractionTest({
             onPress={run}
           >
             <Sparkles aria-hidden="true" className="size-4" />
-            {running ? "Testing… this can take 30 seconds" : "Run test"}
+            {running ? "Testing… this can take up to a minute" : "Run test"}
           </Button>
           {empty && !running ? (
             <span className="text-sm text-muted">

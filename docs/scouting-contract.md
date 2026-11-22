@@ -47,17 +47,20 @@ Do not reuse a code with a different meaning in a later version. Consumers inter
 
 ## Answer types
 
-| Type              | Constraints                                                  | Known value                                                                             |
-| ----------------- | ------------------------------------------------------------ | --------------------------------------------------------------------------------------- |
-| `number`          | `format`: `integer` or `decimal`. Optional `min` and `max`.  | A finite number within bounds. `0` is valid when the bounds allow it.                   |
-| `text`            | Optional `maxLength`, up to 20,000.                          | Trimmed text that is not empty. Whitespace only is unknown.                             |
-| `boolean`         | None                                                         | `true` or `false`. Explicit `false` is an answer.                                       |
-| `single_choice`   | 2 to 50 `options`, each with `code` and `label`.             | One option code.                                                                        |
-| `multiple_choice` | 1 to 50 `options`. Optional `minSelected` and `maxSelected`. | A list of unique option codes. `[]` means "none of these" when `minSelected` allows it. |
+| Type              | Constraints                                                                                          | Known value                                                                                                                   |
+| ----------------- | ---------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `number`          | `format`: `integer` or `decimal`. Optional `min` and `max`.                                          | A finite number within bounds. `0` is valid when the bounds allow it.                                                         |
+| `text`            | Optional `maxLength`, up to 20,000.                                                                  | Trimmed text that is not empty. Whitespace only is unknown.                                                                   |
+| `boolean`         | None                                                                                                 | `true` or `false`. Explicit `false` is an answer.                                                                             |
+| `single_choice`   | 2 to 50 `options`, each with `code` and `label`.                                                     | One option code.                                                                                                              |
+| `multiple_choice` | 1 to 50 `options`. Optional `minSelected` and `maxSelected`.                                         | A list of unique option codes. `[]` means "none of these" when `minSelected` allows it.                                       |
+| `tally`           | 1 to 50 `options`. Optional `max` (for one option) and `maxTotal` (sum), whole numbers of 1 or more. | An object of option codes to whole numbers of 0 or more, for example `{ "l1": 2, "l4": 3 }`. Only stated options are present. |
 
 `null` or a missing value is always unknown. Unknown is never false, zero or a default choice. `checkAnswer` returns `known`, `unknown` or `invalid` with a reason. An invalid value, such as an out-of-range number or an unlisted option, is never coerced into a valid one.
 
 Option codes are stable. Option labels can change.
+
+A `tally` records a count for each option, for example game pieces scored at each location. An option the scout does not state is unknown, not `0`. The tally is known when at least one option is stated. `{}` is unknown. Rules cannot depend on a tally yet.
 
 ### Adding a type
 
@@ -88,6 +91,7 @@ Rules are data attached to a question. They are not answer types and not executa
 | `single_choice`   | `in`, `not_in`                                   | A list of option codes              |
 | `multiple_choice` | `includes`, `excludes`                           | One option code                     |
 | `text`            | None                                             | Free text is not a condition source |
+| `tally`           | None                                             | A tally is not a condition source   |
 
 ### Evaluation and precedence
 
@@ -172,6 +176,7 @@ Identity questions keep their system type: `match` is text, and `team_number` is
 `foldTurns(contract, turns)` processes ordered turns: the initial note, then each linked reply or correction. Each turn has only the values stated in that turn. `null` retracts an earlier answer. Rules are evaluated again after every turn.
 
 - The latest statement of a question is `active`. Earlier statements are `superseded`.
+- A `tally` merges its statements by option. A later count for an option replaces the earlier one, a `null` option withdraws that option and a `null` tally withdraws every option. History keeps each turn's own statement.
 - When a question is hidden, all its statements up to that turn become `inactive`. They stay in history and in `inactive`, and are excluded from `current`, completeness and export.
 - When a hidden question is shown again, it starts unknown. Only a value stated in the reactivating turn or later can become current. The question is asked again. Restating the same value is accepted. Thus a stale value never becomes current again without a new statement.
 - A question with unknown applicability is not hidden, so its answer is not stale.

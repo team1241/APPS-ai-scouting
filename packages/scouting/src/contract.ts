@@ -13,6 +13,7 @@ export const answerTypes = [
   "boolean",
   "single_choice",
   "multiple_choice",
+  "tally",
 ] as const;
 export type AnswerType = (typeof answerTypes)[number];
 
@@ -37,6 +38,8 @@ export const operatorsByType: Record<AnswerType, readonly ComparisonOperator[]> 
   single_choice: ["equals", "not_equals", "in", "not_in"],
   multiple_choice: ["includes", "excludes"],
   text: [],
+  // Rules cannot depend on a tally yet.
+  tally: [],
 };
 
 export const ruleEffects = ["show", "hide", "require", "optional"] as const;
@@ -89,15 +92,30 @@ const multipleChoiceAnswerSchema = z
   })
   .strict();
 
+// A whole-number count for each option, for example game pieces scored at each location.
+const tallyAnswerSchema = z
+  .object({
+    type: z.literal("tally"),
+    options: z.array(optionSchema).min(1).max(LIMITS.options),
+    // Highest count for one option.
+    max: z.number().int().min(1).optional(),
+    // Highest sum of all counts.
+    maxTotal: z.number().int().min(1).optional(),
+  })
+  .strict();
+
 export const answerSchema = z.discriminatedUnion("type", [
   numberAnswerSchema,
   textAnswerSchema,
   booleanAnswerSchema,
   singleChoiceAnswerSchema,
   multipleChoiceAnswerSchema,
+  tallyAnswerSchema,
 ]);
 export type Answer = z.infer<typeof answerSchema>;
 export type ChoiceAnswer = Extract<Answer, { type: "single_choice" | "multiple_choice" }>;
+export type OptionAnswer = Extract<Answer, { options: unknown }>;
+export const hasOptions = (answer: Answer): answer is OptionAnswer => "options" in answer;
 
 export type ConditionValue = boolean | number | string | string[];
 export interface Comparison {
@@ -328,7 +346,7 @@ function answerIssues(question: Question, path: (string | number)[]): ContractIs
         message: `${question.key} min is greater than max`,
       });
   }
-  if (answer.type === "single_choice" || answer.type === "multiple_choice") {
+  if (hasOptions(answer)) {
     const codes = new Set<string>();
     const labels = new Set<string>();
     for (const [i, option] of answer.options.entries()) {
@@ -344,6 +362,18 @@ function answerIssues(question: Question, path: (string | number)[]): ContractIs
       labels.add(label);
     }
   }
+  if (
+    answer.type === "tally" &&
+    answer.max !== undefined &&
+    answer.maxTotal !== undefined &&
+    answer.max > answer.maxTotal
+  )
+    issues.push({
+      ...at,
+      path: [...path, "answer", "max"],
+      code: "invalid_constraint",
+      message: `${question.key} highest count for one option is greater than the highest total`,
+    });
   if (answer.type === "multiple_choice") {
     const min = answer.minSelected ?? 0;
     const max = answer.maxSelected ?? answer.options.length;

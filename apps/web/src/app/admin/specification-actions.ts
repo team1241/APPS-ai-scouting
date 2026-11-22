@@ -255,8 +255,8 @@ export async function testSpecificationDraft(
   const response = await backendRequest(
     api(org, `/drafts/${encodeURIComponent(id)}/test`),
     { method: "POST", body: JSON.stringify(input) },
-    // The backend waits up to 45 seconds for the model.
-    { timeoutMs: 55_000 },
+    // The backend waits up to 60 seconds for the model.
+    { timeoutMs: 70_000 },
   );
   const data = await body(response);
   if (response?.ok) {
@@ -310,8 +310,8 @@ export async function testSpecificationPublication(
   const response = await backendRequest(
     api(org, `/publications/${season}/${kind}/${encodeURIComponent(version)}/test`),
     { method: "POST", body: JSON.stringify({ messages }) },
-    // The backend waits up to 45 seconds for the model.
-    { timeoutMs: 55_000 },
+    // The backend waits up to 60 seconds for the model.
+    { timeoutMs: 70_000 },
   );
   const data = await body(response);
   if (response?.ok)
