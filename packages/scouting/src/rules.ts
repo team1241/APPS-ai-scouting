@@ -8,7 +8,12 @@ import {
   type RuleEffect,
 } from "./contract.ts";
 
-export type AnswerValue = string | number | boolean | string[];
+// Counts by option code. An option that is not stated is unknown, not 0.
+export type Tally = Record<string, number>;
+export type AnswerValue = string | number | boolean | string[] | Tally;
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  value !== null && typeof value === "object" && !Array.isArray(value);
 
 export type AnswerCheck =
   | { status: "known"; value: AnswerValue }
@@ -60,7 +65,51 @@ export function checkAnswer(question: Question, value: unknown): AnswerCheck {
       // An empty list is an explicit "none of these"; unknown is null.
       return { status: "known", value: [...value] };
     }
+    case "tally": {
+      if (!isRecord(value)) return invalid("Expected a count for each option");
+      const codes = new Set(answer.options.map((o) => o.code));
+      const counts: Tally = {};
+      for (const option of answer.options) {
+        const count = value[option.code];
+        if (count === null || count === undefined) continue;
+        if (typeof count !== "number" || !Number.isInteger(count) || count < 0)
+          return invalid(`Expected a whole number of 0 or more for ${option.label}`);
+        if (answer.max !== undefined && count > answer.max)
+          return invalid(`More than ${answer.max} for ${option.label}`);
+        counts[option.code] = count;
+      }
+      if (Object.keys(value).some((code) => !codes.has(code)))
+        return invalid("Not one of the options");
+      // No stated option means the tally is still unknown.
+      if (!Object.keys(counts).length) return unknown;
+      const total = Object.values(counts).reduce((sum, count) => sum + count, 0);
+      if (answer.maxTotal !== undefined && total > answer.maxTotal)
+        return invalid(`More than ${answer.maxTotal} in total`);
+      return { status: "known", value: counts };
+    }
   }
+}
+
+// Combine the statements of one question that are still in effect. Most answers take the latest
+// statement. A tally merges by option: a later count for an option replaces the earlier one, a
+// null option withdraws it, and a null tally withdraws every option.
+function combine(question: Question | undefined, list: unknown[]): unknown {
+  if (question?.answer.type !== "tally") return list.at(-1);
+  let merged: unknown = null;
+  for (const value of list) {
+    if (!isRecord(value)) {
+      merged = value;
+      continue;
+    }
+    const next: Record<string, unknown> = isRecord(merged) ? { ...merged } : {};
+    for (const [code, count] of Object.entries(value)) {
+      if (count === undefined) continue;
+      if (count === null) delete next[code];
+      else next[code] = count;
+    }
+    merged = next;
+  }
+  return merged;
 }
 
 // Three-valued logic: true, false or null (unknown).
@@ -315,14 +364,16 @@ export interface TurnFold {
 // history. If the question is shown again, it starts unknown: only a value stated in the
 // reactivating turn or later can become current.
 export function foldTurns(contract: Contract, turns: Record<string, unknown>[]): TurnFold {
-  const keys = new Set(contract.questions.map((q) => q.key));
+  const byKey = new Map(contract.questions.map((q) => [q.key, q]));
+  const keys = new Set(byKey.keys());
   const statements = new Map<string, { turn: number; value: unknown }[]>();
   const staleBefore = new Map<string, number>();
   const effective = () => {
     const values: Record<string, unknown> = {};
     for (const [key, list] of statements) {
-      const latest = list.at(-1);
-      if (latest && latest.turn >= (staleBefore.get(key) ?? 0)) values[key] = latest.value;
+      const stale = staleBefore.get(key) ?? 0;
+      const live = list.filter((entry) => entry.turn >= stale).map((entry) => entry.value);
+      if (live.length) values[key] = combine(byKey.get(key), live);
     }
     return values;
   };

@@ -1,8 +1,11 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { finalizeTurns } from "@ai-scouting/scouting";
 import pit from "@ai-scouting/scouting/examples/pit.json" with { type: "json" };
 import {
+  blankQuestion,
   codeFromLabel,
+  conditionSources,
   dependencies,
   editorIssue,
   editorIssues,
@@ -11,7 +14,13 @@ import {
   toEditorQuestions,
   validatedDraft,
 } from "../src/lib/specification-model.ts";
-import { answerFromInput, formatValue, stateView } from "../src/lib/specification-preview.ts";
+import {
+  answerFromInput,
+  formatValue,
+  latestStated,
+  stateView,
+  tallyFromInput,
+} from "../src/lib/specification-preview.ts";
 
 function item<T>(list: T[], index: number): T {
   const value = list[index];
@@ -137,4 +146,79 @@ test("preview helpers describe values and states in plain words", () => {
     tone: "neutral",
     label: "Not asked",
   });
+});
+
+test("a tally question can be added to an existing draft", () => {
+  const questions = toEditorQuestions(pit.questions);
+  const tally = blankQuestion(questions);
+  Object.assign(tally, {
+    key: "coral_scored",
+    label: "Coral scored",
+    prompt: "How many coral did the robot score on each level?",
+    guidance: "Coral placed on the reef.",
+  });
+  tally.answer = {
+    ...tally.answer,
+    type: "tally",
+    max: "12",
+    maxTotal: "20",
+    options: [
+      { id: "a", code: "l1", label: "Level 1", codeLocked: true },
+      { id: "b", code: "l4", label: "Level 4", codeLocked: true },
+    ],
+  };
+  const draft = [...questions, tally];
+  assert.deepEqual(editorIssues("pit", "", draft), []);
+  const serialized = serializeQuestions(draft).at(-1);
+  assert.deepEqual(serialized?.answer, {
+    type: "tally",
+    options: [
+      { code: "l1", label: "Level 1" },
+      { code: "l4", label: "Level 4" },
+    ],
+    max: 12,
+    maxTotal: 20,
+  });
+  // A saved tally reads back into the editor unchanged.
+  assert.deepEqual(
+    serializeQuestions(toEditorQuestions(serializeQuestions(draft))),
+    serializeQuestions(draft),
+  );
+  // Rules cannot depend on a tally.
+  assert.ok(!conditionSources(item(draft, 0), draft).some((q) => q.key === "coral_scored"));
+
+  tally.answer = { ...tally.answer, max: "30", options: [] };
+  const fields = editorIssues("pit", "", draft)
+    .filter((i) => i.questionId === tally.id)
+    .map((i) => i.field);
+  assert.deepEqual(fields.sort(), ["max", "options"]);
+
+  assert.deepEqual(tallyFromInput({ l1: "2", l4: "", l2: "x" }), { l1: 2, l2: "x" });
+  assert.equal(tallyFromInput({ l1: " " }), null);
+  const contract = validatedDraft("pit", "", [
+    ...questions,
+    {
+      ...tally,
+      answer: {
+        ...tally.answer,
+        max: "",
+        options: [
+          { id: "a", code: "l1", label: "Level 1", codeLocked: true },
+          { id: "b", code: "l4", label: "Level 4", codeLocked: true },
+        ],
+      },
+    },
+  ]);
+  assert.ok(contract.ok);
+  const question = contract.contract.questions.at(-1);
+  assert.equal(formatValue(question, { l1: 2 }), "Level 1: 2");
+  // The test view shows the merged tally, not only the last message's counts.
+  const result = finalizeTurns(contract.contract, [
+    { coral_scored: { l1: 2 } },
+    { coral_scored: { l4: 3 } },
+    { team_number: 0 },
+  ]);
+  assert.deepEqual(latestStated(result).coral_scored, { l1: 2, l4: 3 });
+  // Values production does not use still show as stated.
+  assert.equal(latestStated(result).team_number, 0);
 });

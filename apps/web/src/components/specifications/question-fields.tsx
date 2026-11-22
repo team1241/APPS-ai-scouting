@@ -244,6 +244,52 @@ function AnswerEditor({
         Scouts answer yes or no. A clear “no” is recorded as an answer, not as missing.
       </p>
     );
+  if (answer.type === "tally")
+    return (
+      <div className="space-y-4">
+        <p className="text-sm text-muted">
+          Scouts give a whole-number count for each option, for example game pieces scored at each
+          location. An option the scout does not mention is recorded as not known, not as 0.
+        </p>
+        <OptionsEditor question={question} problems={problems} onChange={onChange} />
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field
+            id={`${id}-max`}
+            label="Highest count for one option"
+            hint="Optional."
+            errors={problems.get("max")}
+          >
+            {(props) => (
+              <Input
+                fullWidth
+                {...props}
+                inputMode="numeric"
+                className={`${input} tabular-nums`}
+                value={answer.max}
+                onChange={(e) => set({ max: e.target.value })}
+              />
+            )}
+          </Field>
+          <Field
+            id={`${id}-max-total`}
+            label="Highest total"
+            hint="Optional. The sum of all options."
+            errors={problems.get("maxTotal")}
+          >
+            {(props) => (
+              <Input
+                fullWidth
+                {...props}
+                inputMode="numeric"
+                className={`${input} tabular-nums`}
+                value={answer.maxTotal}
+                onChange={(e) => set({ maxTotal: e.target.value })}
+              />
+            )}
+          </Field>
+        </div>
+      </div>
+    );
   return (
     <div className="space-y-4">
       <OptionsEditor question={question} problems={problems} onChange={onChange} />

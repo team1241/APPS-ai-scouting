@@ -18,6 +18,7 @@ import {
   requirementLabel,
   type SampleAnswers,
   stateView,
+  tallyFromInput,
 } from "@/lib/specification-preview";
 import { cn } from "@/lib/utils";
 import { ChoiceSelect } from "./choice-select";
@@ -79,6 +80,37 @@ function AnswerInput({
         ]}
       />
     );
+  if (answer.type === "tally") {
+    const counts =
+      value && typeof value === "object" && !Array.isArray(value)
+        ? (value as Record<string, string>)
+        : {};
+    return (
+      <fieldset {...common} className="space-y-2">
+        <legend className="sr-only">{question.label}</legend>
+        <div className="grid max-w-xl gap-x-8 gap-y-2 sm:grid-cols-2">
+          {answer.options.map((option) => (
+            <div key={option.code} className="flex min-w-0 items-center gap-3 text-sm">
+              <label
+                htmlFor={`${id}-${option.code}`}
+                className="min-w-0 flex-1 [overflow-wrap:anywhere]"
+              >
+                {option.label}
+              </label>
+              <Input
+                id={`${id}-${option.code}`}
+                className="w-24 tabular-nums"
+                inputMode="numeric"
+                placeholder="Not stated"
+                value={counts[option.code] ?? ""}
+                onChange={(e) => onChange({ ...counts, [option.code]: e.target.value })}
+              />
+            </div>
+          ))}
+        </div>
+      </fieldset>
+    );
+  }
   const chosen = Array.isArray(value) ? (value as string[]) : null;
   return (
     <fieldset {...common} className="space-y-2">
@@ -151,7 +183,12 @@ export function AnswerPreview({
     for (const question of contract.questions) {
       const raw = inputs[question.key];
       if (raw === undefined) continue;
-      const value = typeof raw === "string" ? answerFromInput(question, raw) : raw;
+      const value =
+        typeof raw === "string"
+          ? answerFromInput(question, raw)
+          : question.answer.type === "tally" && raw && typeof raw === "object"
+            ? tallyFromInput(raw as Record<string, string>)
+            : raw;
       if (value !== null) values[question.key] = value;
     }
     return finalizeWithEvaluation(contract, [values]);
@@ -169,7 +206,11 @@ export function AnswerPreview({
       next[question.key] =
         question.answer.type === "number" || question.answer.type === "text"
           ? String(value)
-          : value;
+          : question.answer.type === "tally" && typeof value === "object"
+            ? Object.fromEntries(
+                Object.entries(value).map(([code, count]) => [code, String(count)]),
+              )
+            : value;
     }
     setInputs(next);
   };

@@ -1,10 +1,11 @@
-import type {
-  Contract,
-  ExtractionResult,
-  FieldState,
-  Question,
-  QuestionResult,
-  RuleOutcome,
+import {
+  type Contract,
+  type ExtractionResult,
+  type FieldState,
+  hasOptions,
+  type Question,
+  type QuestionResult,
+  type RuleOutcome,
 } from "@ai-scouting/scouting";
 import type { StatusTone } from "@/components/status-badge";
 
@@ -23,9 +24,20 @@ export function answerFromInput(question: Question, input: string): unknown {
   return Number.isFinite(parsed) ? parsed : trimmed;
 }
 
+// Tally inputs hold the typed text for each option. Empty options are not stated.
+export function tallyFromInput(input: Record<string, string>): Record<string, unknown> | null {
+  const counts: Record<string, unknown> = {};
+  for (const [code, text] of Object.entries(input)) {
+    const trimmed = text.trim();
+    if (!trimmed) continue;
+    const parsed = Number(trimmed);
+    counts[code] = Number.isFinite(parsed) ? parsed : trimmed;
+  }
+  return Object.keys(counts).length ? counts : null;
+}
+
 const optionLabel = (question: Question | undefined, code: string) =>
-  question &&
-  (question.answer.type === "single_choice" || question.answer.type === "multiple_choice")
+  question && hasOptions(question.answer)
     ? (question.answer.options.find((o) => o.code === code)?.label ?? code)
     : code;
 
@@ -40,6 +52,12 @@ export function formatValue(question: Question | undefined, value: unknown): str
       : "None of these";
   if (typeof value === "string") return optionLabel(question, value);
   if (typeof value === "number") return String(value);
+  if (typeof value === "object" && question?.answer.type === "tally") {
+    const entries = Object.entries(value).filter(([, count]) => count !== null);
+    return entries.length
+      ? entries.map(([code, count]) => `${optionLabel(question, code)}: ${count}`).join(", ")
+      : "No counts stated";
+  }
   return JSON.stringify(value);
 }
 
@@ -130,12 +148,14 @@ export function explain(question: Question, result: QuestionResult): string[] {
   return lines;
 }
 
-// The latest value each question received, including values production does not use.
+// The latest value each question received, including values production does not use. A current
+// answer comes from the result, because a tally merges counts from several messages.
 export function latestStated(result: ExtractionResult): Record<string, unknown> {
   const latest: Record<string, unknown> = {};
   for (const [key, entries] of Object.entries(result.history)) {
     const last = entries.at(-1);
-    if (last) latest[key] = last.value;
+    if (Object.hasOwn(result.values, key)) latest[key] = result.values[key];
+    else if (last) latest[key] = last.value;
   }
   return latest;
 }

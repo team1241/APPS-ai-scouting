@@ -71,6 +71,14 @@ function describeAnswer(question: Question): string {
         ? `One option code: ${options}. If the scout states something that matches no option, return their words unchanged.`
         : `A list of option codes: ${options}. [] only when the scout says none of these apply. If the scout states something that matches no option, include their words unchanged.`;
     }
+    case "tally": {
+      const options = answer.options.map((o) => `${o.code} (${o.label})`).join(", ");
+      const limits = [
+        answer.max !== undefined ? `at most ${answer.max} for one option` : "",
+        answer.maxTotal !== undefined ? `at most ${answer.maxTotal} in total` : "",
+      ].filter(Boolean);
+      return `A whole-number count for each option this message states: ${options}${limits.length ? ` (${limits.join(", ")})` : ""}. Give the full count for the observation so far, not the increase. Omit an option the message does not mention. 0 only when the scout says none for that option. When the scout says none at all, give 0 for every option. If the scout states a count outside the limits, return it unchanged.`;
+    }
   }
 }
 
@@ -92,6 +100,19 @@ export function modelContract(contract: Contract) {
 
 const valueSchema = (question: Question) => {
   const { answer } = question;
+  if (answer.type === "tally")
+    // One loose number per option code. Fixed keys suit structured output better than a record.
+    return z
+      .object(
+        Object.fromEntries(
+          answer.options.map((o) => [o.code, z.number().nullable().optional().describe(o.label)]),
+        ),
+      )
+      .nullable()
+      .optional()
+      .describe(
+        `${question.label}. ${question.guidance} ${describeAnswer(question)} Omit when this message does not state any count. null only when this message withdraws every earlier count or says they are not known.`,
+      );
   // Loose value types: the application checks bounds and option codes, so an out-of-range
   // number or an unlisted choice stays invalid instead of being forced into a valid answer.
   const base =
