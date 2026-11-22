@@ -6,7 +6,7 @@ import { LinkButton } from "@/components/link-button";
 import { PageBody, PageHeading } from "@/components/page-heading";
 import { EventAssignmentList } from "@/components/specifications/event-assignments";
 import { NewSpecificationDialog } from "@/components/specifications/new-specification-dialog";
-import { PublishedQuestions } from "@/components/specifications/question-details";
+import { PublicationViews } from "@/components/specifications/publication-views";
 import { StatusBadge } from "@/components/status-badge";
 import { TeamNavigation } from "@/components/team-navigation";
 import { backendRequest } from "@/lib/backend";
@@ -169,15 +169,13 @@ export default async function PublicationPage({
             version={version}
             events={events}
           />
-          <section aria-labelledby="questions-title" className="space-y-3">
-            <h2 id="questions-title" className="font-display text-xl">
-              Questions{" "}
-              <span className="font-sans font-medium text-muted tabular-nums">
-                ({publication.contract.questions.length})
-              </span>
-            </h2>
-            <PublishedQuestions kind={kind} questions={publication.contract.questions} />
-          </section>
+          <PublicationViews
+            organizationId={organizationId}
+            season={season}
+            kind={kind}
+            version={version}
+            contract={publication.contract}
+          />
         </PageBody>
       </main>
     </>

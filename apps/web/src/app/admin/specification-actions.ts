@@ -271,18 +271,54 @@ export async function testSpecificationDraft(
       issues: data.issues as ContractIssue[],
       message: String(data.error),
     };
+  return testFailure(
+    response,
+    data,
+    "This draft no longer exists or you no longer administer this team.",
+  );
+}
+
+function testFailure(
+  response: Response | null,
+  data: Record<string, unknown>,
+  missing: string,
+): { outcome: "error"; message: string } {
   const errors = data.errors as Record<string, string> | undefined;
   if (response?.status === 400 && errors?.messages)
     return { outcome: "error", message: errors.messages };
-  if (response?.status === 404)
-    return {
-      outcome: "error",
-      message: "This draft no longer exists or you no longer administer this team.",
-    };
+  if (response?.status === 404) return { outcome: "error", message: missing };
   if (response && typeof data.error === "string" && response.status >= 413)
     return { outcome: "error", message: data.error };
   return {
     outcome: "error",
     message: "The test did not run. Your sample is kept; try again shortly.",
   };
+}
+
+export type PublicationTestResult =
+  | { outcome: "tested"; result: ExtractionResult }
+  | { outcome: "error"; message: string };
+
+// Runs the production extraction on synthetic messages against a published version, read
+// back as live sessions read it. The backend stores nothing and sends nothing.
+export async function testSpecificationPublication(
+  org: string,
+  publication: { season: number; kind: ObservationKind; version: string },
+  messages: DraftTestMessage[],
+): Promise<PublicationTestResult> {
+  const { season, kind, version } = publication;
+  const response = await backendRequest(
+    api(org, `/publications/${season}/${kind}/${encodeURIComponent(version)}/test`),
+    { method: "POST", body: JSON.stringify({ messages }) },
+    // The backend waits up to 45 seconds for the model.
+    { timeoutMs: 55_000 },
+  );
+  const data = await body(response);
+  if (response?.ok)
+    return { outcome: "tested", result: (data.test as { result: ExtractionResult }).result };
+  return testFailure(
+    response,
+    data,
+    "This version no longer exists or you no longer administer this team.",
+  );
 }
