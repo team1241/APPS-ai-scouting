@@ -41,7 +41,7 @@ Invitation rollout requires both invitation migrations, including the restricted
 
 Apply the scouting-session migration through the migration pipeline. Deploy Mastra first with `MASTRA_DATABASE_URL` and the authenticated `/scouting/sessions/:runId/turn` endpoint, then deploy the backend worker. The legacy extraction endpoint has been removed; older backends must be upgraded to the session client. Test a note requiring several replies and verify one run ID persists across them. Existing records without event context are retained for history and are not automatically assigned or replayed.
 
-Open sessions pin their specification version: finish them before changing the template version or provide an explicit migration. Failed provider calls remain resumable; inspect runs left running/failed after interruption before manual recovery. The retry coalescer is process-local; keep one backend worker/one Mastra instance initially and do not assume distributed exactly-once execution. Delivery of questions still has the existing send/commit ambiguity.
+Open sessions pin their specification version: finish them before changing the template version or provide an explicit migration. Failed provider calls remain resumable; inspect runs left running/failed after interruption before manual recovery. Mastra workflow recovery is off (`recovery.workflows`): its leader lease writes every 5 seconds and keeps Neon production awake, so runs interrupted mid-step are not restarted automatically. The retry coalescer is process-local; keep one backend worker/one Mastra instance initially and do not assume distributed exactly-once execution. Delivery of questions still has the existing send/commit ambiguity.
 
 
 ## Events
