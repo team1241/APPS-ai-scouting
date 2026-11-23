@@ -42,6 +42,13 @@ export const operatorsByType: Record<AnswerType, readonly ComparisonOperator[]> 
   tally: [],
 };
 
+// Answer types that can have a default, and the form of that default: true or false, a number
+// within the bounds, one option code, or one whole-number count for every unstated tally option.
+export const defaultTypes = ["boolean", "number", "single_choice", "tally"] as const;
+export type DefaultType = (typeof defaultTypes)[number];
+export const supportsDefault = (type: AnswerType): type is DefaultType =>
+  (defaultTypes as readonly string[]).includes(type);
+
 export const ruleEffects = ["show", "hide", "require", "optional"] as const;
 export type RuleEffect = (typeof ruleEffects)[number];
 
@@ -155,6 +162,9 @@ export const questionSchema = z
     required: z.boolean(),
     answer: answerSchema,
     rules: z.array(ruleSchema).max(LIMITS.rulesPerQuestion).optional(),
+    // Answer used when no message gives a usable one. Applied by the application after
+    // extraction, never by the model. See `defaultTypes` for the form each answer type takes.
+    default: z.union([z.boolean(), z.number(), code]).optional(),
   })
   .strict();
 export type Question = z.infer<typeof questionSchema>;
@@ -225,7 +235,8 @@ export type ContractIssueCode =
   | "identity_missing"
   | "identity_excluded"
   | "identity_type"
-  | "identity_protected";
+  | "identity_protected"
+  | "invalid_default";
 
 export interface ContractIssue {
   code: ContractIssueCode;
@@ -386,6 +397,49 @@ function answerIssues(question: Question, path: (string | number)[]): ContractIs
       });
   }
   return issues;
+}
+
+function defaultIssues(question: Question, path: (string | number)[]): ContractIssue[] {
+  const value = question.default;
+  if (value === undefined) return [];
+  const { answer } = question;
+  const issue = (message: string): ContractIssue[] => [
+    { code: "invalid_default", path: [...path, "default"], question: question.key, message },
+  ];
+  if (isIdentityKey(question.key)) return issue(`${question.key} identity cannot have a default`);
+  switch (answer.type) {
+    case "boolean":
+      return typeof value === "boolean"
+        ? []
+        : issue(`${question.key} default must be true or false`);
+    case "single_choice":
+      return typeof value === "string" && answer.options.some((o) => o.code === value)
+        ? []
+        : issue(`${question.key} default must be one of its option codes`);
+    case "number": {
+      if (typeof value !== "number" || !Number.isFinite(value))
+        return issue(`${question.key} default must be a number`);
+      if (answer.format === "integer" && !Number.isInteger(value))
+        return issue(`${question.key} default must be a whole number`);
+      if (
+        (answer.min !== undefined && value < answer.min) ||
+        (answer.max !== undefined && value > answer.max)
+      )
+        return issue(`${question.key} default must be within its minimum and maximum`);
+      return [];
+    }
+    case "tally": {
+      if (typeof value !== "number" || !Number.isInteger(value) || value < 0)
+        return issue(`${question.key} default must be a whole number of 0 or more`);
+      if (answer.max !== undefined && value > answer.max)
+        return issue(`${question.key} default must be at most its highest count for one option`);
+      if (answer.maxTotal !== undefined && value * answer.options.length > answer.maxTotal)
+        return issue(`${question.key} default for every option must fit its highest total`);
+      return [];
+    }
+    default:
+      return issue(`${answer.type} questions cannot have a default`);
+  }
 }
 
 function identityIssues(contract: Contract): ContractIssue[] {
@@ -602,6 +656,7 @@ export function validateContract(
       });
     seen.add(q.key);
     issues.push(...answerIssues(q, ["questions", i]));
+    issues.push(...defaultIssues(q, ["questions", i]));
   }
   issues.push(...identityIssues(contract));
   // Reference checks need unique codes to be meaningful.

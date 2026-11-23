@@ -90,6 +90,31 @@ export function checkAnswer(question: Question, value: unknown): AnswerCheck {
   }
 }
 
+// Apply the question's default to a checked answer. A default replaces only an unknown answer;
+// an invalid answer stays invalid so the scout is asked again. For a tally, the default count
+// fills the options the scout did not state, unless that would break the tally's limits.
+export function applyDefault(
+  question: Question,
+  check: AnswerCheck,
+): { check: AnswerCheck; defaulted: boolean } {
+  const fallback = question.default;
+  if (fallback === undefined || check.status === "invalid") return { check, defaulted: false };
+  if (question.answer.type === "tally") {
+    if (typeof fallback !== "number") return { check, defaulted: false };
+    const stated = check.status === "known" && isRecord(check.value) ? check.value : {};
+    const missing = question.answer.options.filter((o) => !Object.hasOwn(stated, o.code));
+    if (!missing.length) return { check, defaulted: false };
+    const filled = { ...stated };
+    for (const option of missing) filled[option.code] = fallback;
+    const merged = checkAnswer(question, filled);
+    return merged.status === "known"
+      ? { check: merged, defaulted: true }
+      : { check, defaulted: false };
+  }
+  if (check.status === "known") return { check, defaulted: false };
+  return { check: { status: "known", value: fallback }, defaulted: true };
+}
+
 // Combine the statements of one question that are still in effect. Most answers take the latest
 // statement. A tally merges by option: a later count for an option replaces the earlier one, a
 // null option withdraws it, and a null tally withdraws every option.
@@ -149,6 +174,9 @@ export interface QuestionResult {
   blocking: boolean;
   // Each rule of the question, in contract order. Explains visibility and requirement.
   rules: RuleOutcome[];
+  // True when the current value comes from the question's default, wholly or, for a tally,
+  // for the options the scout did not state.
+  defaulted: boolean;
 }
 
 export interface FollowUp {
@@ -173,12 +201,13 @@ export interface Evaluation {
 // Deterministic evaluation of one set of answers against a validated contract.
 export function evaluateAnswers(contract: Contract, values: Record<string, unknown>): Evaluation {
   const byKey = new Map(contract.questions.map((q) => [q.key, q]));
-  const checks = new Map(
-    contract.questions.map((q) => [
-      q.key,
-      checkAnswer(q, Object.hasOwn(values, q.key) ? values[q.key] : null),
-    ]),
+  const applied = new Map(
+    contract.questions.map((q) => {
+      const stated = checkAnswer(q, Object.hasOwn(values, q.key) ? values[q.key] : null);
+      return [q.key, { ...applyDefault(q, stated), stated }];
+    }),
   );
+  const checks = new Map([...applied].map(([key, { check }]) => [key, check]));
   const visibilityMemo = new Map<string, Truth>();
   const rulesFor = (question: Question, effects: RuleEffect[]) =>
     (question.rules ?? []).filter((r) => effects.includes(r.effect));
@@ -266,8 +295,15 @@ export function evaluateAnswers(contract: Contract, values: Record<string, unkno
   const current: Record<string, AnswerValue> = {};
   const inactive: Record<string, unknown> = {};
   for (const question of contract.questions) {
-    const check = checks.get(question.key) as AnswerCheck;
     const visible = visibility(question);
+    // A default applies only to a question that is asked. Hidden questions and questions whose
+    // applicability is not known yet are judged on what the scout stated.
+    const entry = applied.get(question.key) as {
+      check: AnswerCheck;
+      stated: AnswerCheck;
+      defaulted: boolean;
+    };
+    const check = visible === true ? entry.check : entry.stated;
     const value = check.status === "known" ? check.value : null;
     const problem = check.status === "invalid" ? check.reason : undefined;
     const rules = (question.rules ?? []).map((rule, index) => ({
@@ -275,7 +311,8 @@ export function evaluateAnswers(contract: Contract, values: Record<string, unkno
       effect: rule.effect,
       holds: condition(rule.when),
     }));
-    const base = { key: question.key, value, ...(problem ? { problem } : {}), rules };
+    const defaulted = visible === true && entry.defaulted;
+    const base = { key: question.key, value, ...(problem ? { problem } : {}), rules, defaulted };
     if (visible === false) {
       if (values[question.key] !== null && values[question.key] !== undefined)
         inactive[question.key] = values[question.key];

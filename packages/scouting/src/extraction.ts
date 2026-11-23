@@ -178,6 +178,9 @@ export interface FieldState {
   visibility: Visibility;
   requirement: Requirement;
   problem?: string;
+  // The current value comes from the question's default, not from the scout. For a tally,
+  // the default filled the options the scout did not state.
+  defaulted?: true;
 }
 
 // Stored per session in raw_entry.extraction_result and used by the data API.
@@ -271,6 +274,7 @@ function finalize(contract: Contract, turns: unknown[]) {
           visibility: q.visibility,
           requirement: q.requirement,
           ...(q.problem ? { problem: q.problem } : {}),
+          ...(q.defaulted ? { defaulted: true as const } : {}),
         },
       ]),
     ),
