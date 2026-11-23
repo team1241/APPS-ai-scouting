@@ -6,10 +6,12 @@ import {
   blankQuestion,
   codeFromLabel,
   conditionSources,
+  defaultSummary,
   dependencies,
   editorIssue,
   editorIssues,
   ruleSentence,
+  serializeQuestion,
   serializeQuestions,
   toEditorQuestions,
   validatedDraft,
@@ -221,4 +223,36 @@ test("a tally question can be added to an existing draft", () => {
   assert.deepEqual(latestStated(result).coral_scored, { l1: 2, l4: 3 });
   // Values production does not use still show as stated.
   assert.equal(latestStated(result).team_number, 0);
+});
+
+test("default answers round-trip, validate and read in plain words", () => {
+  const questions = toEditorQuestions(pit.questions);
+  const climb = questions.find((q) => q.answer.type === "boolean");
+  const choice = questions.find((q) => q.answer.type === "single_choice");
+  const number = questions.find((q) => q.answer.type === "number" && q.key !== "team_number");
+  assert.ok(climb && choice && number);
+  climb.defaultValue = "false";
+  choice.defaultValue = item(choice.answer.options, 0).code;
+  number.defaultValue = number.answer.min.trim() || "0";
+  assert.deepEqual(editorIssues("pit", "", questions), []);
+  const serialized = serializeQuestions(questions);
+  assert.equal(serialized.find((q) => q.key === climb.key)?.default, false);
+  assert.equal(serialized.find((q) => q.key === choice.key)?.default, choice.defaultValue);
+  assert.equal(typeof serialized.find((q) => q.key === number.key)?.default, "number");
+  assert.deepEqual(serializeQuestions(toEditorQuestions(serialized)), serialized);
+  assert.equal(defaultSummary(climb), "No");
+  assert.equal(defaultSummary(choice), item(choice.answer.options, 0).label);
+  // Problems are placed on the default field.
+  choice.defaultValue = "missing";
+  number.defaultValue = "abc";
+  const fields = editorIssues("pit", "", questions)
+    .filter((i) => i.field === "default")
+    .map((i) => i.questionId);
+  assert.deepEqual(fields.sort(), [choice.id, number.id].sort());
+  // Types without default support never send one.
+  const text = questions.find((q) => q.answer.type === "text");
+  if (text) {
+    text.defaultValue = "anything";
+    assert.equal(serializeQuestion(text, questions).default, undefined);
+  }
 });

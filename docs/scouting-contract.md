@@ -62,6 +62,25 @@ Option codes are stable. Option labels can change.
 
 A `tally` records a count for each option, for example game pieces scored at each location. An option the scout does not state is unknown, not `0`. The tally is known when at least one option is stated. `{}` is unknown. Rules cannot depend on a tally yet.
 
+### Default answers
+
+A question can have an optional `default`. The application applies it after extraction, so the result does not depend on the model. The model never sees defaults and still omits a question the scout does not mention.
+
+| Type            | `default`                                                                                                                                               |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `boolean`       | `true` or `false`                                                                                                                                       |
+| `single_choice` | One option code                                                                                                                                         |
+| `number`        | A number within `min` and `max`; a whole number for `integer`                                                                                           |
+| `tally`         | A whole-number count, 0 or more, used for every option the scout does not state. It must fit `max`, and the count for every option must fit `maxTotal`. |
+
+`text`, `multiple_choice` and identity questions cannot have a default (`invalid_default`).
+
+- The default applies when the answer is unknown: nothing stated, or `null`. A stated answer always wins. An invalid answer is not replaced; it is reported and asked again.
+- For a tally, stated counts are kept and the default fills the other options. If the fill would break `maxTotal`, it is not applied.
+- A default counts as an answer for rules, completeness and export, so a required question with a default is never asked.
+- Only asked questions use their default. A hidden question, or one whose applicability is not known yet, is judged on what the scout stated.
+- `QuestionResult.defaulted` and `fields[key].defaulted` mark an answer that came from the default, wholly or for some tally options. History holds only what the scout stated.
+
 ### Adding a type
 
 Add a new member to the `answer` discriminated union. Add it to `answerTypes`, `operatorsByType` and `checkAnswer`, and add validator tests. Readers built before the new type reject documents that use it (`unsupported_type`). Increase `formatVersion` only when the meaning of an existing field changes. Then add an upgrade path similar to the format 1 upgrade.

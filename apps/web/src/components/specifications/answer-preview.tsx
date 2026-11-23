@@ -11,7 +11,12 @@ import { Button, Checkbox, Input } from "@heroui/react";
 import { RotateCcw } from "lucide-react";
 import { useMemo, useState } from "react";
 import { StatusBadge } from "@/components/status-badge";
-import { answerSummary, type EditorQuestion, ruleSentence } from "@/lib/specification-model";
+import {
+  answerSummary,
+  defaultSummary,
+  type EditorQuestion,
+  ruleSentence,
+} from "@/lib/specification-model";
 import {
   answerFromInput,
   explain,
@@ -312,6 +317,9 @@ export function AnswerPreview({
                       {editor ? answerSummary(editor) : question.answer.type}
                       {" · "}
                       {requirementLabel(outcome)}
+                      {editor && defaultSummary(editor)
+                        ? ` · Default: ${defaultSummary(editor)}`
+                        : null}
                     </p>
                   </div>
                   <StatusBadge tone={state.tone}>{state.label}</StatusBadge>

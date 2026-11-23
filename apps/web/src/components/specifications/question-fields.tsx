@@ -1,6 +1,6 @@
 "use client";
 
-import type { AnswerType, ObservationKind } from "@ai-scouting/scouting";
+import { type AnswerType, type ObservationKind, supportsDefault } from "@ai-scouting/scouting";
 import { Button, Checkbox, Input, TextArea } from "@heroui/react";
 import { ArrowDown, ArrowUp, Lock, Plus, X } from "lucide-react";
 import {
@@ -380,6 +380,75 @@ function renameOptions(
   }));
 }
 
+// Keeps the default when the answer settings change: a new answer type clears it, and a
+// renamed option code is followed.
+function carryDefault(question: EditorQuestion, answer: EditorAnswer) {
+  if (answer.type !== question.answer.type) return "";
+  if (answer.type !== "single_choice") return question.defaultValue;
+  const before = question.answer.options.find((o) => o.code === question.defaultValue);
+  const after = before && answer.options.find((o) => o.id === before.id);
+  return after ? after.code : question.defaultValue;
+}
+
+function DefaultEditor({
+  question,
+  problems,
+  onChange,
+}: {
+  question: EditorQuestion;
+  problems: Map<string, string[]>;
+  onChange: (defaultValue: string) => void;
+}) {
+  const { answer } = question;
+  const id = `q-${question.id}-default`;
+  const tally = answer.type === "tally";
+  const hint = tally
+    ? "Optional. Used for each option the scout does not state, for example 0. Stated counts always replace it."
+    : "Optional. Used when no message gives an answer. A stated answer always replaces it. The AI does not see the default.";
+  return (
+    <Field
+      id={id}
+      label={tally ? "Default count" : "Default answer"}
+      hint={hint}
+      errors={problems.get("default")}
+      className="max-w-sm"
+    >
+      {(props) =>
+        answer.type === "boolean" || answer.type === "single_choice" ? (
+          <ChoiceSelect
+            {...props}
+            value={question.defaultValue}
+            onChange={onChange}
+            choices={[
+              { value: "", label: "No default" },
+              ...(answer.type === "boolean"
+                ? [
+                    { value: "true", label: "Yes" },
+                    { value: "false", label: "No" },
+                  ]
+                : answer.options
+                    .filter((o) => o.code)
+                    .map((o) => ({ value: o.code, label: o.label || o.code }))),
+            ]}
+          />
+        ) : (
+          <Input
+            fullWidth
+            {...props}
+            inputMode={
+              answer.type === "number" && answer.format === "decimal" ? "decimal" : "numeric"
+            }
+            className={`${input} tabular-nums`}
+            placeholder="No default"
+            value={question.defaultValue}
+            onChange={(e) => onChange(e.target.value)}
+          />
+        )
+      }
+    </Field>
+  );
+}
+
 // Which fields an inspector tab shows. "all" is the single-column layout.
 export type QuestionSection = "question" | "answer" | "rules" | "all";
 
@@ -420,7 +489,7 @@ export function QuestionFields({
   const setAnswer = (answer: EditorAnswer) =>
     onQuestionsChange((all) =>
       renameOptions(all, question.key, question.answer, answer).map((q) =>
-        q.id === question.id ? { ...q, answer } : q,
+        q.id === question.id ? { ...q, answer, defaultValue: carryDefault(question, answer) } : q,
       ),
     );
   return (
@@ -583,6 +652,13 @@ export function QuestionFields({
             problems={problems}
             onChange={setAnswer}
           />
+          {supportsDefault(question.answer.type) && !identity ? (
+            <DefaultEditor
+              question={question}
+              problems={problems}
+              onChange={(defaultValue) => patch({ defaultValue })}
+            />
+          ) : null}
         </div>
       ) : null}
       {show("rules") ? (

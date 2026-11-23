@@ -10,6 +10,7 @@ import {
   type ObservationKind,
   operatorsByType,
   type RuleEffect,
+  supportsDefault,
   validateContract,
 } from "@ai-scouting/scouting";
 
@@ -66,6 +67,8 @@ export interface EditorQuestion {
   answer: EditorAnswer;
   rules: EditorRule[];
   keyLocked: boolean;
+  // The default answer as typed: "true" or "false", an option code, or a number. Empty is none.
+  defaultValue: string;
 }
 
 export interface EditorIssue {
@@ -180,6 +183,10 @@ export function toEditorQuestion(input: unknown): EditorQuestion {
     },
     rules: Array.isArray(value.rules) ? value.rules.map(toRule) : [],
     keyLocked: true,
+    defaultValue:
+      typeof value.default === "boolean" || typeof value.default === "number"
+        ? String(value.default)
+        : text(value.default),
   };
 }
 
@@ -263,7 +270,19 @@ export function serializeQuestion(question: EditorQuestion, questions: EditorQue
     ...(question.rules.length
       ? { rules: question.rules.map((r) => serializeRule(r, questions)) }
       : {}),
+    ...serializeDefault(question),
   };
+}
+
+// The default is sent only for types that support one. Numbers that do not parse are sent as
+// typed, so validation reports them instead of the default disappearing.
+function serializeDefault(question: EditorQuestion): { default?: boolean | number | string } {
+  const { type } = question.answer;
+  const value = question.defaultValue.trim();
+  if (!value || !supportsDefault(type)) return {};
+  if (type === "boolean") return { default: value === "true" };
+  if (type === "single_choice") return { default: value };
+  return { default: serializeNumber(value) };
 }
 
 export const serializeQuestions = (questions: EditorQuestion[]) =>
@@ -311,6 +330,7 @@ export function blankQuestion(questions: EditorQuestion[]): EditorQuestion {
     },
     rules: [],
     keyLocked: false,
+    defaultValue: "",
   };
 }
 
@@ -492,6 +512,22 @@ export function answerSummary(question: EditorQuestion) {
   }
 }
 
+// The default answer in plain words, or null when the question has none.
+export function defaultSummary(question: EditorQuestion): string | null {
+  const value = question.defaultValue.trim();
+  if (!value || !supportsDefault(question.answer.type)) return null;
+  switch (question.answer.type) {
+    case "boolean":
+      return value === "true" ? "Yes" : "No";
+    case "single_choice":
+      return question.answer.options.find((o) => o.code === value)?.label || value;
+    case "tally":
+      return `${value} for each option the scout does not state`;
+    default:
+      return value;
+  }
+}
+
 // Which questions each question's rules read. Drawn as the outline's rule gutter.
 export interface Dependency {
   from: number;
@@ -659,6 +695,39 @@ function questionIssues(
     }
   }
 
+  const fallback = question.defaultValue.trim();
+  if (fallback && supportsDefault(answer.type) && !identityPolicy(kind, question.key)) {
+    const parsed = parseNumber(fallback);
+    if (answer.type === "single_choice" && !answer.options.some((o) => o.code === fallback))
+      add("default", "Choose one of the options as the default, or no default.");
+    if (answer.type === "number") {
+      const min = parseNumber(answer.min);
+      const max = parseNumber(answer.max);
+      if (!("value" in parsed))
+        add("default", "Enter a number for the default, or leave it empty.");
+      else if (answer.format === "integer" && !Number.isInteger(parsed.value))
+        add("default", "Whole-number questions need a whole-number default.");
+      else if (
+        ("value" in min && parsed.value < min.value) ||
+        ("value" in max && parsed.value > max.value)
+      )
+        add("default", "The default must be within the minimum and maximum.");
+    }
+    if (answer.type === "tally") {
+      const max = parseNumber(answer.max);
+      const total = parseNumber(answer.maxTotal);
+      if (!("value" in parsed) || !Number.isInteger(parsed.value) || parsed.value < 0)
+        add(
+          "default",
+          "Enter a whole number of 0 or more for the default count, or leave it empty.",
+        );
+      else if ("value" in max && parsed.value > max.value)
+        add("default", "The default count must be at most the highest count for one option.");
+      else if ("value" in total && parsed.value * answer.options.length > total.value)
+        add("default", "The default count for every option must fit within the highest total.");
+    }
+  }
+
   // Rules: everything the rule editor can check without the full contract.
   const effects = new Set(question.rules.map((r) => r.effect));
   if (effects.has("show") && effects.has("hide"))
@@ -769,6 +838,7 @@ const coveredCodes = new Set<ContractIssue["code"]>([
   "self_reference",
   "conflicting_rules",
   "redundant_rule",
+  "invalid_default",
 ]);
 
 function issueField(issue: ContractIssue, question: EditorQuestion | undefined) {

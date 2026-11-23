@@ -67,10 +67,14 @@ export interface StateView {
 }
 
 // The answer state of one question. Unknown and inactive stay distinct from a missing answer.
-export function stateView(field: Pick<FieldState, "state" | "requirement">): StateView {
+export function stateView(
+  field: Pick<FieldState, "state" | "requirement"> & { defaulted?: boolean },
+): StateView {
   switch (field.state) {
     case "answered":
-      return { tone: "success", label: "Answered" };
+      return field.defaulted
+        ? { tone: "success", label: "Answered with default" }
+        : { tone: "success", label: "Answered" };
     case "missing":
       return { tone: "danger", label: "Missing" };
     case "invalid":
@@ -149,15 +153,16 @@ export function explain(question: Question, result: QuestionResult): string[] {
 }
 
 // The latest value each question received, including values production does not use. A current
-// answer comes from the result, because a tally merges counts from several messages.
+// answer comes from the result, because a tally merges counts from several messages and a
+// default is never stated.
 export function latestStated(result: ExtractionResult): Record<string, unknown> {
   const latest: Record<string, unknown> = {};
   for (const [key, entries] of Object.entries(result.history)) {
     const last = entries.at(-1);
-    if (Object.hasOwn(result.values, key)) latest[key] = result.values[key];
-    else if (last) latest[key] = last.value;
+    if (last) latest[key] = last.value;
   }
-  return latest;
+  // Current answers include defaults, which have no history.
+  return { ...latest, ...result.values };
 }
 
 export const questionByKey = (contract: Contract, key: string) =>

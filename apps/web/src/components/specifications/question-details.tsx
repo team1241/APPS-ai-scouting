@@ -4,6 +4,7 @@ import type { ObservationKind } from "@ai-scouting/scouting";
 import { useState } from "react";
 import {
   answerSummary,
+  defaultSummary,
   type EditorQuestion,
   identityPolicies,
   ruleSentence,
@@ -34,6 +35,8 @@ function Details({
     ["Answer", answerSummary(question)],
     ["Requirement", question.required ? "Required" : "Optional"],
   ];
+  const fallback = defaultSummary(question);
+  if (fallback) rows.push(["Default answer", fallback]);
   if (question.answer.options.length)
     rows.push([
       "Options",
